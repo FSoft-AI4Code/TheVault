@@ -1,0 +1,5 @@
+# for data crawl
+datasets
+
+# for preprocessing
+tree-sitter

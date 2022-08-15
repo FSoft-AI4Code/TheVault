@@ -1,0 +1,6 @@
+*/build/*
+*/tree-sitter-*
+*.jsonl
+*.json
+*.zip
+*.gz
