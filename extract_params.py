@@ -100,7 +100,7 @@ def preprocessing_param(data_path):
 
 def args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default='./data')
+    parser.add_argument('--data', type=str, default='./CSN')
 
     return parser.parse_args()
 
@@ -116,6 +116,6 @@ if __name__ == "__main__":
         tags = [f'{x}.jsonl' for x in ['train', 'test', 'valid']]
         
         for tag in tags:
-            preprocessing_param('./CSN/java/test.jsonl')
+            preprocessing_param(data_path=os.path.join(path, tag))
     
     
