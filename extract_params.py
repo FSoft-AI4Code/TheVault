@@ -22,16 +22,18 @@ def extract_function_params(function_code, comment, file_name,):
     # print(function_code)
     
     try:
-        params = report.function_list[0].full_parameters
+        params = report.function_list[0].full_parameters  # 1 function only
     except IndexError:
         return None
 
     params_dict = {}
+    
+    # print(params)
 
     for each in params:
         line = str(each).split(' ')
         # print(line)
-        params_dict[line[-1]] = {'type': line[-2], 'docstring': False}
+        params_dict[line[-1]] = {'docstring': False}
         
     preprocessed = re.split(r"(@+[\w]*)", comment)
 
@@ -45,22 +47,24 @@ def extract_function_params(function_code, comment, file_name,):
             line += sub_str
     splited_comment.append(line)
     # print(splited_comment)
-    
-    # print(splited_comment)
-    processed_docstring = []
-    for line in splited_comment:
-        if re.search(r"(@+[\w]*)", line):
-            break_line = line.split(' ')
-            # print(break_line[0])
-            if break_line[0] == '@param':
-                if break_line[1] not in params_dict.keys():
-                    params_dict[break_line[1]] = {}
-                params_dict[break_line[1]]['docstring'] = ' '.join(break_line[2:])
 
+    processed_docstring = []
+    try:
+        for line in splited_comment:
+            if re.search(r"(@+[\w]*)", line):
+                break_line = line.split(' ') # 0=tag, 1=type, 2=name
+                if break_line[0] == '@param':
+                    if break_line[2] not in params_dict.keys():
+                        params_dict[break_line[2]] = {}
+                    params_dict[break_line[2]]['type'] = re.search(r"\b\w*", break_line[1]).group()
+                    params_dict[break_line[2]]['docstring'] = ' '.join(break_line[3:])
+
+                else:
+                    params_dict[break_line[0]] = ' '.join(break_line[1:])
             else:
-                params_dict[break_line[0]] = ' '.join(break_line[1:])
-        else:
-            processed_docstring.append(line)
+                processed_docstring.append(line)
+    except Exception:
+        return None
     
     metadata['params'] = params_dict
     metadata['processed_docstring'] = processed_docstring
@@ -96,6 +100,8 @@ def preprocessing_param(data_path):
         with open(os.path.join(save_file), "a") as outfile:
             json_object = json.dump(line, outfile)
             outfile.write('\n')
+        
+        # break
             
 
 def args():
@@ -109,7 +115,7 @@ if __name__ == "__main__":
     opt = args()
     data_path = opt.data  # './CSN'
     
-    for language in ['java']: # ['ruby','go','java','javascript','php','python']:
+    for language in ['python']: # ['ruby','go','java','php','python']:  # done java, javascript
         print(f"Preprocessing language: {language}")
         path = os.path.join(data_path, language)
         
