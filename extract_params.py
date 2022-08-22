@@ -52,7 +52,7 @@ if __name__ == "__main__":
     opt = args()
     data_path = opt.data  # './CSN'
     
-    for language in ['ruby']: # ['ruby','go','java','php','python']:  # done java, javascript
+    for language in ['java']: # ['ruby','go','java','php','python']:  # done java, javascript, ruby
         print(f"Preprocessing language: {language}")
         path = os.path.join(data_path, language)
         
