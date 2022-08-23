@@ -3,6 +3,7 @@ import re
 import json
 from typing import List
 from lizard import analyze_file
+from docstring_parser import parse
 
 from .tokenize import tokenize_docstring
 
@@ -159,13 +160,18 @@ class Python_extractor():
     def __init__(self, code, comment, file_name):
         self.param_dict = self.extract_params(code, file_name)
         if not self.param_dict:
-            self.metadata = {}
-            self.metadata['params'] = []
-            self.metadata['processed_docstring'] = comment
-            self.metadata['processed_docstring_tokens'] = tokenize_docstring(' '.join(comment))
+            self.metadata = self.extract_comment_without_param(comment)
         
         else:
             self.metadata = self.extract_param_comment(comment, self.param_dict)
+        # if not self.param_dict:
+        #     self.metadata = {}
+        #     self.metadata['docstring_param'] = []
+        #     self.metadata['processed_docstring'] = comment
+        #     self.metadata['processed_docstring_tokens'] = tokenize_docstring(' '.join(comment))
+        
+        # else:
+        #     self.metadata = self.extract_param_comment(comment, self.param_dict)
             
     def extract_params(self, function_code, file_name):
         params = function_extract(function_code, file_name)
@@ -178,14 +184,78 @@ class Python_extractor():
             words = re.findall(r"\w+", each)
             
             if len(words) >= 1:  # only param; param with type, default value, function, etc
-                params_dict[words[0]] = {'docstring': False}
+                params_dict[words[0]] = {'docstring': None}
+                
+            params_dict['other_params'] = {}
         
         return params_dict
-
-    def extract_param_comment(self, comment, param_list):
-        # break long string into line by \n\r
-        splitted_string = re.split('\n|\r', comment)
+    
+    def extract_comment_without_param(self, comment):
+        metadata = {}
+        metadata['docstring_params'] = {}
+        try: 
+            docstring = parse(comment)
+            
+            for item in docstring.meta:
+                tag = item.args[0]
+                try:
+                    metadata['docstring_params'][tag] = {'docstring': str(item.description).strip()}
+                    if item.type_name is not None:
+                        metadata['docstring_params'][tag]['type'] = item.type_name
+                except Exception:
+                    metadata['docstring_params'][tag] = str(item.description).strip()
+                
+        except Exception:
+            return None
         
-        # Type 1: 
-        regex_str = r"[\r|\n]+\s*(\:+[\w]*)"
+        metadata['processed_docstring'] = comment
+        metadata['processed_docstring_tokens'] = tokenize_docstring(comment)
+        
+
+    def extract_param_comment(self, comment, param_dict):
+        metadata = {}
+        try:
+            docstring = parse(comment)
+        except Exception:
+            return None
+        # print(docstring.__dict__)
+        
+        for item in docstring.meta:
+            # print(item.args)
+            try:
+                if item.args[0] == 'param':
+                    name = item.arg_name
+                    param_type = item.type_name
+                    param_default = item.default
+                    param_docstring = item.description
+                    
+                    if name in param_dict.keys():
+                        param_dict[name]['docstring'] = param_docstring
+                        param_dict[name]['type'] = param_type
+                        param_dict[name]['default'] = param_default
+                        
+                    else:
+                        param_dict['other_params']
+                    
+                else:
+                    tag = item.args[0]
+                    try:
+                        param_dict[tag] = {'docstring': str(item.description).strip(),
+                                        'type': item.type_name}
+                    except Exception:
+                        param_dict[tag] = str(item.description).strip()
+            except Exception:
+                return None
+                
+        description = ""
+        if docstring.long_description is not None:
+            description += str(docstring.long_description).strip()
+        if docstring.short_description is not None:
+            description += str(docstring.short_description).strip()
+        
+        metadata['docstring_params'] = param_dict
+        metadata['processed_docstring'] = description
+        metadata['processed_docstring_tokens'] = tokenize_docstring(description)
+        
+        return metadata
         

@@ -9,7 +9,7 @@ from tqdm import tqdm
 from lizard import analyze_file
 
 from utils.tokenize import tokenize_docstring
-from utils.languages_function import export_jsonl, Java_extractor
+from utils.languages_function import export_jsonl, Java_extractor, Python_extractor
 
 
 def preprocessing_param(data_path):
@@ -30,7 +30,7 @@ def preprocessing_param(data_path):
         comment = line['docstring']
         path = pathlib.PurePath(line['path']).name
         
-        exactor = Java_extractor(code, comment, path)
+        exactor = Python_extractor(code, comment, path)
         metadata = exactor.metadata
         if not metadata:
             save_file = os.path.join(save_dir, f'fail_{file_name}')  # and not update line
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     opt = args()
     data_path = opt.data  # './CSN'
     
-    for language in ['java']: # ['ruby','go','java','php','python']:  # done java, javascript, ruby
+    for language in ['python']: # ['ruby','go','java','php','python']:  # done java, javascript, ruby
         print(f"Preprocessing language: {language}")
         path = os.path.join(data_path, language)
         
