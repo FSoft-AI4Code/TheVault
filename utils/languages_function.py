@@ -5,7 +5,7 @@ from typing import List
 from lizard import analyze_file
 from docstring_parser import parse
 
-from .tokenize import tokenize_docstring
+from .tree_utils import remove_words_in_string, tokenize_docstring
 
 
 def export_jsonl(data: dict, save_path: str):
@@ -22,13 +22,6 @@ def function_extract(function_code, file_name):
         return None
     
     return params
-
-
-def remove_words_in_string(words, string):
-    new_string = string
-    for word in words:
-        new_string = str(new_string).replace(word, '')
-    return new_string
 
 
 class Java_extractor():
@@ -159,9 +152,9 @@ class Java_extractor():
 class Python_extractor():
     def __init__(self, code, comment, file_name):
         self.param_dict = self.extract_params(code, file_name)
+        self.param_dict = self.extract_params(code, file_name)
         if not self.param_dict:
             self.metadata = self.extract_comment_without_param(comment)
-        
         else:
             self.metadata = self.extract_param_comment(comment, self.param_dict)
         # if not self.param_dict:
@@ -195,6 +188,7 @@ class Python_extractor():
         metadata['docstring_params'] = {}
         try: 
             docstring = parse(comment)
+            # print(docstring)
             
             for item in docstring.meta:
                 tag = item.args[0]
@@ -208,8 +202,9 @@ class Python_extractor():
         except Exception:
             return None
         
-        metadata['processed_docstring'] = comment
-        metadata['processed_docstring_tokens'] = tokenize_docstring(comment)
+        # metadata['processed_docstring'] = comment
+        # metadata['processed_docstring_tokens'] = tokenize_docstring(comment)
+        return metadata
         
 
     def extract_param_comment(self, comment, param_dict):
@@ -218,7 +213,6 @@ class Python_extractor():
             docstring = parse(comment)
         except Exception:
             return None
-        # print(docstring.__dict__)
         
         for item in docstring.meta:
             # print(item.args)
@@ -248,14 +242,14 @@ class Python_extractor():
                 return None
                 
         description = ""
-        if docstring.long_description is not None:
-            description += str(docstring.long_description).strip()
         if docstring.short_description is not None:
             description += str(docstring.short_description).strip()
+        if docstring.long_description is not None:
+            description += str(docstring.long_description).strip()
         
         metadata['docstring_params'] = param_dict
-        metadata['processed_docstring'] = description
-        metadata['processed_docstring_tokens'] = tokenize_docstring(description)
+        # metadata['processed_docstring'] = description
+        # metadata['processed_docstring_tokens'] = tokenize_docstring(description)
         
         return metadata
         

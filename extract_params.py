@@ -8,7 +8,7 @@ from typing import List
 from tqdm import tqdm
 from lizard import analyze_file
 
-from utils.tokenize import tokenize_docstring
+from utils.tree_utils import tokenize_docstring
 from utils.languages_function import export_jsonl, Java_extractor, Python_extractor
 
 

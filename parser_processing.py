@@ -1,170 +1,97 @@
+'''Parser code and extract params'''
 import os
 import re
 import json
+import argparse
+import pathlib
 from typing import List
+from tqdm import tqdm
+import concurrent.futures
 
-from tree_sitter import Language, Parser
-
-SUPPORTED_LANGUAGES = [ "C#", "C++",  "Java", "JavaScript", "Python",]
-
-FUNCTION_PARSER = ["function_definition", "template_function", "method_declaration", "expression_statement"]
-CLASS_PARSER = ["class_declaration", "class_definition", "class_specifier", "struct_specifier"]
-COMMENT_PARSER = ["comment", "block_comment"]
+from utils.tree_utils import extract_code_to_tree, import_language_parser
+from utils.languages_function import export_jsonl, Java_extractor, Python_extractor
 
 
-DOCSTRING_REGEX_TOKENIZER = re.compile(r"[^\s,'\"`.():\[\]=*;>{\}+-/\\]+|\\+|\.+|\(\)|{\}|\[\]|\(+|\)+|:+|\[+|\]+|{+|\}+|=+|\*+|;+|>+|\++|-+|/+")
+NUMBER_OF_FUNCTION = 0
+NUMBER_OF_CLASS = 0
 
 
-def tokenize_docstring(docstring: str) -> List[str]:
-    return [t for t in DOCSTRING_REGEX_TOKENIZER.findall(docstring) if t is not None and len(t) > 0]
+def extract_param(code, block_comment, path):
+    path = pathlib.PurePath(path).name
+    exactor = Python_extractor(code, block_comment, path)
+    metadata = exactor.metadata
+    return metadata
 
 
-def tokenize_code(node, nodes_to_exclude=None) -> List:
-    tokens = []
-    traverse(node, tokens)
-    return [token.text.decode() for token in tokens if nodes_to_exclude is None or token not in nodes_to_exclude]
+def processing(file, tree_dict, save_path, data_dir):
+    print('Processing: ', file)
+    f_counter, c_counter = 0, 0
+    with open(os.path.join(data_dir, file), 'r') as json_file:
+        json_list = list(json_file)
+    
+    for json_str in tqdm(json_list):
+        line = json.loads(json_str)  # each line is 1 source code file
 
-
-def remove_comment_from_code(code, comment_list):
-    processed_code = str(code)
-    for cmt in comment_list:
-        cmt = cmt.text.decode()
-        processed_code.replace(cmt, '')
+        func_list, class_list = extract_code_to_tree(line, tree_dict)
+        func_save_path = os.path.join(save_path, 'function_data.jsonl')
+        class_save_path = os.path.join(save_path, 'class_data.jsonl')
         
-    return processed_code
-
-
-def traverse(node, results: List) -> None:
-    if node.type == 'string':
-        results.append(node)
-        return
-    for n in node.children:
-        traverse(n, results)
-    if not node.children:
-        results.append(node)
+        # print(func_list, class_list)
+        _processing(func_list, func_save_path)
+        _processing(class_list, class_save_path)
         
+    return
 
-def import_language_parser():
-    list_dir = os.listdir('./languages')
-    list_dir.remove('my-languages.so')
-    print(list_dir)
-    lang_list = [str(x).removeprefix('tree-sitter-').replace('-', '_') for x in list_dir]
-    tree_lang_list = [os.path.join('./languages', x) for x in list_dir]
     
-    
-    if not os.path.exists('languages/my-languages.so'):  # build tree
-        Language.build_library('languages/my-languages.so', tree_lang_list)
-    
-    tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
-    return tree_dict
-    
-    
-def traverse_type(node, results, kind:List) -> None:
-    if node.type in kind:
-        results.append(node)
-    if not node.children:
-        return
-    for n in node.children:
-        traverse_type(n, results, kind)
-        
-        
-def find_kind_have_comment(node, kind:List) -> List:
-    nodes, function_node = [], []
-    function_comment = []
-    traverse_type(node, function_node, kind)
-    
-    
-    if not function_node: return None, None
-    for func in function_node:
-        comments = []
-        traverse_type(func, comments, COMMENT_PARSER)
-        if comments:
-            # print(comments)
-            nodes.append(func)
-            function_comment.append(comments)
-    
-    # print(nodes)
-    # print(function_comment)
-    assert len(nodes) == len(function_comment)
-    return nodes, function_comment
-
-
-def export_data_to_file(data, kind_list, comment_list, language, save_file, type_name='function'):
-    for idx, func in enumerate(kind_list):
-        name = func.child_by_field_name('name')
-        func_name = "None" if name is None else name.text.decode()
-        cmts = comment_list[idx]
-        cmts_tokens = []
-        
-        code = remove_comment_from_code(func.text.decode(), cmts)
-        code_tokens = tokenize_code(func, cmts)
-        for cmt in cmts:
-            processed_cmt = tokenize_docstring(cmt.text.decode())
-            cmts_tokens.append(processed_cmt)
-        cmts = [x.text.decode() for x in comment_list[idx]]
+def _processing(data_list, save_path):
+    for data in data_list:
+        block_comment = data['docstring']['block_comment']
+        if len(block_comment) >= 1:
+            try:
+                block_comment = block_comment[0]
+                metadata = extract_param(data['code'], block_comment, data['path'])
             
-        output = data.copy()
-        output[f'{type_name}_name'] = func_name
-        output[f'{type_name}_comment'] = cmts
-        output['code'] = code
-        output['code_tokens'] = code_tokens
-        output['comment_tokens'] = cmts_tokens
+                data.update(metadata)
+                export_jsonl(data, os.path.join(save_path))
+            except Exception:
+                save_fail(data, save_path)
         
-        with open(os.path.join(save_file, f"{language}_{type_name}.jsonl"), "a") as outfile:
-            json_object = json.dump(output, outfile)
-            outfile.write('\n')
+        else:
+            save_fail(data, save_path)
             
-            
-def extract_code_to_tree(data, tree_dict):
-    processed_data = {
-        "repo_name": data["repo_name"],
-        "path": data["path"],
-        "language": data["language"],
-        "license": data["license"],
-        "size": data["size"]
-    }
-    language = str(data["language"]).lower()
-    if language == "c++": language = "cpp"
-    if language == "c#": language = "c_sharp"
-    
-    save_file = f"./data/{language}"
-    if not os.path.exists(save_file): os.mkdir(save_file)
-    
-    parser = Parser()
-    parser.set_language(tree_dict[str(language).lower()])
-    
-    # tree parser
-    tree = parser.parse(bytes(data["code"], "utf8"))
-    root_tree = tree.root_node
-    
-    function_list, fcmt_list = find_kind_have_comment(root_tree, FUNCTION_PARSER)
-    class_method_list, ccmt_list = find_kind_have_comment(root_tree, CLASS_PARSER)
-    
-    if function_list:
-        export_data_to_file(processed_data, function_list, fcmt_list, language, save_file, 'function')
-    if class_method_list:
-        export_data_to_file(processed_data, class_method_list, ccmt_list, language, save_file, 'class')
-            
-    # travese though function but if it has comment
-    # remove comment
-    
+
+def save_fail(data, save_path):
+    with open(os.path.join(os.path.dirname(save_path), f'fail_sample.jsonl'), 'a') as file:
+        json.dump(data, file)
+        file.write('\n')
+
+
+def args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--n_thread', type=int, default=10)
+    parser.add_argument('--data_path', type=str, default='./data/python/raw/')
+    parser.add_argument('--save_path', type=str, default='./data/python/')
+
+    return parser.parse_args()
+
 
 if __name__ == '__main__':
-    data_dir = './data/raw/'
+    opt = args()
+    data_dir, n_thread, save_path = opt.data_path, opt.n_thread, opt.save_path
     
     tree_dict = import_language_parser()
     
     list_datafile = os.listdir(data_dir)
-    for file in list_datafile:
-        with open(os.path.join(data_dir, file), 'r') as json_file:
-            json_list = list(json_file)
-        
-        for idx, json_str in enumerate(json_list):
-            line = json.loads(json_str)  # each line is 1 source code file
-
-            extract_code_to_tree(line, tree_dict)
-            # if idx > 5:
-            #     break
-        # break
-    
+    # print(list_datafile)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n_thread) as executor:
+        futures = []
+        for idx, file in enumerate(list_datafile):
+            futures.append(executor.submit(processing, file=file, tree_dict=tree_dict, 
+                                           save_path=save_path, data_dir=data_dir,))
+            
+        for future in concurrent.futures.as_completed(futures):
+            print(future.result())
+            
+    # print('Number of extracted function: ', f_counter)
+    # print('Number of extracted class: ', c_counter)
     

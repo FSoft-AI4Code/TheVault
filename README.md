@@ -17,9 +17,14 @@ Extract dataset by languages into `.jsonl` file (store in `./data/raw`)
 python crawl_data --n_samples 100 --languages Python C++ C#
 ```
 
-Extract source code to function-description, class-description, code_line-description:
+Extract source code into mutilple file (for multiple thread later)
 ```bash
-python parser_processing
+python raw_processing.py -n 10 --data_file './data/raw/python_data.jsonl' --save_path './data/python/
+```
+
+Extract source code to function-description, class-description (code_line-description) with n threads:
+```bash
+python parser_processing -n 10 --data_path './data/python' --save_path './data/python'
 ```
 
 ## Data format
