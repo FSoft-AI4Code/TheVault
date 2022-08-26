@@ -19,10 +19,11 @@ def save_file_from_raw(data, index, save_dir, thread_id):
     count = 0
     for idx in tqdm(index):
         count += 1
-        item = json.loads(data[idx])
+        # item = json.loads(data[idx])
+        item = data[idx]
         item_id = item['repo_name'] + '/' + item['path']
 
-        print(f'Thread {thread_id} crawling data: {count} samples | Processing: {item_id}')
+        # print(f'Thread {thread_id} crawling data: {count} samples | Processing: {item_id}')
         if count % 50 == 0:
             os.system('clear')
     
@@ -34,38 +35,39 @@ def save_file_from_raw(data, index, save_dir, thread_id):
             outfile.write(item_id)
 
 
-# if __name__ == '__main__':
-#     opt = args()
-#     file, n, save_dir = opt.data_file, opt.n_file, opt.save_path
-#     dataset = load_dataset("codeparrot/github-code", languages=['Python'], split='train', cache_dir='./cache')
-    
-#     dataset_size = len(dataset)
-#     chunk_size = dataset_size//n
-#     thread_jobs = [dataset[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
-    
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
-#         futures = []
-#         for ids, job in enumerate(thread_jobs):
-#             futures.append(executor.submit(save_file_from_raw, data=dataset, index=job, save_dir=save_dir, thread_id=ids))
-#         for future in concurrent.futures.as_completed(futures):
-#             print(future.result())
-    
 if __name__ == '__main__':
     opt = args()
     file, n, save_dir = opt.data_file, opt.n_file, opt.save_path
+    dataset = load_dataset("codeparrot/github-code", languages=['Python'], split='train', cache_dir='./cache')
     
-    with open(file, 'r') as json_file:
-        json_list = list(json_file)
+    dataset_size = len(dataset)
+    index_list = range(dataset_size)
+    chunk_size = dataset_size//n
+    thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
+        futures = []
+        for ids, job in enumerate(thread_jobs):
+            futures.append(executor.submit(save_file_from_raw, data=dataset, index=job, save_dir=save_dir, thread_id=ids))
+        for future in concurrent.futures.as_completed(futures):
+            print(future.result())
+    
+# if __name__ == '__main__':
+#     opt = args()
+#     file, n, save_dir = opt.data_file, opt.n_file, opt.save_path
+    
+#     with open(file, 'r') as json_file:
+#         json_list = list(json_file)
         
-        dataset_size = len(json_list)
-        index_list = range(dataset_size)
-        chunk_size = dataset_size//n
-        thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
+#         dataset_size = len(json_list)
+#         index_list = range(dataset_size)
+#         chunk_size = dataset_size//n
+#         thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
-            futures = []
-            for ids, job in enumerate(thread_jobs):
-                futures.append(executor.submit(save_file_from_raw, data=json_list, index=job, save_dir=save_dir, thread_id=ids))
-            for future in concurrent.futures.as_completed(futures):
-                print(future.result())
+#         with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
+#             futures = []
+#             for ids, job in enumerate(thread_jobs):
+#                 futures.append(executor.submit(save_file_from_raw, data=json_list, index=job, save_dir=save_dir, thread_id=ids))
+#             for future in concurrent.futures.as_completed(futures):
+#                 print(future.result())
     
