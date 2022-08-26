@@ -4,6 +4,7 @@ import argparse
 from tqdm import tqdm
 import concurrent.futures
 from datasets import load_dataset
+from tqdm import tqdm
 
 def args():
     parser = argparse.ArgumentParser()
@@ -16,7 +17,7 @@ def args():
 
 def save_file_from_raw(data, index, save_dir, thread_id):
     count = 0
-    for idx in index:
+    for idx in tqdm(index):
         count += 1
         item = json.loads(data[idx])
         item_id = item['repo_name'] + '/' + item['path']
@@ -60,7 +61,6 @@ if __name__ == '__main__':
         index_list = range(dataset_size)
         chunk_size = dataset_size//n
         thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
-        print(thread_jobs)
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
             futures = []

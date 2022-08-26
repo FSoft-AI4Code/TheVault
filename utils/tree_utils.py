@@ -76,16 +76,16 @@ def traverse_type(node, results, kind:List) -> None:
 
 def import_language_parser():
     list_dir = os.listdir('./languages')
-    list_dir.remove('my-languages.so')
-    print(list_dir)
-    lang_list = [str(x).removeprefix('tree-sitter-').replace('-', '_') for x in list_dir]
-    tree_lang_list = [os.path.join('./languages', x) for x in list_dir]
     
-    
-    if not os.path.exists('languages/my-languages.so'):  # build tree
+    if not os.path.exists('./languages/my-languages.so'):
+        print(list_dir)
+        lang_list = [str(x).removeprefix('tree-sitter-').replace('-', '_') for x in list_dir]
+        tree_lang_list = [os.path.join('./languages', x) for x in list_dir]
         Language.build_library('languages/my-languages.so', tree_lang_list)
-    
+        
     tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
+    
+    print(tree_dict)
     return tree_dict
 
 
@@ -155,7 +155,7 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
             
     return data_list
             
-def extract_code_to_tree(data, tree_dict):
+def extract_code_to_tree(data, tree_dict, save_file):
     processed_data = {
         "repo": data["repo_name"],
         "path": data["path"],
@@ -167,7 +167,7 @@ def extract_code_to_tree(data, tree_dict):
     if language == "c++": language = "cpp"
     if language == "c#": language = "c_sharp"
     
-    save_file = f"./data/{language}"
+    # save_file = f"./data/{language}"
     if not os.path.exists(save_file): os.mkdir(save_file)
     
     parser = Parser()

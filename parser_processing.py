@@ -12,10 +12,6 @@ from utils.tree_utils import extract_code_to_tree, import_language_parser
 from utils.languages_function import export_jsonl, Java_extractor, Python_extractor
 
 
-NUMBER_OF_FUNCTION = 0
-NUMBER_OF_CLASS = 0
-
-
 def extract_param(code, block_comment, path):
     path = pathlib.PurePath(path).name
     exactor = Python_extractor(code, block_comment, path)
@@ -25,14 +21,13 @@ def extract_param(code, block_comment, path):
 
 def processing(file, tree_dict, save_path, data_dir):
     print('Processing: ', file)
-    f_counter, c_counter = 0, 0
     with open(os.path.join(data_dir, file), 'r') as json_file:
         json_list = list(json_file)
     
     for json_str in tqdm(json_list):
         line = json.loads(json_str)  # each line is 1 source code file
 
-        func_list, class_list = extract_code_to_tree(line, tree_dict)
+        func_list, class_list = extract_code_to_tree(line, tree_dict, save_path)
         func_save_path = os.path.join(save_path, 'function_data.jsonl')
         class_save_path = os.path.join(save_path, 'class_data.jsonl')
         
@@ -81,7 +76,8 @@ if __name__ == '__main__':
     
     tree_dict = import_language_parser()
     
-    list_datafile = os.listdir(data_dir)
+    list_datafile = [x for x in os.listdir(data_dir) if '.jsonl' in x]
+    print('List file: ', list_datafile)
     # print(list_datafile)
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_thread) as executor:
         futures = []
