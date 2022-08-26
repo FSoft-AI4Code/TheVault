@@ -30,28 +30,27 @@ python parser_processing -n 10 --data_path './data/python' --save_path './data/p
 ## Data format
 - **repo:** the owner/repo
 - **path:** the full path to the original file
-- **func_name:** the function or method name
+- **func_name/class_name:** the function or method name
+- **license:** repo license
 - **original_string:** the raw string before tokenization or parsing
 - **language:** the programming language
-- **code/function:** the part of the `original_string` that is code
-- **code_tokens/function_tokens:** tokenized version of `code`
-- **docstring:** the top-level comment or docstring, if it exists in the original string
+- **code:** the part of the `original_string` that is code
+- **code_tokens:** tokenized version of `code`
+
+- **docstring:** the top-level comment or docstring, if it exists in the original string, docstring without param’s doc, return, exception, etc
+    - **block_comment:** docstring
+    - **comment:** docstring
 - **docstring_tokens:** tokenized version of `docstring`
-
-Addition
-
-- **processed_docstring:** docstring without param’s doc, return, exception, etc
-- **processed_docstring_tokens:** token
 - **docstring_params:**
     - **param_1_name:**
-        - **docstring:** docstring of params_1 (`null` if not)
+        - **docstring:** docstring of params_1
         - Optional(**type:** type)
     - **param_2_name:**
-        - **docstring:** docstring of params_2 (`null` if not)
+        - **docstring:** docstring of params_2
         - Optional(**type:** type)
-    - . . .
+    - …
     - **other_params:** other params which don’t list in the function init
         - List of param string (include param name)
-    - **return:** docstring
-    - **exception:** docstring
-    - **[other_tag]:** docstring
+    - **@return:** comment
+    - **@exception:** comment
+    - **@….:** comment
