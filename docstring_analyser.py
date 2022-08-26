@@ -27,7 +27,7 @@ def analysis_data(data_path, file_name):
         except Exception:
             n_param = 0
             
-        n_docstring_token = len(line['processed_docstring_tokens'])
+        n_docstring_token = len(line['docstring_tokens'])
         params_docstring = line['docstring_params']
         
         docstring = False
@@ -63,22 +63,24 @@ def analysis_data(data_path, file_name):
 
 def args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default='./CSN/')
+    parser.add_argument('--data_path', type=str, default='./CSN/python.jsonl')
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     opt = args()
-    data_path = opt.data  # './CSN'
+    data_path = opt.data_path  # './CSN'
     
-    for language in ['java']: # ['ruby','go','java','php','python']:  # done java, javascript, ruby
-        print(f"Preprocessing language: {language}")
-        path = os.path.join(data_path, language, 'edited')
+    # for language in ['java']: # ['ruby','go','java','php','python']:  # done java, javascript, ruby
+    #     print(f"Preprocessing language: {language}")
+    #     path = os.path.join(data_path, language, 'edited')
         
-        tags = [f'edited_{x}.jsonl' for x in ['train', 'test', 'valid']]
+    #     tags = [f'edited_{x}.jsonl' for x in ['train', 'test', 'valid']]
         
-        for tag in tags:
-            print(f"Processing {tag} set")
-            report = analysis_data(data_path=os.path.join(path, tag), file_name=tag)
-            print(report)
+    #     for tag in tags:
+    #         print(f"Processing {tag} set")
+    #         report = analysis_data(data_path=os.path.join(path, tag), file_name=tag)
+    
+    report = analysis_data(data_path=os.path.join(data_path), file_name='train')
+    print(report)
