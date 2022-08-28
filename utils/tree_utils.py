@@ -53,11 +53,13 @@ def traverse(node, results: List) -> None:
 
 def traverse_commment(node, results, parser) -> None:
     if node.type in parser:
+        print(node.type)
         if node.type == 'expression_statement':
             text = remove_words_in_string(['\r','\n'], node.text.decode())
             if DOCSTRING_REGEX.search(text):
                 results.append(node)
         else:
+            # print(node.text)
             results.append(node)
     if not node.children:
         return
@@ -77,13 +79,16 @@ def traverse_type(node, results, kind:List) -> None:
 def import_language_parser():
     list_dir = os.listdir('./languages')
     
-    if not os.path.exists('./languages/my-languages.so'):
-        print(list_dir)
-        lang_list = [str(x).removeprefix('tree-sitter-').replace('-', '_') for x in list_dir]
+    print(list_dir)
+    lang_list = [str(x).removeprefix('tree-sitter-').replace('-', '_') for x in list_dir]
+    
+    if 'my_languages.so' not in lang_list:
         tree_lang_list = [os.path.join('./languages', x) for x in list_dir]
         Language.build_library('languages/my-languages.so', tree_lang_list)
-        
-    tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
+       
+    else:
+        lang_list.remove("my_languages.so") 
+        tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
     
     print(tree_dict)
     return tree_dict
@@ -99,6 +104,13 @@ def find_kind_have_comment(node, kind:List, comment_parse:List=COMMENT_PARSER) -
         comments = []
         traverse_commment(func, comments, comment_parse)
         # print(comments)
+        
+        # cursor = func.walk()  # comment in last line
+        # cursor.goto_next_sibling()
+        
+        # if cursor.node.type in ['comment', 'block_comment']:
+        #     comments.append(cursor.node)
+        
         if not comments:
             function_node.remove(func)
         else:
@@ -126,6 +138,7 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
         output['original_string'] = code
         code_tokens = tokenize_code(func, comments)
         comments = [x.text.decode() for x in comments]
+        # print(comments)
         code = remove_words_in_string(comments, code)
 
         for token in code_tokens[:]:
@@ -136,8 +149,8 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
             processed = tokenize_docstring(cmt)
             comment_tokens.update(processed)
             
+            # print(cmt)
             if DOCSTRING_REGEX.search(cmt):
-                # print(cmt)
                 docstring_list["block_comment"].append(cmt)
             else:
                 # print(cmt)
@@ -156,14 +169,18 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
     return data_list
             
 def extract_code_to_tree(data, tree_dict, save_file):
-    processed_data = {
-        "repo": data["repo_name"],
-        "path": data["path"],
-        "language": data["language"],
-        "license": data["license"],
-        # "size": data["size"]
-    }
+    try:
+        processed_data = {
+            "repo": data["repo"],
+            "path": data["path"],
+            "language": data["language"],
+            # "license": data["license"],
+            # "size": data["size"]
+        }
+    except:
+        raise ValueError('Mismatch key')
     language = str(data["language"]).lower()
+    
     if language == "c++": language = "cpp"
     if language == "c#": language = "c_sharp"
     

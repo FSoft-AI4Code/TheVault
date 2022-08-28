@@ -26,14 +26,14 @@ def processing(file, tree_dict, save_path, data_dir):
     
     for json_str in tqdm(json_list):
         line = json.loads(json_str)  # each line is 1 source code file
-
+        
         func_list, class_list = extract_code_to_tree(line, tree_dict, save_path)
         func_save_path = os.path.join(save_path, 'function_data.jsonl')
-        class_save_path = os.path.join(save_path, 'class_data.jsonl')
+        # class_save_path = os.path.join(save_path, 'class_data.jsonl')
         
         # print(func_list, class_list)
         _processing(func_list, func_save_path)
-        _processing(class_list, class_save_path)
+        # _processing(class_list, class_save_path)
         
     return
 
@@ -77,17 +77,18 @@ if __name__ == '__main__':
     tree_dict = import_language_parser()
     
     list_datafile = [x for x in os.listdir(data_dir) if '.jsonl' in x]
-    print('List file: ', list_datafile)
-    # print(list_datafile)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=n_thread) as executor:
-        futures = []
-        for idx, file in enumerate(list_datafile):
-            futures.append(executor.submit(processing, file=file, tree_dict=tree_dict, 
-                                           save_path=save_path, data_dir=data_dir,))
-            
-        for future in concurrent.futures.as_completed(futures):
-            print(future.result())
-            
-    # print('Number of extracted function: ', f_counter)
-    # print('Number of extracted class: ', c_counter)
     
+    print('List file: ', list_datafile)
+    print(list_datafile)
+    
+    for file in list_datafile:
+        processing(file=file, tree_dict=tree_dict, save_path=save_path, data_dir=data_dir)
+    
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=n_thread) as executor:
+    #     futures = []
+    #     for idx, file in enumerate(list_datafile):
+    #         futures.append(executor.submit(processing, file=file, tree_dict=tree_dict, 
+    #                                        save_path=save_path, data_dir=data_dir,))
+            
+        # for future in concurrent.futures.as_completed(futures):
+        #     print(future.result())

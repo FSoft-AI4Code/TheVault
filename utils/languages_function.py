@@ -152,19 +152,10 @@ class Java_extractor():
 class Python_extractor():
     def __init__(self, code, comment, file_name):
         self.param_dict = self.extract_params(code, file_name)
-        self.param_dict = self.extract_params(code, file_name)
         if not self.param_dict:
             self.metadata = self.extract_comment_without_param(comment)
         else:
             self.metadata = self.extract_param_comment(comment, self.param_dict)
-        # if not self.param_dict:
-        #     self.metadata = {}
-        #     self.metadata['docstring_param'] = []
-        #     self.metadata['processed_docstring'] = comment
-        #     self.metadata['processed_docstring_tokens'] = tokenize_docstring(' '.join(comment))
-        
-        # else:
-        #     self.metadata = self.extract_param_comment(comment, self.param_dict)
             
     def extract_params(self, function_code, file_name):
         params = function_extract(function_code, file_name)
@@ -185,71 +176,97 @@ class Python_extractor():
     
     def extract_comment_without_param(self, comment):
         metadata = {}
-        metadata['docstring_params'] = {}
+        metadata['docstring_params'] = {'other_params': {}}
         try: 
             docstring = parse(comment)
-            # print(docstring)
-            
-            for item in docstring.meta:
-                tag = item.args[0]
-                try:
-                    metadata['docstring_params'][tag] = {'docstring': str(item.description).strip()}
-                    if item.type_name is not None:
-                        metadata['docstring_params'][tag]['type'] = item.type_name
-                except Exception:
-                    metadata['docstring_params'][tag] = str(item.description).strip()
-                
-        except Exception:
+        except Exception as e:
             return None
         
-        # metadata['processed_docstring'] = comment
-        # metadata['processed_docstring_tokens'] = tokenize_docstring(comment)
+        for item in docstring.meta:
+            if len(item.args) > 0:
+                try:
+                    tag = item.args[0]
+                    param_docstring = remove_words_in_string(['\n', '\r'], str(item.description))
+                        
+                    if tag == 'param':
+                        # if item
+                        metadata['docstring_params']['other_params'][tag] = param_docstring
+                        
+                        # try:
+                        if item.type_name is not None:
+                            metadata['docstring_params'][tag] = {'docstring': param_docstring, 'type': item.type_name}
+                        else: 
+                            metadata['docstring_params'][tag] = param_docstring
+                    #         # raise Exception
+                except Exception:
+                    return None
+                    
+            # print(docstring)
+        
+        
+        description = ''.join([x for x in [docstring.short_description, docstring.long_description] if x != None])
+        
+        metadata['docstring'] = description
+        metadata['docstring_tokens'] = tokenize_docstring(comment)
         return metadata
         
 
     def extract_param_comment(self, comment, param_dict):
         metadata = {}
+        comments = []
         try:
             docstring = parse(comment)
         except Exception:
             return None
         
         for item in docstring.meta:
-            # print(item.args)
-            try:
-                if item.args[0] == 'param':
-                    name = item.arg_name
-                    param_type = item.type_name
-                    param_default = item.default
-                    param_docstring = item.description
-                    
-                    if name in param_dict.keys():
-                        param_dict[name]['docstring'] = param_docstring
-                        param_dict[name]['type'] = param_type
-                        param_dict[name]['default'] = param_default
+            if len(item.args) > 0:
+                try:
+                    if item.args[0] == 'param':
+                        name = item.arg_name
+                        param_type = item.type_name
+                        param_default = item.default
+                        param_docstring = item.description
+                        
+                        param_docstring = remove_words_in_string(['\r', '\n'], str(param_docstring))
+                        # print(name, param_docstring)
+                        if name in param_dict.keys():
+                            param_dict[name]['docstring'] = param_docstring
+                            comments.append(param_docstring)
+                            if param_type != None:
+                                param_dict[name]['type'] = param_type
+                            if param_default != None:
+                                param_dict[name]['default'] = param_default
+                            
+                        else:
+                            if param_type != None:
+                                param_dict['other_params'][name] = {'docstring':param_docstring, 'type': param_type}
+                            param_dict['other_params'][name] = param_docstring
                         
                     else:
-                        param_dict['other_params']
-                    
-                else:
-                    tag = item.args[0]
-                    try:
-                        param_dict[tag] = {'docstring': str(item.description).strip(),
-                                        'type': item.type_name}
-                    except Exception:
-                        param_dict[tag] = str(item.description).strip()
-            except Exception:
-                return None
+                        tag = item.args[0]
+                        param_docstring = item.description
+                        # docstring = remove_words_in_string(['\r', '\n'], str(item.description))
+                        if param_docstring != None and param_docstring != "None":
+                            try:
+                                if item.type_name != None:
+                                    param_dict[tag] = {'docstring': param_docstring, 'type': item.type_name}
+                                else:
+                                    raise Exception
+                            except Exception as e:
+                            # else:
+                                param_dict[tag] = param_docstring
+                except Exception:
+                    return None
                 
-        description = ""
-        if docstring.short_description is not None:
-            description += str(docstring.short_description).strip()
-        if docstring.long_description is not None:
-            description += str(docstring.long_description).strip()
+        if not param_dict['other_params']:
+            param_dict.pop('other_params', None)
+
+        description = ' '.join([x for x in [docstring.short_description, docstring.long_description] if x != None])
         
         metadata['docstring_params'] = param_dict
-        # metadata['processed_docstring'] = description
-        # metadata['processed_docstring_tokens'] = tokenize_docstring(description)
+        metadata['docstring'] = description
+        metadata['docstring_tokens'] = tokenize_docstring(description)
         
         return metadata
         
