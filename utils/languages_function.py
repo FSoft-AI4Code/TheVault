@@ -156,6 +156,9 @@ class Python_extractor():
             self.metadata = self.extract_comment_without_param(comment)
         else:
             self.metadata = self.extract_param_comment(comment, self.param_dict)
+        
+        if not self.metadata['docstring_params']['other_params']:
+            self.metadata['docstring_params'].pop('other_params', None)
             
     def extract_params(self, function_code, file_name):
         params = function_extract(function_code, file_name)
@@ -200,14 +203,11 @@ class Python_extractor():
                     #         # raise Exception
                 except Exception:
                     return None
-                    
-            # print(docstring)
+
+        # description = ''.join([x for x in [docstring.short_description, docstring.long_description] if x != None])
         
-        
-        description = ''.join([x for x in [docstring.short_description, docstring.long_description] if x != None])
-        
-        metadata['docstring'] = description
-        metadata['docstring_tokens'] = tokenize_docstring(comment)
+        # metadata['docstring'] = description
+        # metadata['docstring_tokens'] = tokenize_docstring(comment)
         return metadata
         
 
@@ -258,15 +258,12 @@ class Python_extractor():
                                 param_dict[tag] = param_docstring
                 except Exception:
                     return None
-                
-        if not param_dict['other_params']:
-            param_dict.pop('other_params', None)
 
-        description = ' '.join([x for x in [docstring.short_description, docstring.long_description] if x != None])
-        
+        # description = ' '.join([x for x in [docstring.short_description, docstring.long_description] if x != None])
+
         metadata['docstring_params'] = param_dict
-        metadata['docstring'] = description
-        metadata['docstring_tokens'] = tokenize_docstring(description)
+        # metadata['docstring'] = description
+        # metadata['docstring_tokens'] = tokenize_docstring(description)
         
         return metadata
         

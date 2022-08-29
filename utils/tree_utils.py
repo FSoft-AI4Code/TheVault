@@ -53,13 +53,11 @@ def traverse(node, results: List) -> None:
 
 def traverse_commment(node, results, parser) -> None:
     if node.type in parser:
-        print(node.type)
         if node.type == 'expression_statement':
             text = remove_words_in_string(['\r','\n'], node.text.decode())
             if DOCSTRING_REGEX.search(text):
                 results.append(node)
         else:
-            # print(node.text)
             results.append(node)
     if not node.children:
         return
@@ -136,9 +134,9 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
         code = func.text.decode()
         output[f'{type_name}_name'] = func_name
         output['original_string'] = code
-        code_tokens = tokenize_code(func, comments)
+        code_tokens = tokenize_code(func, comments)  # exclude comment line and block
         comments = [x.text.decode() for x in comments]
-        # print(comments)
+        
         code = remove_words_in_string(comments, code)
 
         for token in code_tokens[:]:
@@ -149,16 +147,15 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
             processed = tokenize_docstring(cmt)
             comment_tokens.update(processed)
             
-            # print(cmt)
+
             if DOCSTRING_REGEX.search(cmt):
                 docstring_list["block_comment"].append(cmt)
             else:
-                # print(cmt)
                 docstring_list["line_comment"].append(cmt)
         
         output['code'] = code
         output['code_tokens'] = code_tokens
-        output[f'docstring'] = docstring_list
+        output['docstring'] = docstring_list
         output['docstring_tokens'] = list(comment_tokens)
         
         # with open(os.path.join(save_file, f"{language}_{type_name}.jsonl"), "a") as outfile:
