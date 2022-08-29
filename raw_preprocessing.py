@@ -11,7 +11,8 @@ def args():
     parser.add_argument('--data_file', type=str, default='./data/raw/python_data.jsonl')
     parser.add_argument('--save_path', type=str, default='./data/python/')
     parser.add_argument('--cache_path', type=str, default='./cache')
-    parser.add_argument('-n', '--n_file', type=int, default=10)
+    parser.add_argument('-n', '--n_thread', type=int, default=10)
+    parser.add_argument('-s', '--split', type=int, default=10)
 
     return parser.parse_args()
 
@@ -34,7 +35,7 @@ def save_file_from_raw(data, index, save_dir, thread_id):
 
 if __name__ == '__main__':
     opt = args()
-    n, save_dir, cache_path = opt.n_file, opt.save_path, opt.cache_path
+    n, spliter, save_dir, cache_path = opt.n_thread, opt.split, opt.save_path, opt.cache_path
     dataset = load_dataset("codeparrot/github-code", languages=['Python'], split='train', cache_dir=cache_path)
     
     if not os.path.exists(save_dir):
@@ -42,7 +43,7 @@ if __name__ == '__main__':
     
     dataset_size = len(dataset)
     index_list = range(dataset_size)
-    chunk_size = dataset_size//n
+    chunk_size = dataset_size//spliter
     thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
@@ -54,7 +55,7 @@ if __name__ == '__main__':
     
 # if __name__ == '__main__':
 #     opt = args()
-#     file, n, save_dir = opt.data_file, opt.n_file, opt.save_path
+#     file, n, save_dir = opt.data_file, opt.n_thread, opt.save_path
     
 #     with open(file, 'r') as json_file:
 #         json_list = list(json_file)
