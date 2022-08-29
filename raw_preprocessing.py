@@ -10,6 +10,7 @@ def args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_file', type=str, default='./data/raw/python_data.jsonl')
     parser.add_argument('--save_path', type=str, default='./data/python/')
+    parser.add_argument('--cache_path', type=str, default='./cache')
     parser.add_argument('-n', '--n_file', type=int, default=10)
 
     return parser.parse_args()
@@ -22,10 +23,6 @@ def save_file_from_raw(data, index, save_dir, thread_id):
         # item = json.loads(data[idx])
         item = data[idx]
         item_id = item['repo_name'] + '/' + item['path']
-
-        # print(f'Thread {thread_id} crawling data: {count} samples | Processing: {item_id}')
-        if count % 50 == 0:
-            os.system('clear')
     
         with open(os.path.join(save_dir, f'{thread_id}_batch.jsonl'), "a") as outfile:
             json_object = json.dump(item, outfile)
@@ -37,8 +34,11 @@ def save_file_from_raw(data, index, save_dir, thread_id):
 
 if __name__ == '__main__':
     opt = args()
-    file, n, save_dir = opt.data_file, opt.n_file, opt.save_path
-    dataset = load_dataset("codeparrot/github-code", languages=['Python'], split='train', cache_dir='./cache')
+    n, save_dir, cache_path = opt.n_file, opt.save_path, opt.cache_path
+    dataset = load_dataset("codeparrot/github-code", languages=['Python'], split='train', cache_dir=cache_path)
+    
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
     
     dataset_size = len(dataset)
     index_list = range(dataset_size)
