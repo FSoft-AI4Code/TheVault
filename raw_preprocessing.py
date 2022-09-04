@@ -29,7 +29,7 @@ def save_file_from_raw(data, index, save_dir, thread_id):
             json_object = json.dump(item, outfile)
             outfile.write('\n')
     
-        with open(os.path.join(save_dir, f'_cache_{thread_id}.txt'), "w") as outfile:
+        with open(os.path.join(save_dir, 'cache', f'_cache_{thread_id}.txt'), "w") as outfile:
             outfile.write(item_id)
 
 
@@ -40,6 +40,7 @@ if __name__ == '__main__':
     
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
+        os.mkdir(os.path.join(save_dir, 'cache'))
     
     dataset_size = len(dataset)
     index_list = range(dataset_size)
@@ -50,8 +51,8 @@ if __name__ == '__main__':
         futures = []
         for ids, job in enumerate(thread_jobs):
             futures.append(executor.submit(save_file_from_raw, data=dataset, index=job, save_dir=save_dir, thread_id=ids))
-        for future in concurrent.futures.as_completed(futures):
-            print(future.result())
+        # for future in concurrent.futures.as_completed(futures):
+        #     print(future.result())
     
 # if __name__ == '__main__':
 #     opt = args()
