@@ -3,6 +3,36 @@ Modified
 """
 import re
 from bs4 import BeautifulSoup
+import Levenshtein as lev
+
+from typing import List
+import sys
+
+REGEX_TEXT = ("(?<=[a-z0-9])(?=[A-Z])|"
+              "(?<=[A-Z0-9])(?=[A-Z][a-z])|"
+              "(?<=[0-9])(?=[a-zA-Z])|"
+              "(?<=[A-Za-z])(?=[0-9])|"
+              "(?<=[@$.'\"])(?=[a-zA-Z0-9])|"
+              "(?<=[a-zA-Z0-9])(?=[@$.'\"])|"
+              "_|\\s+")
+
+if sys.version_info >= (3, 7):
+    import re
+    SPLIT_REGEX = re.compile(REGEX_TEXT)
+else:
+    import regex
+    SPLIT_REGEX = regex.compile("(?V1)"+REGEX_TEXT)
+
+
+def split_identifier_into_parts(identifier: str) -> List[str]:
+    """
+    Split a single identifier into parts on snake_case and camelCase
+    """
+    identifier_parts = list(s.lower() for s in SPLIT_REGEX.split(identifier) if len(s)>0)
+
+    if len(identifier_parts) == 0:
+        return [identifier]
+    return identifier_parts
 
 
 def cleanCommentTag(comment):
@@ -173,6 +203,22 @@ def if_BlockComment(raw_code):
     return False
 
 
+def if_comment_generated(fn_name, comment, th=0.4):
+    fn_name_splited = split_identifier_into_parts(fn_name)
+    fn_name_splited = ' '.join(fn_name_splited).lower()
+    
+    comment = str(re.sub(r'[^a-zA-Z0-9]', ' ', comment)).lower()
+
+    d0 = lev.distance(fn_name_splited, comment)
+    d1 = max(len(fn_name_splited), len(comment))
+    
+    # print(d0, d1)
+    if d0 <= d1*th:
+        # print('Auto-code')
+        return True
+    
+    return False
+
 def if_AutoCode_by_comment(comment, raw_comment=None):
     p1 = re.compile(r'(?i)@[a-zA-Z]*generated\b')
     p2 = re.compile('(?i)^([aA]uto[-\s]generated)')
@@ -213,36 +259,32 @@ def if_AutoCode_by_code(raw_code, language='java'):
     else:
         return False
     
-def update_ContentTamper(comment):
-        # we reject comments which contain javadocTag or url
-        # And remove the htmlTag from the comments and retain the wrapped content
-        return BeautifulSoup(comment, "html.parser").get_text()
 
 def clean_comment(comment, code=None):
-    updated_comment = update_ContentTamper(comment)
+    updated_comment = BeautifulSoup(comment, "html.parser").get_text()
     updated_comment = re.sub(r'http\S+', '', updated_comment, flags=re.MULTILINE)
     # updated_comment = re.sub(r'[^a-zA-Z0-9\_\.\,]', ' ', updated_comment)
     comment_list = cleanCommentTag(updated_comment)
-    print(comment_list)
+    # print(comment_list)
     # if if_ContentTamper(updated_comment):
     #     return "Tamper"
     for line in comment_list:
         if if_NonLiteral(line):
-            return "NonLiteral"
+            return None
         if if_Interrogation(line):
-            return "Interrogation"
+            return None
         if if_UnderDevelop(line):
-            return "UnderDevelop"
+            return None
         if if_AutoCode_by_comment(line, code):
-            return "AutoCode comment"
+            return None
         
     if code is not None:
         if if_AutoCode_by_code(code):
-            return "AutoCode code"
+            return None
         if if_EmptyFunc(code):
-            return "Empty"
+            return None
         if if_CommentedOut(code):
-            return "Comment out"
+            return None
 
     
     return  ' '.join(comment_list)
@@ -250,55 +292,62 @@ def clean_comment(comment, code=None):
 
 if __name__ == '__main__':
     # test
+    function_name = "testConstructor"
+    raw_comment =  "Test the constructor"
+    if_comment_generated(function_name, raw_comment)
     
-    # raw_comment = "\t/**\n\t * Creates a new adapter for an object of class '{@link " \
-    #               "org.jsenna.eclipse.schema.dictionary.AbstractDataGroup <em>Abstract Data Group</em>}'.\n\t * <!-- " \
-    #               "begin-user-doc -->\n\t * This default implementation returns null so that we can easily ignore " \
-    #               "cases;\n\t * it's useful to ignore a case when inheritance will catch all the cases anyway.\n\t * " \
-    #               "<!-- end-user-doc -->\n\t * @return the new adapter.\n\t * @see " \
-    #               "org.jsenna.eclipse.schema.dictionary.AbstractDataGroup\n\t * @generated  " \
-    #               "<html> https://google.com </html> */\n\t  "
+    function_name = "writeObject"
+    raw_comment = "Test writing object without using credentials"
+    if_comment_generated(function_name, raw_comment)
     
-    # print(raw_comment)
-    # print('Normal', clean_comment(raw_comment))
+    raw_comment = "\t/**\n\t * Creates a new adapter for an object of class '{@link " \
+                  "org.jsenna.eclipse.schema.dictionary.AbstractDataGroup <em>Abstract Data Group</em>}'.\n\t * <!-- " \
+                  "begin-user-doc -->\n\t * This default implementation returns null so that we can easily ignore " \
+                  "cases;\n\t * it's useful to ignore a case when inheritance will catch all the cases anyway.\n\t * " \
+                  "<!-- end-user-doc -->\n\t * @return the new adapter.\n\t * @see " \
+                  "org.jsenna.eclipse.schema.dictionary.AbstractDataGroup\n\t * @generated  " \
+                  "<html> https://google.com </html> */\n\t  "
     
-    
-    # raw_comment = "\t/* This method was generated by constructor */"
-    # raw_code = "\tpublic void testConstructor() {\n\tSystem TestResult str;\n\tSystem TestID testID1;"
-    # print(raw_comment)
-    # print('Auto-code', clean_comment(raw_comment, raw_code))
+    print(raw_comment)
+    print('Normal', clean_comment(raw_comment))
     
     
-    # raw_comment = "\t/**\n\t * Returns the high-value (as a double primitive) \n\t * for an item within a series.\n\t " \
-    #               "* TODO: fix the return statement\n\t " \
-    #               "* \n\t * @param series\n\t * @param item \n\t * @return The high-value.\n\t */\n "
+    raw_comment = "\t/* This method was generated by constructor */"
+    raw_code = "\tpublic void testConstructor() {\n\tSystem TestResult str;\n\tSystem TestID testID1;"
+    print(raw_comment)
+    print('Auto-code', clean_comment(raw_comment, raw_code))
     
-    # print(raw_comment)
-    # print('UnderDevelop', clean_comment(raw_comment))
+    
+    raw_comment = "\t/**\n\t * Returns the high-value (as a double primitive) \n\t * for an item within a series.\n\t " \
+                  "* TODO: fix the return statement\n\t " \
+                  "* \n\t * @param series\n\t * @param item \n\t * @return The high-value.\n\t */\n "
+    
+    print(raw_comment)
+    print('UnderDevelop', clean_comment(raw_comment))
     
     # print(comment)
     # print(if_ContentTamper(comment))
 
-    # raw_comment = "/**\n     * relayTbList\u3068\u306e\u5916\u90e8\u7d50\u5408\u3092\u30c6\u30b9\u30c8\u3057\u307e" \
-    #               "\u3059\u3002\n     * \n     * @throws Exception\n     */\n "
-    # # comment = getFirstSentence(raw_comment)
-    # print(raw_comment)
-    # print('NonLiteral', clean_comment(raw_comment))
-
-
-    # raw_code = "\tpublic void\n\tpreinitPage() { }\n"
-    # print(raw_code)
-    # print('Empty', clean_comment("comment ", raw_code))
+    raw_comment = "/**\n     * relayTbList\u3068\u306e\u5916\u90e8\u7d50\u5408\u3092\u30c6\u30b9\u30c8\u3057\u307e" \
+                  "\u3059\u3002\n     * \n     * @throws Exception\n     */\n "
+    # comment = getFirstSentence(raw_comment)
     
-    # # print(raw_code)
-    # # print(if_EmptyFunc(raw_code))
+    print(raw_comment)
+    print('NonLiteral', clean_comment(raw_comment))
 
-    # raw_code = "    //    public String transformTypeID(URI typeuri) {\n    //\treturn typeuri.toString();\n    //    }\n"
+
+    raw_code = "\tpublic void\n\tpreinitPage() { }\n"
+    print(raw_code)
+    print('Empty', clean_comment("comment ", raw_code))
+    
     # print(raw_code)
-    # print('CommentOut', clean_comment("comment ", raw_code))
+    # print(if_EmptyFunc(raw_code))
+
+    raw_code = "    //    public String transformTypeID(URI typeuri) {\n    //\treturn typeuri.toString();\n    //    }\n"
+    print(raw_code)
+    print('CommentOut', clean_comment("comment ", raw_code))
     # print(if_CommentedOut(raw_code))
 
     # raw_code = "\tpublic int compareTo(Inparalog inpara) {\n\t\t// sort by 2 digits after .\n\t\treturn (int) (inpara.confidence * 100 - confidence * 100);\n\t}\n"
     # print(if_CommentedOut(raw_code))
     # print(if_BlockComment(raw_code))
-    
