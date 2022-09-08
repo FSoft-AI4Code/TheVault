@@ -128,13 +128,12 @@ def reformat_function_data(info, metadata_list) -> List:
         output['original_string'] = fn['function']
         output['code'] = fn['function']
         output['code_tokens'] = fn['function_tokens']
-        output['docstring'] = {'block_comment': fn['docstring'], 'line_comment': fn['comment']}
+        output['docstring'] = {'block_comment': fn['docstring'] if fn['docstring'] != "" else None, 
+                               'line_comment': fn['comment'] if fn['comment'] else None}
         output['docstring_tokens'] = fn['docstring_tokens']
         output['docstring_params'] = fn['docstring_param']
         
         data_list.append(output)
-    
-    print(data_list)
     
     return data_list    
 

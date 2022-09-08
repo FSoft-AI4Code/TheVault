@@ -40,7 +40,7 @@ class PythonParser(LanguageParser):
         docstring = ''
         if docstring_node is not None:
             docstring = match_from_span(docstring_node, blob)
-            docstring = docstring.strip().strip('"').strip("'").strip("#")
+            docstring = docstring.strip('"').strip("'").strip("#")
         return docstring
     
     @staticmethod
@@ -107,7 +107,7 @@ class PythonParser(LanguageParser):
                             
         new_docstring = ''
         if _docstring.short_description != None:
-            new_docstring += _docstring.short_description
+            new_docstring += _docstring.short_description + '\n'
         if _docstring.long_description != None:
             new_docstring += _docstring.long_description
         
@@ -186,18 +186,22 @@ class PythonParser(LanguageParser):
 
             docstring_node = PythonParser.__get_docstring_node(function_node)
             comment_node = PythonParser.__get_comment_node(function_node)
+            if docstring_node is None and not comment_node:
+                continue
             docstring = PythonParser.get_docstring(docstring_node, blob)
             docstring, param = PythonParser.extract_docstring(docstring, function_metadata['parameters'])
             
             docstring = clean_comment(docstring, blob)
-            if docstring == None:  # Non-literal, Interrogation, UnderDevlop or auto code
+            _comment = [PythonParser.get_docstring(cmt, blob) for cmt in comment_node]
+            comment = [clean_comment(cmt) for cmt in _comment]
+            if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code
                 continue
             
             if if_comment_generated(function_metadata['identifier'], docstring):  # Auto code generation
                 continue
             
             function_metadata['docstring'] = docstring
-            function_metadata['comment'] = [PythonParser.get_docstring(comment, blob) for comment in comment_node]
+            function_metadata['comment'] = comment
             function_metadata['docstring_tokens'] = tokenize_docstring(function_metadata['docstring'])
             function_metadata['docstring_param'] = param
             
