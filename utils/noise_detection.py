@@ -263,9 +263,9 @@ def if_AutoCode_by_code(raw_code, language='java'):
 def clean_comment(comment, code=None):
     updated_comment = BeautifulSoup(comment, "html.parser").get_text()
     updated_comment = re.sub(r'http\S+', '', updated_comment, flags=re.MULTILINE)
-    # updated_comment = re.sub(r'[^a-zA-Z0-9\_\.\,]', ' ', updated_comment)
     comment_list = cleanCommentTag(updated_comment)
-    # print(comment_list)
+    clean_comment_list = []
+
     # if if_ContentTamper(updated_comment):
     #     return "Tamper"
     for line in comment_list:
@@ -278,16 +278,20 @@ def clean_comment(comment, code=None):
         if if_AutoCode_by_comment(line, code):
             return None
         
+        clean_comment_list.append(re.sub(r'[^a-zA-Z0-9\\\_\.\,]', ' ', line))
+        
+    # print('Hello', code)
     if code is not None:
         if if_AutoCode_by_code(code):
             return None
-        if if_EmptyFunc(code):
-            return None
+        # if if_EmptyFunc(code):
+        #     print('AAAA')
+        #     return None
         if if_CommentedOut(code):
             return None
 
     
-    return  ' '.join(comment_list)
+    return  ' '.join(clean_comment_list)
 
 
 if __name__ == '__main__':

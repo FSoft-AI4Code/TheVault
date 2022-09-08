@@ -4,6 +4,7 @@ import re
 from typing import List
 
 from tree_sitter import Language, Parser
+from .parser.python_parser import PythonParser
 
 SUPPORTED_LANGUAGES = [ "C#", "C++",  "Java", "JavaScript", "Python",]
 
@@ -86,7 +87,8 @@ def import_language_parser():
        
     else:
         lang_list.remove("my_languages.so") 
-        tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
+
+    tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
     
     print(tree_dict)
     return tree_dict
@@ -118,6 +120,23 @@ def find_kind_have_comment(node, kind:List, comment_parse:List=COMMENT_PARSER) -
     
     return function_node, function_comment
 
+def reformat_function_data(info, metadata_list) -> List:
+    data_list = []
+    for fn in metadata_list:
+        output = info.copy()
+        output['func_name'] = fn['identifier']
+        output['original_string'] = fn['function']
+        output['code'] = fn['function']
+        output['code_tokens'] = fn['function_tokens']
+        output['docstring'] = {'block_comment': fn['docstring'], 'line_comment': fn['comment']}
+        output['docstring_tokens'] = fn['docstring_tokens']
+        output['docstring_params'] = fn['docstring_param']
+        
+        data_list.append(output)
+    
+    print(data_list)
+    
+    return data_list    
 
 def export_data_to_file(data, kind_list, comment_list, type_name='function'):
     data_list = []
@@ -168,10 +187,10 @@ def export_data_to_file(data, kind_list, comment_list, type_name='function'):
 def extract_code_to_tree(data, tree_dict, save_file):
     try:
         processed_data = {
-            "repo": data["repo"],
+            "repo": data["repo_name"],
             "path": data["path"],
             "language": data["language"],
-            # "license": data["license"],
+            "license": data["license"],
             # "size": data["size"]
         }
     except:
@@ -182,26 +201,33 @@ def extract_code_to_tree(data, tree_dict, save_file):
     if language == "c#": language = "c_sharp"
     
     # save_file = f"./data/{language}"
-    if not os.path.exists(save_file): os.mkdir(save_file)
+    # if not os.path.exists(save_file): os.mkdir(save_file)
     
     parser = Parser()
     parser.set_language(tree_dict[str(language).lower()])
     
     # tree parser
-    tree = parser.parse(bytes(data["code"], "utf8"))
+    raw_code = data["code"]
+    tree = parser.parse(bytes(raw_code, "utf8"))
     root_tree = tree.root_node
+
+    function = list(PythonParser.get_function_definitions(root_tree))
+    fn_metadata = list(PythonParser.process_functions(function, raw_code))
     
-    # print(root_tree)
+    fn_data = []
+    if len(fn_metadata) > 0:
+        fn_data = reformat_function_data(processed_data, fn_metadata)
     
-    function_list, fcmt_list = find_kind_have_comment(root_tree, FUNCTION_PARSER)
-    class_method_list, ccmt_list = find_kind_have_comment(root_tree, CLASS_PARSER)
+    # function_list, fcmt_list = find_kind_have_comment(root_tree, FUNCTION_PARSER)
+    # class_method_list, ccmt_list = find_kind_have_comment(root_tree, CLASS_PARSER)
     # print('Function:', function_list)
     
-    func_data, class_data = [], []
-    if function_list:
-        func_data = export_data_to_file(processed_data, function_list, fcmt_list, 'function')
-    if class_method_list:
-        class_data = export_data_to_file(processed_data, class_method_list, ccmt_list, 'class')
+    # func_data, class_data = [], []
+    # if function_list:
+    #     func_data = export_data_to_file(processed_data, function_list, fcmt_list, 'function')
+    # if class_method_list:
+    #     class_data = export_data_to_file(processed_data, class_method_list, ccmt_list, 'class')
         
-    return func_data, class_data
+    # return func_data, class_data
+    return fn_data
     

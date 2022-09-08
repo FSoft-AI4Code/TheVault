@@ -9,7 +9,7 @@ from .tree_utils import remove_words_in_string, tokenize_docstring
 
 
 def export_jsonl(data: dict, save_path: str):
-    with open(os.path.join(save_path), "a") as outfile:
+    with open(save_path, "a") as outfile:
         json_object = json.dump(data, outfile)
         outfile.write('\n')
         
