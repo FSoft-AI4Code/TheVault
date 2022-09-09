@@ -33,7 +33,6 @@ class JavaParser(LanguageParser):
         classes = (node for node in tree.root_node.children if node.type == 'class_declaration')
         definitions = []
         for _class in classes:
-            print(_class)
             class_identifier = match_from_span([child for child in _class.children if child.type == 'identifier'][0], blob).strip()
             for child in (child for child in _class.children if child.type == 'class_body'):
                 for idx, node in enumerate(child.children):
@@ -41,10 +40,22 @@ class JavaParser(LanguageParser):
                         if JavaParser.is_method_body_empty(node):
                             continue
                         docstring = ''
-                        if idx - 1 >= 0 and child.children[idx-1].type in ['comment', 'block_comment']:
-                            docstring = match_from_span(child.children[idx - 1], blob)
-                            docstring = strip_c_style_comment_delimiters(docstring)
-                            print(docstring)
+                        if idx - 1 >= 0 and child.children[idx-1].type in ['block_comment', 'line_comment']:
+                            if child.children[idx-1].type == 'block_comment':
+                                docstring = match_from_span(child.children[idx - 1], blob)
+                                docstring = strip_c_style_comment_delimiters(docstring)
+                            
+                            else:
+                                _idx = idx
+                                _docstring = []
+                                while (_idx >= 0):
+                                    if child.children[_idx-1].type == 'line_comment':
+                                        line = match_from_span(child.children[_idx - 1], blob)
+                                        line = strip_c_style_comment_delimiters(line)
+                                        _docstring.insert(0, line)
+                                    _idx -= 1
+                                docstring = ' /n'.join(_docstring)
+                                
                         # docstring_summary = get_docstring_summary(docstring)
 
                         metadata = JavaParser.get_function_metadata(node, blob)
@@ -58,8 +69,8 @@ class JavaParser(LanguageParser):
                             'function_tokens': tokenize_code(node, blob),
                             'docstring': docstring,
                             # 'docstring_summary': docstring_summary,
-                            # 'start_point': node.start_point,
-                            # 'end_point': node.end_point
+                            'start_point': node.start_point,
+                            'end_point': node.end_point
                         })
         return definitions
 
