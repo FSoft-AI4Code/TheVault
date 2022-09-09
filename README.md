@@ -27,6 +27,50 @@ Extract source code to function-description, class-description (code_line-descri
 python parser_processing -n 10 --data_path './data/python' --save_path './data/python'
 ```
 
+### Parser usage
+Each language has it own parser, located in `utils/parser`
+
+Using parser:
+```python
+from tree_sitter import Language, Parser
+from utils.parser.java_parser import JavaParser
+
+parser = Parser()
+build_lang = Language('./path/to/my-languages.so', 'java')
+parser.set_language(build_lang)
+
+tree = parser.parse(bytes(raw_code, 'utf8'))
+root = tree.root_node
+
+print(JavaParser.get_definition(tree, raw_code))
+```
+
+Or use `extract_raw_code()` function:
+```python
+from utils.parser import extract_raw_code
+raw_code =  '''public class GoogleCloudStorageLocation extends DatasetLocation {
+            /**
+                * Get specify the bucketName of Google Cloud Storage. Type: string (or Expression with resultType string).
+                *
+                * @return the bucketName value
+                */
+            public Object bucketName(String[] args, int arg) {
+                return this.bucketName;
+                }
+            }
+            '''
+        
+print(extract_raw_code(raw_code, language='java')
+>>> [{'type': 'method_declaration', 
+    'identifier': 'GoogleCloudStorageLocation.bucketName', 
+    'parameters': '', 
+    'function': 'public Object bucketName() {\n        return this.bucketName;\n    }', 
+    'function_tokens': ['public', 'Object', 'bucketName', '(', ')', '{', 'return', 'this', '.', 'bucketName', ';', '}'], 
+    'docstring': '\nGet specify the bucketName of Google Cloud Storage. Type: string (or Expression with resultType string).\n\n@return the bucketName value\n'
+}]
+
+```
+
 ## Data format
 - **repo:** the owner/repo
 - **path:** the full path to the original file
