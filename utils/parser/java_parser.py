@@ -40,21 +40,23 @@ class JavaParser(LanguageParser):
                         if JavaParser.is_method_body_empty(node):
                             continue
                         docstring = ''
-                        if idx - 1 >= 0 and child.children[idx-1].type in ['block_comment', 'line_comment']:
+                        if idx - 1 >= 0 and child.children[idx-1].type == 'block_comment':
                             if child.children[idx-1].type == 'block_comment':
                                 docstring = match_from_span(child.children[idx - 1], blob)
                                 docstring = strip_c_style_comment_delimiters(docstring)
                             
-                            else:
-                                _idx = idx
-                                _docstring = []
-                                while (_idx >= 0):
-                                    if child.children[_idx-1].type == 'line_comment':
-                                        line = match_from_span(child.children[_idx - 1], blob)
-                                        line = strip_c_style_comment_delimiters(line)
-                                        _docstring.insert(0, line)
-                                    _idx -= 1
-                                docstring = ' /n'.join(_docstring)
+                            # else:
+                            #     _idx = idx
+                            #     _docstring = []
+                            #     while (_idx >= 0):
+                            #         if child.children[_idx-1].type == 'line_comment':
+                            #             _docstring.insert(0, child.children[_idx-1])
+                                        
+                            #             # line = match_from_span(child.children[_idx - 1], blob)
+                            #             # line = strip_c_style_comment_delimiters(line)
+                            #         _idx -= 1
+                                
+                            #     docstring = ' /n'.join(_docstring)
                                 
                         # docstring_summary = get_docstring_summary(docstring)
 
