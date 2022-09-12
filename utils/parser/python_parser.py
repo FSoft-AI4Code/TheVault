@@ -2,6 +2,7 @@ import re
 from typing import List, Dict, Iterable, Optional, Iterator, Any
 
 from docstring_parser import parse
+from docstring_parser.common import *
 
 from .language_parser import match_from_span, tokenize_code, tokenize_docstring, LanguageParser, traverse_type
 from ..noise_detection import if_comment_generated, clean_comment
@@ -63,6 +64,8 @@ class PythonParser(LanguageParser):
                 "return": {"docstring": "2 power of a", "type": "int"}
             }]
         """
+        if docstring == '':
+            return None, None
         param = {'other_param': {}}
         for each in parameter_list:
             param[each] = {'docstring': None}
@@ -72,38 +75,40 @@ class PythonParser(LanguageParser):
         for item in _docstring.meta:
             if len(item.args) > 0:
                 tag = item.args[0]
-                if tag == 'param':
+                if tag in PARAM_KEYWORDS:
                     _param_name = item.arg_name
                     _param_type = item.type_name
                     _param_default = item.default
                     _param_docstring = item.description
+                    _param_optional = item.is_optional
                 
                     if _param_name in param.keys():
+                        param[_param_name]['docstring'] = _param_docstring
+                        
                         if _param_type != None:
                             param[_param_name]['type'] = _param_type
                         if _param_default != None:
                             param[_param_name]['default'] = _param_type
-                        
-                        param[_param_name]['docstring'] = _param_docstring
+                        if _param_optional != None:
+                            param[_param_name]['default'] = True
                     
                     else:
                         param['other_param'][_param_name] = {}
+                        param['other_param'][_param_name]['docstring'] = _param_docstring
                         if _param_type != None:
                             param['other_param'][_param_name]['type'] = _param_type
                         if _param_default != None:
                             param['other_param'][_param_name]['default'] = _param_type
-                        param['other_param'][_param_name]['docstring'] = _param_docstring
-                    
-                else:  # other tag (@raise, @return, ...)
+                
+                elif tag in RETURNS_KEYWORDS | RAISES_KEYWORDS | YIELDS_KEYWORDS:  # other tag (@raise, @return, ...)
+                    _param_type = item.type_name
                     _param_docstring = item.description
                     
                     if _param_docstring != None and _param_docstring != "None":
-                        param[tag] = _param_docstring
-                        try:
-                            if item.type_name != None:
-                                param[tag] = {'docstring': _param_docstring, 'type': item.type_name}
-                        except Exception:
-                            pass
+                        if _param_type != None:
+                            param[tag] = {'docstring': _param_docstring, 'type': _param_type}
+                        else:
+                            param[tag] = _param_docstring
                             
         new_docstring = ''
         if _docstring.short_description != None:
@@ -186,15 +191,13 @@ class PythonParser(LanguageParser):
 
             docstring_node = PythonParser.__get_docstring_node(function_node)
             comment_node = PythonParser.__get_comment_node(function_node)
-            if docstring_node is None and not comment_node:
-                continue
             docstring = PythonParser.get_docstring(docstring_node, blob)
             docstring, param = PythonParser.extract_docstring(docstring, function_metadata['parameters'])
             
             docstring = clean_comment(docstring, blob)
             _comment = [PythonParser.get_docstring(cmt, blob) for cmt in comment_node]
             comment = [clean_comment(cmt) for cmt in _comment]
-            if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code
+            if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
                 continue
             
             if if_comment_generated(function_metadata['identifier'], docstring):  # Auto code generation

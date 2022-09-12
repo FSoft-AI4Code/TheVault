@@ -48,7 +48,8 @@ print(JavaParser.get_definition(tree, raw_code))
 Or use `extract_raw_code()` function:
 ```python
 from utils.parser import extract_raw_code
-raw_code =  '''public class GoogleCloudStorageLocation extends DatasetLocation {
+raw_code =  '''
+            public class GoogleCloudStorageLocation extends DatasetLocation {
             /**
                 * Get specify the bucketName of Google Cloud Storage. Type: string (or Expression with resultType string).
                 *

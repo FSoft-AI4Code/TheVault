@@ -178,6 +178,7 @@ def if_EmptyFunc(raw_code):
         return True
 
 
+
 def if_CommentedOut(raw_code):
     raw_code = raw_code.strip()
     p0 = re.compile('(^/\*)')
@@ -261,6 +262,9 @@ def if_AutoCode_by_code(raw_code, language='java'):
     
 
 def clean_comment(comment, code=None):
+    if comment is None:
+        return None
+    
     updated_comment = BeautifulSoup(comment, "html.parser").get_text()
     updated_comment = re.sub(r'http\S+', '', updated_comment, flags=re.MULTILINE)
     comment_list = cleanCommentTag(updated_comment)
