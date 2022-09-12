@@ -1,29 +1,10 @@
 import re
 from typing import List, Dict, Any
 
-from tree_sitter import Language, Parser
-from docstring_parser import parse
+from docstring_parser import parse, DocstringStyle
 from docstring_parser.common import *
 from .language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
-from ..noise_detection import if_comment_generated, clean_comment
-# from commentutils import strip_c_style_comment_delimiters, get_docstring_summary
-
-
-def strip_c_style_comment_delimiters(comment: str) -> str:
-    comment_lines = comment.split('\n')
-    cleaned_lines = []
-    for l in comment_lines:
-        l = l.strip()
-        if l.endswith('*/'):
-            l = l[:-2]
-        if l.startswith('*'):
-            l = l[1:]
-        elif l.startswith('/**'):
-            l = l[3:]
-        elif l.startswith('//'):
-            l = l[2:]
-        cleaned_lines.append(l.strip())
-    return '\n'.join(cleaned_lines)
+from ..noise_detection import if_comment_generated, clean_comment, strip_c_style_comment_delimiters
 
 
 class JavaParser(LanguageParser):
@@ -47,7 +28,7 @@ class JavaParser(LanguageParser):
         for each in parameter_list.keys():
             param[each] = {'docstring': None}
             
-        _docstring = parse(docstring)
+        _docstring = parse(docstring, DocstringStyle.JAVADOC)
         
         for item in _docstring.meta:
             if len(item.args) > 0:
@@ -125,7 +106,6 @@ class JavaParser(LanguageParser):
                         # docstring_summary = get_docstring_summary(docstring)
 
                         metadata = JavaParser.get_function_metadata(node, blob)
-                        print(metadata['identifier'])
                         if metadata['identifier'] in JavaParser.BLACKLISTED_FUNCTION_NAMES:
                             continue
                         

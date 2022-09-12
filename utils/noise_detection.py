@@ -24,6 +24,23 @@ else:
     SPLIT_REGEX = regex.compile("(?V1)"+REGEX_TEXT)
 
 
+def strip_c_style_comment_delimiters(comment: str) -> str:
+    comment_lines = comment.split('\n')
+    cleaned_lines = []
+    for l in comment_lines:
+        l = l.strip()
+        if l.endswith('*/'):
+            l = l[:-2]
+        if l.startswith('*'):
+            l = l[1:]
+        elif l.startswith('/**'):
+            l = l[3:]
+        elif l.startswith('//'):
+            l = l[2:]
+        cleaned_lines.append(l.strip())
+    return '\n'.join(cleaned_lines)
+
+
 def split_identifier_into_parts(identifier: str) -> List[str]:
     """
     Split a single identifier into parts on snake_case and camelCase

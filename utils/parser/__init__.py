@@ -3,7 +3,9 @@ from typing import List, Dict, Any
 
 from tree_sitter import Language, Parser
 
+
 from .java_parser import JavaParser
+from .javascript_parser import JavascriptParser
 from .python_parser import PythonParser
 
 
@@ -54,5 +56,8 @@ def extract_raw_code(raw_code, language, language_path='./my-languages.so') -> L
         function_list = PythonParser.get_function_definitions(root)
         return PythonParser.process_functions(function_list, raw_code)
 
-    if language == 'java':
+    elif language == 'java':
         return JavaParser.get_definition(tree, raw_code)
+    
+    elif language == 'javascript':
+        return JavascriptParser.get_definition(tree, raw_code)

@@ -25,6 +25,37 @@ def tokenize_code(node, blob: str, nodes_to_exclude: Optional[Set]=None) -> List
     #     print(token.text)
     return [match_from_span(token, blob) for token in tokens if nodes_to_exclude is None or token not in nodes_to_exclude]
 
+def nodes_are_equal(n1, n2):
+    return n1.type == n2.type and n1.start_point == n2.start_point and n1.end_point == n2.end_point
+
+def previous_sibling(tree, node):
+    """
+    Search for the previous sibling of the node.
+    TODO: C TreeSitter should support this natively, but not its Python bindings yet. Replace later.
+    """
+    to_visit = [tree.root_node]
+    while len(to_visit) > 0:
+        next_node = to_visit.pop()
+        for i, node_at_i in enumerate(next_node.children):
+            if nodes_are_equal(node, node_at_i):
+                if i > 0:
+                    return next_node.children[i-1]
+                return None
+        else:
+            to_visit.extend(next_node.children)
+    return ValueError("Could not find node in tree.")
+
+
+def node_parent(tree, node):
+    to_visit = [tree.root_node]
+    while len(to_visit) > 0:
+        next_node = to_visit.pop()
+        for child in next_node.children:
+            if nodes_are_equal(child, node):
+                return next_node
+        else:
+            to_visit.extend(next_node.children)
+    raise ValueError("Could not find node in tree.")
 
 def traverse(node, results: List) -> None:
     if node.type == 'string':
