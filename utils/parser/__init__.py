@@ -9,7 +9,7 @@ from .javascript_parser import JavascriptParser
 from .python_parser import PythonParser
 
 
-def extract_raw_code(raw_code, language, language_path='./my-languages.so') -> List[Dict[str, Any]]:
+def extract_raw_code(raw_code, language, language_path='languages/my-languages.so') -> List[Dict[str, Any]]:
     """
     Extract information from raw_code though tree
     :param raw_code: raw (correctly syntax) code

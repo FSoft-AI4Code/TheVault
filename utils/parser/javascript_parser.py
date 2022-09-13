@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 
 from docstring_parser import parse, DocstringStyle
 from docstring_parser.common import *
-from .language_parser import LanguageParser, match_from_span, tokenize_code, traverse_type, previous_sibling, \
+from .language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type, previous_sibling, \
     node_parent
 from ..noise_detection import if_comment_generated, clean_comment, strip_c_style_comment_delimiters
 
@@ -81,19 +81,20 @@ class JavascriptParser(LanguageParser):
                         param['other_param'][_param_name]['docstring'] = _param_docstring
                         
                         if _param_type != None:
-                            param[_param_name]['type'] = _param_type
+                            param['other_param'][_param_name]['type'] = _param_type
                         if _param_default != None:
                             param['other_param'][_param_name]['default'] = _param_type
                 
                 elif tag in RETURNS_KEYWORDS | RAISES_KEYWORDS | YIELDS_KEYWORDS:  # other tag (@raise, @return, ...)
-                    _param_type = item.type_name
                     _param_docstring = item.description
                     
                     if _param_docstring != None and _param_docstring != "None":
-                        if _param_type != None:
-                            param[tag] = {'docstring': _param_docstring, 'type': _param_type}
-                        else:
-                            param[tag] = _param_docstring
+                        try:
+                            _param_type = item.type_name
+                            if _param_type != None:
+                                param[tag] = {'docstring': _param_docstring, 'type': _param_type}
+                        except Exception:
+                            param[tag] = {'docstring': _param_docstring}
                             
         new_docstring = ''
         if _docstring.short_description != None:
@@ -121,12 +122,13 @@ class JavascriptParser(LanguageParser):
 
             if metadata['identifier'] in JavascriptParser.BLACKLISTED_FUNCTION_NAMES:
                 continue
-            
+
             comment_node = JavascriptParser.__get_comment_node(function_node)
             docstring, param = JavascriptParser.extract_docstring(docstring, metadata['parameters'])
             docstring = clean_comment(docstring, blob)
             _comment = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_node]
             comment = [clean_comment(cmt) for cmt in _comment]
+
             if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
                 continue
             
@@ -140,6 +142,7 @@ class JavascriptParser(LanguageParser):
                 'function': match_from_span(function_node, blob),
                 'function_tokens': tokenize_code(function_node, blob),
                 'docstring': docstring,
+                'docstring_tokens': tokenize_docstring(docstring),
                 'docstring_param': param,
                 'comment': comment,
                 # 'docstring_summary': docstring_summary,

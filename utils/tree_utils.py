@@ -86,7 +86,9 @@ def import_language_parser():
         Language.build_library('languages/my-languages.so', tree_lang_list)
        
     else:
-        lang_list.remove("my_languages.so") 
+        lang_list.remove("my_languages.so")
+        
+    lang_list = ['python', 'java', 'javascript']
 
     tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
     

@@ -56,14 +56,15 @@ class JavaParser(LanguageParser):
                             param['other_param'][_param_name]['default'] = _param_type
                 
                 elif tag in RETURNS_KEYWORDS | RAISES_KEYWORDS | YIELDS_KEYWORDS:  # other tag (@raise, @return, ...)
-                    _param_type = item.type_name
                     _param_docstring = item.description
                     
                     if _param_docstring != None and _param_docstring != "None":
-                        if _param_type != None:
-                            param[tag] = {'docstring': _param_docstring, 'type': _param_type}
-                        else:
-                            param[tag] = _param_docstring
+                        try:
+                            _param_type = item.type_name
+                            if _param_type != None:
+                                param[tag] = {'docstring': _param_docstring, 'type': _param_type}
+                        except Exception:
+                            param[tag] = {'docstring': _param_docstring}
                             
         new_docstring = ''
         if _docstring.short_description != None:

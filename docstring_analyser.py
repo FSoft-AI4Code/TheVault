@@ -36,7 +36,9 @@ def analysis_data(data_path, file_name):
         
         for param, value in params_docstring.items():
             if isinstance(value, Dict) and value:
-                if value['docstring'] != None:
+                if param == 'other_param':
+                    continue 
+                elif value['docstring'] != None:
                     docstring = True
                     n_param_have_docstring += 1
                     with open('./tmp.txt', 'a') as file:
