@@ -28,6 +28,19 @@ def tokenize_code(node, blob: str, nodes_to_exclude: Optional[Set]=None) -> List
 def nodes_are_equal(n1, n2):
     return n1.type == n2.type and n1.start_point == n2.start_point and n1.end_point == n2.end_point
 
+def parent_and_previous_sibling(tree, node):
+    """Merge `node_parent` and `previous_sibling` function
+    """
+    parent = node_parent(tree, node)
+    for i, node_at_i in enumerate(parent.children):
+        if nodes_are_equal(node, node_at_i):
+            if i > 0:
+                return parent, parent.children[i-1]
+            return parent, None
+
+    return ValueError("Could not find node in tree.")
+
+
 def previous_sibling(tree, node):
     """
     Search for the previous sibling of the node.
@@ -46,6 +59,31 @@ def previous_sibling(tree, node):
     return ValueError("Could not find node in tree.")
 
 
+# if parent_node.type == 'variable_declarator':
+#     # node
+#     base_node = node_parent(tree, parent_node)  # Get the variable declaration
+#     # parent
+#     parent_node = node_parent(tree, base_node)
+# elif parent_node.type == 'pair':
+#     base_node = parent_node  # This is a common pattern where a function is assigned as a value to a dictionary.
+#     parent_node = node_parent(tree, base_node)
+# else:
+#     base_node = node
+
+def traverse_type_parent(node, kind:List) -> None:
+    results = []
+    to_visit = [node]
+    while len(to_visit) > 0:
+        next_node = to_visit.pop()
+        for child in next_node.children:
+            if child.type in kind:
+                results.append([next_node, child])
+        else:
+            to_visit.extend(next_node.children)
+    
+    return results
+
+
 def node_parent(tree, node):
     to_visit = [tree.root_node]
     while len(to_visit) > 0:
@@ -56,6 +94,7 @@ def node_parent(tree, node):
         else:
             to_visit.extend(next_node.children)
     raise ValueError("Could not find node in tree.")
+
 
 def traverse(node, results: List) -> None:
     if node.type == 'string':

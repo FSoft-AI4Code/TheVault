@@ -104,12 +104,23 @@ class PythonParser(LanguageParser):
                     _param_docstring = item.description
                     
                     if _param_docstring != None and _param_docstring != "None":
+                        _p = {'docstring': _param_docstring}
+        
                         try:
-                            _param_type = item.type_name
+                            _param_type = item.type_name                            
                             if _param_type != None:
-                                param[tag] = {'docstring': _param_docstring, 'type': _param_type}
+                                _p = {'docstring': _param_docstring, 'type': _param_type}
                         except Exception:
-                            param[tag] = {'docstring': _param_docstring}
+                            pass
+                            
+                        if tag in param.keys():
+                            if isinstance(param[tag], Dict):
+                                param[tag] = [param[tag], _p]
+                            
+                            elif isinstance(param[tag], List):
+                                param[tag].append(_p)
+                        else:
+                            param[tag] = _p
                             
         new_docstring = ''
         if _docstring.short_description != None:
@@ -137,7 +148,7 @@ class PythonParser(LanguageParser):
                     for param in parameter_list:
                         item = re.sub(r'[^a-zA-Z0-9\_]', ' ', param).split()
                         if len(item) > 0:
-                            params.append(item[0])
+                            params.append(item[0].lstrip())
                     metadata['parameters'] = params
             if child.type == 'def':
                 is_header = True

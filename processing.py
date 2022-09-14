@@ -63,19 +63,14 @@ def processing(_data, index, tree_dict, save_path, id=None):
 
             if language == 'java':
                 fn_metadata = list(JavaParser.get_definition(tree, raw_code))
-                
-            import time
-            start_time = time.time()
+            
             if language == 'javascript':
                 fn_metadata = list(JavascriptParser.get_definition(tree, raw_code))
-            end_time = time.time()
-            if end_time-start_time>10:
-                print(f'Total time {(end_time-start_time):.2f} s')
             
             fn_data = []
             if len(fn_metadata) > 0:
                 fn_data = reformat_function_data(processed_data, fn_metadata)
-        
+
             # We only take function which has docstring (block_comment) and
             # their docstring is larger than 3 words and smaller than 256 words
             for item in fn_data:
@@ -85,7 +80,7 @@ def processing(_data, index, tree_dict, save_path, id=None):
                     continue
                 # export_jsonl(item, save_file)
                 with open(os.path.join(save_path, 'function_data.jsonl'), "a") as outfile:
-                    json_object = json.dump(item, outfile)
+                    json_object = json.dump(item, outfile, ensure_ascii=False)
                     outfile.write('\n')
             
         except Exception:
