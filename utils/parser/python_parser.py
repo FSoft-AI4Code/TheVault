@@ -204,6 +204,7 @@ class PythonParser(LanguageParser):
             docstring_node = PythonParser.__get_docstring_node(function_node)
             comment_node = PythonParser.__get_comment_node(function_node)
             docstring = PythonParser.get_docstring(docstring_node, blob)
+            _docs = docstring
             docstring, param = PythonParser.extract_docstring(docstring, function_metadata['parameters'])
             
             docstring = clean_comment(docstring, blob)
@@ -215,6 +216,7 @@ class PythonParser(LanguageParser):
             if if_comment_generated(function_metadata['identifier'], docstring):  # Auto code generation
                 continue
             
+            function_metadata['original_docstring'] = _docs
             function_metadata['docstring'] = docstring
             function_metadata['comment'] = comment
             function_metadata['docstring_tokens'] = tokenize_docstring(function_metadata['docstring'])

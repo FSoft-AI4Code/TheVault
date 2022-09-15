@@ -151,7 +151,8 @@ class JavascriptParser(LanguageParser):
 
             if metadata['identifier'] in JavascriptParser.BLACKLISTED_FUNCTION_NAMES:
                 continue
-
+            
+            _docs = docstring
             comment_node = JavascriptParser.__get_comment_node(function_node)
             docstring, param = JavascriptParser.extract_docstring(docstring, metadata['parameters'])
             docstring = clean_comment(docstring, blob)
@@ -170,6 +171,7 @@ class JavascriptParser(LanguageParser):
                 'parameters': metadata['parameters'],
                 'function': match_from_span(function_node, blob),
                 'function_tokens': tokenize_code(function_node, blob),
+                'original_docstring': _docs,
                 'docstring': docstring,
                 'docstring_tokens': tokenize_docstring(docstring),
                 'docstring_param': param,

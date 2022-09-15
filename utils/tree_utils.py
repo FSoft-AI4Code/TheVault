@@ -127,9 +127,9 @@ def reformat_function_data(info, metadata_list) -> List:
     for fn in metadata_list:
         output = info.copy()
         output['func_name'] = fn['identifier']
-        output['original_string'] = fn['function']
         output['code'] = fn['function']
         output['code_tokens'] = fn['function_tokens']
+        output['original_docstring'] = fn['original_docstring']
         output['docstring'] = {'block_comment': fn['docstring'] if fn['docstring'] != "" else None, 
                                'line_comment': fn['comment'] if fn['comment'] else None}
         output['docstring_tokens'] = fn['docstring_tokens']

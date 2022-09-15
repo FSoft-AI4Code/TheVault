@@ -121,6 +121,7 @@ class JavaParser(LanguageParser):
                         if metadata['identifier'] in JavaParser.BLACKLISTED_FUNCTION_NAMES:
                             continue
                         
+                        _docs = docstring
                         comment_node = JavaParser.__get_comment_node(node)
                         docstring, param = JavaParser.extract_docstring(docstring, metadata['parameters'])
                         docstring = clean_comment(docstring, blob)
@@ -139,6 +140,7 @@ class JavaParser(LanguageParser):
                             'parameters': metadata['parameters'],
                             'function': match_from_span(node, blob),
                             'function_tokens': tokenize_code(node, blob),
+                            'original_docstring': _docs,
                             'docstring': docstring,
                             'docstring_tokens': tokenize_docstring(docstring),
                             'docstring_param': param,

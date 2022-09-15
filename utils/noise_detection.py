@@ -312,7 +312,7 @@ def clean_comment(comment, code=None):
             return None
 
     
-    return  ' '.join(clean_comment_list)
+    return  ' \n'.join(clean_comment_list)
 
 
 if __name__ == '__main__':
