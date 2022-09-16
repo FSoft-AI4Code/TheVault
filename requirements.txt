@@ -3,3 +3,6 @@ datasets
 
 # for preprocessing
 tree-sitter
+docstring-parser
+bs4
+Levenshtein

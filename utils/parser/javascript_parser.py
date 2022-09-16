@@ -197,10 +197,10 @@ class JavascriptParser(LanguageParser):
             params = []
             parameter_list = match_from_span(formal_parameters_nodes[0], blob).split(',')
             for param in parameter_list:
-                item = param.replace('(', '').replace(')', '')
+                item = param.strip('(').strip(')')
                 if '=' in item:
                     item = item.split('=')[0]
                 if item != '':
-                    params.append(item.lstrip())
+                    params.append(item.strip())
             metadata['parameters'] = params
         return metadata

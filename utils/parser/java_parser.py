@@ -193,8 +193,8 @@ class JavaParser(LanguageParser):
             elif n.type == 'formal_parameters':
                 parameter_list = match_from_span(n, blob).split(',')
                 for param in parameter_list:
-                    item = param.replace('(', '').replace(')', '').split()
+                    item = param.strip('(').strip(')').split()
                     if len(item) > 0:
-                        params[item[-1]] = item[0]  # arg, type
+                        params[item[-1].strip()] = item[0]  # arg, type
         metadata['parameters'] = params
         return metadata

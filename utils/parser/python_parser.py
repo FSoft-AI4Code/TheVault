@@ -148,7 +148,7 @@ class PythonParser(LanguageParser):
                     for param in parameter_list:
                         item = re.sub(r'[^a-zA-Z0-9\_]', ' ', param).split()
                         if len(item) > 0:
-                            params.append(item[0].lstrip())
+                            params.append(item[0].strip())
                     metadata['parameters'] = params
             if child.type == 'def':
                 is_header = True
