@@ -18,6 +18,7 @@ from utils.tree_utils import import_language_parser, reformat_function_data
 def args():
     parser = argparse.ArgumentParser()
     # parser.add_argument('--data_file', type=str, default='./data/raw/python_data.jsonl')
+    parser.add_argument('--language', type=str, default='Python')
     parser.add_argument('--save_path', type=str, default='./data/python/')
     parser.add_argument('--cache_path', type=str, default='./cache')
     parser.add_argument('-n', '--n_thread', type=int, default=15)
@@ -26,10 +27,11 @@ def args():
     return parser.parse_args()
 
 
-def processing(_data, index, tree_dict, save_path, id=None):
+def processing(dataset, index, tree_dict, save_path, id=None):
     print(f'Thread {id}')
     for ids in tqdm(index):
-        data = json.loads(_data[ids])
+        data = json.loads(dataset[ids])
+        # data = dataset[ids]
         
         try:
             processed_data = {
@@ -92,24 +94,28 @@ def processing(_data, index, tree_dict, save_path, id=None):
 
 # if __name__ == '__main__':
 #     opt = args()
-#     n, spliter, save_dir, cache_path = opt.n_thread, opt.split, opt.save_path, opt.cache_path
-#     dataset = load_dataset("codeparrot/github-code", languages=['Java'], split='train', cache_dir=cache_path)
+#     n, language, spliter, save_dir, cache_path = opt.n_thread, opt.language, opt.split, opt.save_path, opt.cache_path
+#     dataset = load_dataset("codeparrot/github-code", languages=[language], split='train', cache_dir=cache_path)
     
 #     if not os.path.exists(save_dir):
 #         os.mkdir(save_dir)
 #         os.mkdir(os.path.join(save_dir, 'cache'))
     
-#     dataset_size = len(dataset)
+#     # dataset_size = len(dataset)
+#     dataset_size = 500000
 #     index_list = range(dataset_size)
 #     chunk_size = dataset_size//spliter
 #     thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
     
 #     tree_dict = import_language_parser()
     
+#     # for item in thread_jobs:
+#     #     processing(dataset, item, tree_dict, save_dir)
+    
 #     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
 #         futures = []
-#         for idx, job in enumerate(thread_jobs):
-#             futures.append(executor.submit(processing, data=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, idx=idx))
+#         for _, job in enumerate(thread_jobs):
+#             futures.append(executor.submit(processing, dataset=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, id=_))
 
 if __name__ == '__main__':
     opt = args()
@@ -130,9 +136,8 @@ if __name__ == '__main__':
     
     # for item in thread_jobs:
     #     processing(dataset, item, tree_dict, save_dir)
-        
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
         futures = []
         for _, job in enumerate(thread_jobs):
-            futures.append(executor.submit(processing, _data=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, id=_))
+            futures.append(executor.submit(processing, dataset=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, id=_))

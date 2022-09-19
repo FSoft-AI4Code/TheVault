@@ -80,7 +80,6 @@ class Java_extractor():
         processed_docstring = []
         try:
             for line in splited_comment:
-                # print(line)
                 line = remove_words_in_string(['\n', '\r', '\t'], line)
                 if re.search(subregex, line):
                     param_tag = line.split(' ')[0] # 0=tag, Normal order(1=type, 2=name)  e.g: @param [String] path
@@ -229,7 +228,6 @@ class Python_extractor():
                         param_docstring = item.description
                         
                         param_docstring = remove_words_in_string(['\r', '\n'], str(param_docstring))
-                        # print(name, param_docstring)
                         if name in param_dict.keys():
                             param_dict[name]['docstring'] = param_docstring
                             comments.append(param_docstring)

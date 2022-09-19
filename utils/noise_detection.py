@@ -83,7 +83,6 @@ def getFirstSentence(comment):
 
     comment_list = cleanCommentTag(comment)
     if not comment_list:
-        print(comment)
         raise Exception("null comment")
 
     first_sentence = ''
