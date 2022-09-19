@@ -17,19 +17,6 @@ from utils.tree_utils import import_language_parser, reformat_function_data
 
 # COMMAND ----------
 
-def export_jsonl(data, save_path):
-    data.write.json.mode("append")\
-            .option("header", True)\
-            .option("quote", '"')\
-            .option("escape", '"' "")\
-            .save(save_path)
-
-# COMMAND ----------
-
-data = {"repo": "zship/deferreds.js", "path": "src/findSeries.js", "language": "JavaScript", "license": "mit", "func_name": "", "original_string": "function(list, iterator) {\n\n\t\tvar found;\n\n\t\treturn forEachSeries(list, function(item, i) {\n\t\t\treturn Promise.fromAny(iterator(item, i, list))\n\t\t\t\t.then(function(result) {\n\t\t\t\t\tif (result) {\n\t\t\t\t\t\tfound = item;\n\t\t\t\t\t\tthrow 'break';\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t}).then(\n\t\t\tfunction() {\n\t\t\t\treturn found;\n\t\t\t},\n\t\t\tfunction(err) {\n\t\t\t\tif (err === 'break') {\n\t\t\t\t\treturn found;\n\t\t\t\t}\n\t\t\t\tthrow err;\n\t\t\t}\n\t\t);\n\n\t}", "code": "function(list, iterator) {\n\n\t\tvar found;\n\n\t\treturn forEachSeries(list, function(item, i) {\n\t\t\treturn Promise.fromAny(iterator(item, i, list))\n\t\t\t\t.then(function(result) {\n\t\t\t\t\tif (result) {\n\t\t\t\t\t\tfound = item;\n\t\t\t\t\t\tthrow 'break';\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t}).then(\n\t\t\tfunction() {\n\t\t\t\treturn found;\n\t\t\t},\n\t\t\tfunction(err) {\n\t\t\t\tif (err === 'break') {\n\t\t\t\t\treturn found;\n\t\t\t\t}\n\t\t\t\tthrow err;\n\t\t\t}\n\t\t);\n\n\t}", "code_tokens": ["function", "(", "list", ",", "iterator", ")", "{", "var", "found", ";", "return", "forEachSeries", "(", "list", ",", "function", "(", "item", ",", "i", ")", "{", "return", "Promise", ".", "fromAny", "(", "iterator", "(", "item", ",", "i", ",", "list", ")", ")", ".", "then", "(", "function", "(", "result", ")", "{", "if", "(", "result", ")", "{", "found", "=", "item", ";", "throw", "'break'", ";", "}", "}", ")", ";", "}", ")", ".", "then", "(", "function", "(", ")", "{", "return", "found", ";", "}", ",", "function", "(", "err", ")", "{", "if", "(", "err", "===", "'break'", ")", "{", "return", "found", ";", "}", "throw", "err", ";", "}", ")", ";", "}"], "docstring": {"block_comment": "Version of find which is guaranteed to process items in order", "line_comment": None}, "docstring_tokens": ["Version", "of", "find", "which", "is", "guaranteed", "to", "process", "items", "in", "order"], "docstring_params": {"other_param": {"iterator": {"docstring": "", "type": "Function"}}, "list": {"docstring": "", "type": "Array"}, " iterator": {"docstring": None}, "return": {"docstring": "", "type": "Promise<Any>"}}}
-
-# COMMAND ----------
-
 from pyspark.sql import SparkSession
 appName = "PySpark open JSON line"
 master = "local"
@@ -37,18 +24,6 @@ spark = SparkSession.builder \
     .appName(appName) \
     .master(master) \
     .getOrCreate()
-
-# COMMAND ----------
-
-save_path = "abfss://ai4code@ai4codedatalake.dfs.core.windows.net//"
-# data_reader = spark.read.json(json_file_path)
-df = spark.createDataFrame([data])
-
-# COMMAND ----------
-
-display(df)
-
-# COMMAND ----------
 
 account_name = "ai4codedatalake"
 apikey = "W7G9tBs7aRVoce1sj2p8mAfYKniUaMUmHh3zs82H8EFA9pUyvBfMnlAc8LHET5vZD90v/FZar4od+AStZTNtfg=="
@@ -58,26 +33,21 @@ spark.conf.set(f"fs.azure.account.key.{account_name}.dfs.core.windows.net", apik
 
 # COMMAND ----------
 
-df.write.json("abfss://ai4code@ai4codedatalake.dfs.core.windows.net/temp/file.json", mode="append")
+def export_jsonl(data, save_path):
+    with open(os.path.join(save_path), "a") as outfile:
+        json_object = json.dump(data, outfile)
+        outfile.write('\n')
+#     df = spark.createDataFrame(data)
+#     df.write.format('json').mode('append').save(save_path)
 
 # COMMAND ----------
 
-data.write.json.mode("append")\
-            .option("header", True)\
-            .option("quote", '"')\
-            .option("escape", '"' "")\
-            .save(save_path)
-
-# COMMAND ----------
-
-export_jsonl(df, json_file_path)
-
-# COMMAND ----------
-
-def processing(_data, index, tree_dict, save_path, id=None):
-    print(f'Thread {id}')
-    for ids in tqdm(index):
-        data = json.loads(_data[ids])
+def _processing(dataset, index, tree_dict, save_path, id=None):
+#     pbar = tqdm(total=index, desc=f'Thread {id}', disable=False)
+#     for _, ids in enumerate(index):
+#         print(f'Thread {id}: [{_}/{len(index)}]')
+    for ids in tqdm(index, desc=f'Thread {id}'):
+        data = dataset[ids]
         
         try:
             processed_data = {
@@ -111,19 +81,14 @@ def processing(_data, index, tree_dict, save_path, id=None):
 
             if language == 'java':
                 fn_metadata = list(JavaParser.get_definition(tree, raw_code))
-                
-            import time
-            start_time = time.time()
+
             if language == 'javascript':
                 fn_metadata = list(JavascriptParser.get_definition(tree, raw_code))
-            end_time = time.time()
-            if end_time-start_time>10:
-                print(f'Total time {(end_time-start_time):.2f} s')
-            
+
             fn_data = []
             if len(fn_metadata) > 0:
                 fn_data = reformat_function_data(processed_data, fn_metadata)
-        
+
             # We only take function which has docstring (block_comment) and
             # their docstring is larger than 3 words and smaller than 256 words
             for item in fn_data:
@@ -131,60 +96,51 @@ def processing(_data, index, tree_dict, save_path, id=None):
                     continue
                 if len(item['docstring_tokens']) <= 3 or len(item['docstring_tokens']) >= 256:
                     continue
-                # export_jsonl(item, save_file)
-                save_file = os.path.join(save_path, 'function_data.jsonl')
-                export_jsonl(item, save_file)
-#                 with open(os.path.join(save_path, 'function_data.jsonl'), "a") as outfile:
-#                     json_object = json.dump(item, outfile)
-#                     outfile.write('\n')
+
+                outfile = open(os.path.join(save_path, 'function_data.jsonl'), "a")
+                json_object = json.dump(item, outfile)
+                outfile.write('\n')
             
         except Exception:
-            save_file = os.path.join(save_path, 'fail_sample.jsonl')
-            export_jsonl(data, save_file)
+            file = open(os.path.join(save_path, 'fail.jsonl'), "a")
+            json_object = json.dump(data, file)
+            file.write('\n')
+        
+#         pbar.update(1)
+    
+#     save_file = os.path.join(save_path, 'function_data')
+#     export_jsonl(processed_data, save_file)
 
 # COMMAND ----------
 
-def processing(dataset, save_path, n, split=10):
+def processing(dataset, save_path, n, split=96):
     # abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/javascript/small_data.jsonl
 #     with open(data_path, 'r') as json_file:
 #         dataset = list(json_file)
     
     dataset_size = len(dataset)
     index_list = range(dataset_size)
+    print(save_path, split)
     chunk_size = dataset_size//split
     thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
     
     tree_dict = import_language_parser()
     
-    # for item in thread_jobs:
-    #     processing(dataset, item, tree_dict, save_dir)
-        
+    tmp_path = '/tmp/'
+    dbutils.fs.rm('file:/tmp/function_data.jsonl', True)
+    dbutils.fs.rm('file:/tmp/fail.jsonl', True)
+    
+#     for item in thread_jobs:
+#         _processing(dataset, item, tree_dict, tmp_path)
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
         futures = []
         for _, job in enumerate(thread_jobs):
-            futures.append(executor.submit(processing, _data=dataset, index=job, tree_dict=tree_dict, save_path=save_path, id=_))
+            futures.append(executor.submit(_processing, dataset=dataset, index=job, tree_dict=tree_dict, save_path=tmp_path, id=_))
+
+    for name in ['function_data.jsonl', 'fail.jsonl']:
+        dbutils.fs.cp(f"file:{os.path.join(tmp_path,name)}", os.path.join(save_path, name), True)
 
 # COMMAND ----------
 
-# if __name__ == '__main__':
-#     opt = args()
-#     n, spliter, save_dir, cache_path = opt.n_thread, opt.split, opt.save_path, opt.cache_path
-#     dataset = load_dataset("codeparrot/github-code", languages=['Java'], split='train', cache_dir=cache_path)
-    
-#     if not os.path.exists(save_dir):
-#         os.mkdir(save_dir)
-#         os.mkdir(os.path.join(save_dir, 'cache'))
-    
-#     dataset_size = len(dataset)
-#     index_list = range(dataset_size)
-#     chunk_size = dataset_size//spliter
-#     thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
-    
-#     tree_dict = import_language_parser()
-    
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
-#         futures = []
-#         for idx, job in enumerate(thread_jobs):
-#             futures.append(executor.submit(processing, data=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, idx=idx))
 

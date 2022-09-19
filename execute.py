@@ -3,6 +3,7 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,Test parser
 from docstring_parser import parse, DocstringStyle
 
 # COMMAND ----------
@@ -39,6 +40,109 @@ for a in ret.meta:
 
 # COMMAND ----------
 
+# DBTITLE 1,Test tree_sitter
+from tree_sitter import Language, Parser
+
+# COMMAND ----------
+
+# !gdown --id 1rFQkqzKtFfT5iWMioMUZFOxxiY7C6Yq8
+
+!mv /usr/lib/x86_64-linux-gnu/libstdc++.so.6  /usr/lib/x86_64-linux-gnu/libstdc++.so.6.1
+!cp libstdc++.so.6.0.29 /usr/lib/x86_64-linux-gnu/
+
+!mv /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.29  /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+!export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+
+!cp libstdc++.so.6.0.29 /databricks/conda/lib/
+!mv /databricks/conda/lib/libstdc++.so.6.0.29  /databricks/conda/lib/libstdc++.so.6
+
+# COMMAND ----------
+
+import os
+list_dir = os.listdir('languages/')
+    
+print(list_dir)
+
+
+# COMMAND ----------
+
+lang_list = ['python', 'java', 'javascript']
+
+tree_dict = {lang:Language('languages/my-languages.so', lang) for lang in lang_list}
+
+print(tree_dict)
+
+# COMMAND ----------
+
+parser = Parser()
+parser.set_language(tree_dict['java'])
+
+# COMMAND ----------
+
+code = """public class Main {
+  public static void main(String[] args) {
+    System.out.println(Math.min(5, 10));  
+  }
+}
+
+"""
+tree = parser.parse(bytes(code, "utf8"))
+root_tree = tree.root_node
+
+# COMMAND ----------
+
+root_tree.sexp()
+
+# COMMAND ----------
+
+# MAGIC %md # Mount data
+
+# COMMAND ----------
+
+container = "ai4code"
+# folder_name = "dataset/python"
+accountname = "ai4codedatalake"
+
+def mount_data(folder_name, accountname = "ai4codedatalake", container = "ai4code"):
+    apikey = "W7G9tBs7aRVoce1sj2p8mAfYKniUaMUmHh3zs82H8EFA9pUyvBfMnlAc8LHET5vZD90v/FZar4od+AStZTNtfg=="
+    #ClientId, TenantId and Secret is for the Application(ADLSGen2App) was have created as part of this recipe
+    clientID ="61ce96be-5a4d-4f9f-ade0-9cddd220cfd9"
+    tenantID ="f01e930a-b52e-42b1-b70f-a8882b5d043b"
+    clientSecret ="OcI8Q~4WAu-eY-gjcMDCfCHy-r.qvyfv5-uETdfA"
+    oauth2Endpoint = "https://login.microsoftonline.com/{}/oauth2/token".format(tenantID)
+
+
+    mountpoint = "/mnt/" + folder_name
+    storageEndPoint ="abfss://{}@{}.dfs.core.windows.net/{}/".format(container, accountname, folder_name)
+    print ('Mount Point ='+mountpoint)
+
+
+    configs = {"fs.azure.account.auth.type": "OAuth",
+               "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+               "fs.azure.account.oauth2.client.id": clientID,
+               "fs.azure.account.oauth2.client.secret": clientSecret,
+               "fs.azure.account.oauth2.client.endpoint": oauth2Endpoint}
+
+    try:
+        dbutils.fs.mount(
+        source = storageEndPoint,
+        mount_point = mountpoint,
+        extra_configs = configs)
+        print("New Mount!")
+    except:
+        print("Update Mount!")
+        dbutils.fs.updateMount(
+        source = storageEndPoint,
+        mount_point = mountpoint,
+        extra_configs = configs)
+
+# COMMAND ----------
+
+folder_name = 'small_100k_dataset'
+mount_data(folder_name)
+
+# COMMAND ----------
+
 # MAGIC %md # Execution
 
 # COMMAND ----------
@@ -51,33 +155,9 @@ spark.conf.set(f"fs.azure.account.key.{account_name}.dfs.core.windows.net", apik
 
 # COMMAND ----------
 
-container_name = "ai4code"
-folder_name = "small_dataset"
-blob_names = dbutils.fs.ls(f"abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/")
-display(blob_names)
-
-# COMMAND ----------
-
-from pyspark.sql.types import *
-from pyspark.sql.functions import *
-
-from pyspark.sql import SparkSession
-
-# COMMAND ----------
-
-# DBTITLE 1,Link data from data storage
-appName = "PySpark open JSON line"
-master = "local"
-
-# Create Spark session
-spark = SparkSession.builder \
-    .appName(appName) \
-    .master(master) \
-    .getOrCreate()
-
-# Create data frame
-json_file_path = "abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/javascript/small_data.jsonl"
-data_reader = spark.read.json(json_file_path)
+# DBTITLE 1,Load dataset
+data_reader = spark.read.format('json').load('dbfs:/mnt/small_100k_dataset/small_dataset/javascript/small_data.jsonl')
+# data_reader = spark.read.format('json').load('dbfs:/mnt/small_500k_dataset/javascript/small_data.jsonl')
 
 # COMMAND ----------
 
@@ -85,20 +165,19 @@ display(data_reader)
 
 # COMMAND ----------
 
-# DBTITLE 1,Load dataset
 dataset = data_reader.collect()
-assert len(dataset) == 100000
 
 # COMMAND ----------
 
+# DBTITLE 1,Run extract
 # MAGIC %run ./processing_notebook
 
 # COMMAND ----------
 
-n_thread = 4
-split = 16
-# data_path = "abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/javascript/small_data.jsonl"
-save_path = "abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/javascript/"
+n_thread = 96
+split = 96
+save_path = "dbfs:/mnt/small_100k_dataset/result" 
+# save_path = "/tmp/"
 
 # COMMAND ----------
 
@@ -106,14 +185,13 @@ processing(dataset=dataset, save_path=save_path, n=n_thread, split=split)
 
 # COMMAND ----------
 
-!python processing.py \
--n 4 -s 100 \
---cache_path "abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/javascript/small_data.jsonl" \
---save_path "abfss://ai4code@ai4codedatalake.dfs.core.windows.net/small_100k_dataset/javascript/"
+dbutils.fs.cp(f"file:/tmp/function_data.jsonl", "dbfs:/mnt/small_100k_dataset/result/function_data.jsonl", True)
 
 # COMMAND ----------
 
-!lscpu | egrep 'Model name|Socket|Thread|NUMA|CPU\(s\)|CPI Core'
+# DBTITLE 1,Mount
+folder_name = 'small_100k_dataset'
+mount_data(folder_name)
 
 # COMMAND ----------
 
