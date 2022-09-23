@@ -127,7 +127,7 @@ class JavaParser(LanguageParser):
                         docstring = clean_comment(docstring, blob)
                         _comment = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_node]
                         comment = [clean_comment(cmt) for cmt in _comment]
-                        if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
+                        if docstring == None or docstring == '':  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
                             continue
                         
                         if if_comment_generated(metadata['identifier'], docstring):  # Auto code generation

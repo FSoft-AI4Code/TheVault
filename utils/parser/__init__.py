@@ -2,6 +2,10 @@ import os
 from typing import List, Dict, Any
 
 from tree_sitter import Language, Parser
+from utils.parser.go_parser import GoParser
+from utils.parser.php_parser import PhpParser
+
+from utils.parser.ruby_parser import RubyParser
 
 
 from .java_parser import JavaParser
@@ -52,6 +56,18 @@ def extract_raw_code(raw_code, language, language_path='languages/my-languages.s
     tree = parser.parse(bytes(raw_code, 'utf8'))
     root = tree.root_node
     
+    # print("root node", root.children)
+ 
+    # for child in root.children:
+    #     print(child.type, child.text)
+    #     if child.type == 'module':
+    #         print(child.children)
+    #         for i in child.children:
+    #             print(i.type, i.text, '\n\n')
+    #     else:
+    #         print(child.type, child.text, '\n')
+        
+    
     if language == 'python':
         function_list = PythonParser.get_function_definitions(root)
         return PythonParser.process_functions(function_list, raw_code)
@@ -61,3 +77,12 @@ def extract_raw_code(raw_code, language, language_path='languages/my-languages.s
     
     elif language == 'javascript':
         return JavascriptParser.get_definition(tree, raw_code)
+    
+    elif language == 'ruby':
+        return RubyParser.get_definition(tree, raw_code)
+
+    elif language == 'go':
+        return GoParser.get_definition(tree, raw_code)
+    
+    elif language == 'php':
+        return PhpParser.get_definition(tree, raw_code)
