@@ -81,12 +81,12 @@ def processing(dataset, index, tree_dict, save_path, id=None):
                 if len(item['docstring_tokens']) <= 3 or len(item['docstring_tokens']) >= 256:
                     continue
                 # export_jsonl(item, save_file)
-                with open(os.path.join(save_path, 'function_data.jsonl'), "a") as outfile:
+                with open(os.path.join(save_path, f'batch_{id}_data.jsonl'), "a") as outfile:
                     json_object = json.dump(item, outfile, ensure_ascii=False)
                     outfile.write('\n')
             
         except Exception:
-            with open(os.path.join(os.path.dirname(save_path), f'fail_sample.jsonl'), 'a') as file:
+            with open(os.path.join(os.path.dirname(save_path), f'{id}_fail.jsonl'), 'a') as file:
                 json.dump(data, file)
                 file.write('\n')
         
