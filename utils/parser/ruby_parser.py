@@ -3,6 +3,8 @@ from typing import List, Dict, Any
 
 from utils.noise_detection import clean_comment, if_comment_generated
 
+from docstring_parser.common import *
+from docstring_parser import parse
 from .language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 # from function_parser.parsers.commentutils import get_docstring_summary
 
@@ -21,8 +23,85 @@ class RubyParser(LanguageParser):
     @staticmethod
     def __get_comment_node(function_node):
         comment_node = []
-        traverse_type(function_node, comment_node, kind=['comment'])
+        traverse_type(function_node, comment_node, kind='comment')
         return comment_node
+    
+    @staticmethod
+    def extract_docstring(docstring:str, parameter_list:List) -> List:
+        if docstring == '':
+            return None, None
+        
+        param = {'other_param': {}}
+        for each in parameter_list:
+            param[each] = {'docstring': None}
+            
+        _docstring = parse(docstring, DocstringStyle.RDOC)
+        
+        for item in _docstring.meta:
+            if len(item.args) > 0:
+                tag = item.args[0]
+                if tag == 'option':
+                    _p = {'arg_name': item.arg_name, 'docstring': item.description, 'type': item.type_name}
+                    if tag in param.keys():
+                        param[tag].append(_p)
+                    else:
+                        param[tag] = [_p]
+                elif tag in PARAM_KEYWORDS:
+                    _param_name = item.arg_name
+                    _param_type = item.type_name
+                    _param_default = item.default
+                    _param_docstring = item.description
+                    _param_optional = item.is_optional
+                
+                    if _param_name in param.keys():
+                        param[_param_name]['docstring'] = _param_docstring
+                        
+                        if _param_type != None:
+                            param[_param_name]['type'] = _param_type
+                        if _param_default != None:
+                            param[_param_name]['default'] = _param_default
+                        if _param_optional != None:
+                            param[_param_name]['is_optional'] = True
+                    
+                    else:
+                        param['other_param'][_param_name] = {}
+                        param['other_param'][_param_name]['docstring'] = _param_docstring
+                        if _param_type != None:
+                            param['other_param'][_param_name]['type'] = _param_type
+                        if _param_default != None:
+                            param['other_param'][_param_name]['default'] = _param_default
+                        if _param_optional != None:
+                            param['other_param'][_param_name]['is_optional'] = True
+                
+                elif tag in RETURNS_KEYWORDS | RAISES_KEYWORDS | YIELDS_KEYWORDS:  # other tag (@raise, @return, ...)
+                    _param_docstring = item.description
+                    
+                    if _param_docstring != None and _param_docstring != "None":
+                        _p = {'docstring': _param_docstring}
+        
+                        try:
+                            _param_type = item.type_name                            
+                            if _param_type != None:
+                                _p = {'docstring': _param_docstring, 'type': _param_type}
+                        except Exception:
+                            pass
+                            
+                        if tag in param.keys():
+                            if isinstance(param[tag], Dict):
+                                param[tag] = [param[tag], _p]
+                            
+                            elif isinstance(param[tag], List):
+                                param[tag].append(_p)
+                        else:
+                            param[tag] = _p
+                            
+        new_docstring = ''
+        if _docstring.short_description != None:
+            new_docstring += _docstring.short_description + '\n'
+        if _docstring.long_description != None:
+            new_docstring += _docstring.long_description
+        
+        return new_docstring, param
 
     @staticmethod
     def _extract_method(node, blob, comment_buffer: List, module_name: str, module_or_class_name: str):
@@ -37,12 +116,9 @@ class RubyParser(LanguageParser):
             return
         if if_comment_generated(metadata['identifier'], docstring):  # Auto code generation
             return
-        # print(docstring)
-        # print('Function name', metadata['identifier'])
-        # print(match_from_span(node, blob), '\n')
         
         _docs = docstring
-        # docstring, param = 
+        docstring, param = RubyParser.extract_docstring(docstring, metadata['parameters'])
         docstring = clean_comment(docstring, blob)
         comment_node = RubyParser.__get_comment_node(node)
         comment = [clean_comment(match_from_span(cmt, blob)) for cmt in comment_node]
@@ -56,6 +132,7 @@ class RubyParser(LanguageParser):
             'original_docstring': _docs,
             'docstring': docstring,
             'docstring_tokens': tokenize_docstring(docstring),
+            'docstring_param': param,
             'comment': comment,
             # 'docstring_summary': docstring_summary,
             'start_point': node.start_point,
@@ -69,7 +146,7 @@ class RubyParser(LanguageParser):
         comment_buffer = comment_buffer or []
         for module_or_class_node in nodes:
             module_or_class_name = match_from_span(module_or_class_node.children[1], blob)
-            definitions = []
+            # definitions = []
             for child in module_or_class_node.children:
                 if child.type == 'comment':
                     comment_buffer.append(child)
@@ -80,7 +157,7 @@ class RubyParser(LanguageParser):
                         elif sub_child.type == 'method':
                             det = RubyParser._extract_method(sub_child, blob, comment_buffer, module_name, module_or_class_name)
                             comment_buffer = []
-                            if det: definitions.append(det)
+                            if det: metadata.extend(det)
                         else:
                             comment_buffer = []
                             
@@ -102,12 +179,12 @@ class RubyParser(LanguageParser):
                     #     'start_point': child.start_point,
                     #     'end_point': child.end_point
                     # })
-                    det = RubyParser._extract_method(sub_child, blob, comment_buffer, module_name, module_or_class_name)
-                    if det: definitions.append(det)
+                    det = RubyParser._extract_method(child, blob, comment_buffer, module_name, module_or_class_name)
+                    if det: metadata.extend(det)
                     comment_buffer = []
                 else:
                     comment_buffer = []
-            metadata.extend(definitions)
+            # metadata.extend(definitions)
         return metadata
 
 
@@ -116,7 +193,8 @@ class RubyParser(LanguageParser):
         definitions = []
         if 'ERROR' not in set([child.type for child in tree.root_node.children]):
             modules = [child for child in tree.root_node.children if child.type == 'module']
-            
+            sub_modules = []
+            classes = []
             for module in modules:
                 if module.children:
                     module_name = ''

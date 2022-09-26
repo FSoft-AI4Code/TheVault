@@ -7,8 +7,12 @@ from tqdm import tqdm
 
 from datasets import load_dataset
 from tree_sitter import Parser, Language
+from docstring_parser.common import ParseError
 
 from utils.languages_function import export_jsonl
+from utils.parser.go_parser import GoParser
+from utils.parser.ruby_parser import RubyParser
+from utils.parser.php_parser import PhpParser
 from utils.parser.java_parser import JavaParser
 from utils.parser.javascript_parser import JavascriptParser
 from utils.parser.python_parser import PythonParser
@@ -21,15 +25,17 @@ def args():
     parser.add_argument('--language', type=str, default='Python')
     parser.add_argument('--save_path', type=str, default='./data/python/')
     parser.add_argument('--cache_path', type=str, default='./cache')
-    parser.add_argument('-n', '--n_thread', type=int, default=15)
+    parser.add_argument('-n', '--n_thread', type=int, default=10)
     parser.add_argument('-s', '--split', type=int, default=40)
 
     return parser.parse_args()
 
 
 def processing(dataset, index, tree_dict, save_path, id=None):
-    print(f'Thread {id}')
-    for ids in tqdm(index):
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
+    for ids in tqdm(index, desc=f'Thread {id}'):
         data = json.loads(dataset[ids])
         # data = dataset[ids]
         
@@ -63,11 +69,20 @@ def processing(dataset, index, tree_dict, save_path, id=None):
                 function_list = list(PythonParser.get_function_definitions(root_tree))
                 fn_metadata = list(PythonParser.process_functions(function_list, raw_code))
 
-            if language == 'java':
+            elif language == 'java':
                 fn_metadata = list(JavaParser.get_definition(tree, raw_code))
             
-            if language == 'javascript':
+            elif language == 'javascript':
                 fn_metadata = list(JavascriptParser.get_definition(tree, raw_code))
+                
+            elif language == 'go':
+                fn_metadata = list(GoParser.get_definition(tree, raw_code))
+                
+            elif language == 'ruby':
+                fn_metadata = list(RubyParser.get_definition(tree, raw_code))
+
+            elif language == 'php':
+                fn_metadata = list(PhpParser.get_definition(tree, raw_code))
             
             fn_data = []
             if len(fn_metadata) > 0:
@@ -85,7 +100,7 @@ def processing(dataset, index, tree_dict, save_path, id=None):
                     json_object = json.dump(item, outfile, ensure_ascii=False)
                     outfile.write('\n')
             
-        except Exception:
+        except (ParseError, AttributeError, TypeError):
             with open(os.path.join(os.path.dirname(save_path), f'{id}_fail.jsonl'), 'a') as file:
                 json.dump(data, file)
                 file.write('\n')
@@ -134,10 +149,10 @@ if __name__ == '__main__':
     
     tree_dict = import_language_parser()
     
-    # for item in thread_jobs:
-    #     processing(dataset, item, tree_dict, save_dir)
+    for item in thread_jobs:
+        processing(dataset, item, tree_dict, save_dir)
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
-        futures = []
-        for _, job in enumerate(thread_jobs):
-            futures.append(executor.submit(processing, dataset=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, id=_))
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
+    #     futures = []
+    #     for _, job in enumerate(thread_jobs):
+    #         futures.append(executor.submit(processing, dataset=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, id=_))

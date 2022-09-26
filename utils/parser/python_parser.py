@@ -88,9 +88,9 @@ class PythonParser(LanguageParser):
                         if _param_type != None:
                             param[_param_name]['type'] = _param_type
                         if _param_default != None:
-                            param[_param_name]['default'] = _param_type
+                            param[_param_name]['default'] = _param_default
                         if _param_optional != None:
-                            param[_param_name]['default'] = True
+                            param[_param_name]['is_optional'] = True
                     
                     else:
                         param['other_param'][_param_name] = {}
@@ -98,7 +98,9 @@ class PythonParser(LanguageParser):
                         if _param_type != None:
                             param['other_param'][_param_name]['type'] = _param_type
                         if _param_default != None:
-                            param['other_param'][_param_name]['default'] = _param_type
+                            param['other_param'][_param_name]['default'] = _param_default
+                        if _param_optional != None:
+                            param['other_param'][_param_name]['is_optional'] = True
                 
                 elif tag in RETURNS_KEYWORDS | RAISES_KEYWORDS | YIELDS_KEYWORDS:  # other tag (@raise, @return, ...)
                     _param_docstring = item.description

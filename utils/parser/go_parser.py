@@ -13,8 +13,19 @@ class GoParser(LanguageParser):
     @staticmethod
     def __get_comment_node(function_node):
         comment_node = []
-        traverse_type(function_node, comment_node, kind=['line_comment'])
+        traverse_type(function_node, comment_node, kind='comment')
         return comment_node
+    
+    @staticmethod
+    def extract_docstring(docstring:str, parameter_list:Dict) -> List:
+        if docstring == '':
+            return None, None
+        
+        param = {'other_param': {}}
+        for key, val in parameter_list.items():
+            param[key] = {'docstring': None, 'type': val}
+        
+        return docstring, param
 
     @staticmethod
     def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
@@ -33,7 +44,7 @@ class GoParser(LanguageParser):
                 metadata = GoParser.get_function_metadata(child, blob)
                 
                 _docs = docstring
-                # docstring, param = JavaParser.extract_docstring(docstring, metadata['parameters'])
+                docstring, param = GoParser.extract_docstring(docstring, metadata['parameters'])
                 comment_node = GoParser.__get_comment_node(child)
                 docstring = clean_comment(docstring, blob)
                 _comment = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_node]
@@ -48,7 +59,7 @@ class GoParser(LanguageParser):
                     'original_docstring': _docs,
                     'docstring': docstring,
                     'docstring_tokens': tokenize_docstring(docstring),
-                    # 'docstring_param': param,
+                    'docstring_param': param,
                     'comment': comment,
                     # 'docstring_summary': docstring_summary,
                     'start_point': child.start_point,
@@ -77,8 +88,10 @@ class GoParser(LanguageParser):
 
         for param in paramerter_list:
             item = param.strip('(').strip(')').split()
-            if len(item) > 0:
+            if len(item) == 2:
                 params[item[0].strip()] = item[1] # arg, type (no Optional)
+            if len(item) == 1:
+                params[item[0].strip()] = None
 
         metadata['parameters'] = params
         return metadata

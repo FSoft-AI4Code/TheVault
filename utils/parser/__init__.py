@@ -59,10 +59,10 @@ def extract_raw_code(raw_code, language, language_path='languages/my-languages.s
     # print("root node", root.children)
  
     # for child in root.children:
-    #     print(child.type, child.text)
+    #     # print(child.type, child.text)
     #     if child.type == 'module':
-    #         print(child.children)
     #         for i in child.children:
+    #         # print(child.children)
     #             print(i.type, i.text, '\n\n')
     #     else:
     #         print(child.type, child.text, '\n')
