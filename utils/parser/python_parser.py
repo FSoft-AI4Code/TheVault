@@ -191,8 +191,9 @@ class PythonParser(LanguageParser):
         return True
 
     @staticmethod
-    def process_functions(functions: Iterable, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
-        for function_node in functions:
+    def get_definition(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
+        function_list = PythonParser.get_function_definitions(tree.root_node)
+        for function_node in function_list:
             if PythonParser.is_function_empty(function_node):
                 continue
             function_metadata = PythonParser.get_function_metadata(function_node, blob)
