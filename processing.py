@@ -70,7 +70,7 @@ def _processing(dataset, ast, lang_parser, idx=None):
                 
                 yield item
             
-        except (ParseError, AttributeError, TypeError):
+        except Exception: # (ParseError, AttributeError, TypeError, UnboundLocalError):
             # with open(os.path.join(os.path.dirname(save_path), f'{id}_fail.jsonl'), 'a') as file:
             #     json.dump(data, file)
             #     file.write('\n')
@@ -109,19 +109,20 @@ def processing(dataset, language, save_path, idx=None):
     else:
         raise ValueError(f'Language {language} not supported')
     # list_function = list(_processing(dataset, index, ast_parser, language_parser, idx))
-    list_function = list(_processing(dataset, ast_parser, language_parser, idx))
+    list_function = _processing(dataset, ast_parser, language_parser, idx)
     
     # df = pd.DataFrame.from_dict(list_function)
     # save_path = os.path.join(save_path, f'batch_{idx}_data.csv')
     # df.to_csv(save_path)
     
+    n_sample = 0
     with open(os.path.join(save_path, f'batch_{idx}_data.jsonl'), "a") as outfile:
         for function in list_function:
-            # TODO: iterate save by pyspark or normal save
+            n_sample += 1
             json.dump(function, outfile, ensure_ascii=False)
             outfile.write('\n')
             
-    return len(list_function)
+    return n_sample
 
 
 def start_executor(dataset, language, save_path, n):
@@ -155,8 +156,13 @@ def start_executor(dataset, language, save_path, n):
             save_path=save_path,
             idx=idx))
         
+    total = 0
     for function in as_completed(futures):
-        print(function.result())
+        res = function.result()
+        total += res
+        print(f'Number of sample: {res}')
+    
+    print(f'\n========================\nTotal sample: {total}')
     
     # # for test 1 process
     # processing(dataset, language, save_path)

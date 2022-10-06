@@ -4,6 +4,8 @@ Modified
 import re
 from bs4 import BeautifulSoup
 import Levenshtein as lev
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
 from typing import List
 import sys
