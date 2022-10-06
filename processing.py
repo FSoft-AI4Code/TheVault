@@ -27,18 +27,17 @@ def args():
     # parser.add_argument('--data_file', type=str, default='./data/raw/python_data.jsonl')
     parser.add_argument('--language', type=str, default='Python')
     parser.add_argument('--save_path', type=str, default='./data/python/')
-    parser.add_argument('--cache_path', type=str, default='./cache')
+    parser.add_argument('--data_path', type=str, default='./cache')
     parser.add_argument('-s', '--split', type=int, default=40)
 
     return parser.parse_args()
 
 
-# def _processing(dataset, index, ast, lang_parser, idx=None):
-def _processing(dataset, ast, lang_parser, idx=None):
+def _processing(dataset, ast, lang_parser, idx=None, is_file=None):
     # for index in tqdm(index, desc=f'Thread {idx}'):
     for data in tqdm(dataset, desc=f'Thread {idx}'):
-        data = json.loads(data)
-        # data = dataset[ids]
+        if is_file:
+            data = json.loads(data)
         
         try:
             processed_data = {
@@ -77,8 +76,7 @@ def _processing(dataset, ast, lang_parser, idx=None):
             pass
         
 
-# def processing(dataset, index, language, save_path, idx=None):
-def processing(dataset, language, save_path, idx=None):
+def processing(dataset, language, save_path, idx=None, is_file=None):
     # setup language parser
     language = str(language).lower()
     if language == "c++": language = "cpp"
@@ -109,11 +107,7 @@ def processing(dataset, language, save_path, idx=None):
     else:
         raise ValueError(f'Language {language} not supported')
     # list_function = list(_processing(dataset, index, ast_parser, language_parser, idx))
-    list_function = _processing(dataset, ast_parser, language_parser, idx)
-    
-    # df = pd.DataFrame.from_dict(list_function)
-    # save_path = os.path.join(save_path, f'batch_{idx}_data.csv')
-    # df.to_csv(save_path)
+    list_function = _processing(dataset, ast_parser, language_parser, idx, is_file)
     
     n_sample = 0
     with open(os.path.join(save_path, f'batch_{idx}_data.jsonl'), "a") as outfile:
@@ -125,7 +119,7 @@ def processing(dataset, language, save_path, idx=None):
     return n_sample
 
 
-def start_executor(dataset, language, save_path, n):
+def start_executor(dataset, language, save_path, n, is_file):
     """
     Multi-processing on CPUs
     
@@ -154,7 +148,7 @@ def start_executor(dataset, language, save_path, n):
             # index=job_index,
             language=language,
             save_path=save_path,
-            idx=idx))
+            idx=idx, is_file=is_file))
         
     total = 0
     for function in as_completed(futures):
@@ -167,41 +161,27 @@ def start_executor(dataset, language, save_path, n):
     # # for test 1 process
     # processing(dataset, language, save_path)
     
-# if __name__ == '__main__':
-#     opt = args()
-#     n, language, spliter, save_dir, cache_path = opt.n_thread, opt.language, opt.split, opt.save_path, opt.cache_path
-#     dataset = load_dataset("codeparrot/github-code", languages=[language], split='train', cache_dir=cache_path)
-    
-#     if not os.path.exists(save_dir):
-#         os.mkdir(save_dir)
-#         os.mkdir(os.path.join(save_dir, 'cache'))
-    
-#     # dataset_size = len(dataset)
-#     dataset_size = 500000
-#     index_list = range(dataset_size)
-#     chunk_size = dataset_size//spliter
-#     thread_jobs = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]
-    
-#     tree_dict = import_language_parser()
-    
-#     # for item in thread_jobs:
-#     #     processing(dataset, item, tree_dict, save_dir)
-    
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as executor:
-#         futures = []
-#         for _, job in enumerate(thread_jobs):
-#             futures.append(executor.submit(processing, dataset=dataset, index=job, tree_dict=tree_dict, save_path=save_dir, id=_))
 
 if __name__ == '__main__':
     opt = args()
-    n, language, save_path, cache_path = opt.split, opt.language, opt.save_path, opt.cache_path
+    split, language, save_path, data_path = opt.split, opt.language, opt.save_path, opt.data_path
     
-    with open(cache_path, 'r') as json_file:
-        dataset = list(json_file)
+    is_file = False
+    try:
+        # load .jsonl file
+        with open(data_path, 'r') as json_file:
+            dataset = list(json_file)
+        is_file = True
+
+    except FileNotFoundError:
+        # load huggingface cache file 
+        dataset = load_dataset("codeparrot/github-code", languages=[language], split='train', cache_dir=data_path)
+        print(dataset[5:10])
+        
     
-    # start = time.perf_counter()
+    start = time.perf_counter()
     
-    start_executor(dataset, language, save_path, n)
+    start_executor(dataset, language, save_path, split, is_file)
     
-    # finish = time.perf_counter()
-    # print('the program has finished in {} seconds'.format(finish - start))
+    finish = time.perf_counter()
+    print(f'Finished in {(finish - start):.2f} seconds')
