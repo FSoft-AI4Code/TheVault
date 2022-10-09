@@ -5,7 +5,8 @@ import argparse
 import time
 from tqdm import tqdm
 import multiprocessing
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from multiprocessing import Manager, Value
+# from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
 import pandas as pd
 from datasets import load_dataset
@@ -33,9 +34,10 @@ def args():
     return parser.parse_args()
 
 
-def _processing(dataset, ast, lang_parser, idx=None, is_file=None):
-    # for index in tqdm(index, desc=f'Thread {idx}'):
-    for data in tqdm(dataset, desc=f'Thread {idx}'):
+def _processing(dataset, indexs, ast, lang_parser, idx=None, is_file=None):
+    for idx in tqdm(indexs, desc=f'Thread {idx}'):
+    # for data in tqdm(dataset, desc=f'Thread {idx}'):
+        data = dataset[idx]
         if is_file:
             data = json.loads(data)
         
@@ -76,7 +78,7 @@ def _processing(dataset, ast, lang_parser, idx=None, is_file=None):
             pass
         
 
-def processing(dataset, language, save_path, idx=None, is_file=None):
+def processing(dataset, index, language, save_path, idx=None, is_file=None):
     # setup language parser
     language = str(language).lower()
     if language == "c++": language = "cpp"
@@ -107,7 +109,7 @@ def processing(dataset, language, save_path, idx=None, is_file=None):
     else:
         raise ValueError(f'Language {language} not supported')
     # list_function = list(_processing(dataset, index, ast_parser, language_parser, idx))
-    list_function = _processing(dataset, ast_parser, language_parser, idx, is_file)
+    list_function = _processing(dataset, index, ast_parser, language_parser, idx, is_file)
     
     n_sample = 0
     with open(os.path.join(save_path, f'batch_{idx}_data.jsonl'), "a") as outfile:
@@ -119,7 +121,7 @@ def processing(dataset, language, save_path, idx=None, is_file=None):
     return n_sample
 
 
-def start_executor(dataset, language, save_path, n, is_file):
+def start_executor(dataset, language, save_path, split, is_file):
     """
     Multi-processing on CPUs
     
@@ -128,33 +130,48 @@ def start_executor(dataset, language, save_path, n, is_file):
     :param save_path: path to discrete save
     :param n: split dataset into n file. 
     """
+    # Start multiprocessing
     n_worker = multiprocessing.cpu_count()
     print(f'Using {n_worker} cores.')
+    
     dataset_size = len(dataset)
-    # index_list = range(dataset_size)
-    chunk_size = dataset_size//n
-    # jobs_list = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]  # n set
-    jobs_list = [dataset[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]  # n set
+    index_list = range(dataset_size)
+    chunk_size = dataset_size//split
     
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
+    jobs_list = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]  # n set
+    # jobs_list = [dataset[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]  # n set
     
-    # Start multiprocessing
     futures = []
-    executor = ProcessPoolExecutor(max_workers=n_worker)
-    for idx, jobs in enumerate(jobs_list):
-        futures.append(executor.submit(processing,
-            dataset=jobs,
-            # index=job_index,
-            language=language,
-            save_path=save_path,
-            idx=idx, is_file=is_file))
+    args = []
+    # executor = ProcessPoolExecutor(max_workers=n_worker)
+    for idx, job_index in enumerate(jobs_list):
+        # futures.append(executor.submit(processing,
+        #     dataset=dataset,
+        #     index=job_index,
+        #     language=language,
+        #     save_path=save_path,
+        #     idx=idx, is_file=is_file))
         
+        args.append([dataset, job_index, language, save_path, idx, is_file])
+
+    print(len(args[1]))
+        # p = multiprocessing.Process(target=processing, args=[])
+        # p.start()
+
+    executor = multiprocessing.Pool(n_worker)
+    result = list(executor.starmap(processing, args))
+                
     total = 0
-    for function in as_completed(futures):
-        res = function.result()
+    # for function in as_completed(futures):
+    #     try:
+    #         res = function.result()
+    #         total += res
+    #     except Exception as exc:
+    #         print(exc)
+        # print(f'Number of sample: {res}')
+    
+    for res in result:
         total += res
-        print(f'Number of sample: {res}')
     
     print(f'\n========================\nTotal sample: {total}')
     
@@ -173,15 +190,18 @@ if __name__ == '__main__':
             dataset = list(json_file)
         is_file = True
 
-    except FileNotFoundError:
+    except (FileNotFoundError, IsADirectoryError):
         # load huggingface cache file 
         dataset = load_dataset("codeparrot/github-code", languages=[language], split='train', cache_dir=data_path)
-        print(dataset[5:10])
         
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
     
+
+    # Start processing
     start = time.perf_counter()
-    
     start_executor(dataset, language, save_path, split, is_file)
     
+    # executor.shutdown()
     finish = time.perf_counter()
     print(f'Finished in {(finish - start):.2f} seconds')
