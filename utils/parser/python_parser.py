@@ -7,9 +7,17 @@ from docstring_parser.common import *
 from .language_parser import match_from_span, tokenize_code, tokenize_docstring, LanguageParser, traverse_type
 from ..noise_detection import if_comment_generated, clean_comment
 
+
+PYTHON_STYLE_MAP = [
+    DocstringStyle.REST,
+    DocstringStyle.GOOGLE,
+    DocstringStyle.NUMPYDOC,
+    DocstringStyle.EPYDOC,
+]
+
 class PythonParser(LanguageParser):
     @staticmethod
-    def __get_docstring_node(function_node):
+    def get_docstring_node(function_node):
         docstring_node = []
         traverse_type(function_node, docstring_node, kind=['expression_statement']) #, 'comment'])
         docstring_node = [node for node in docstring_node if
@@ -69,8 +77,18 @@ class PythonParser(LanguageParser):
         param = {'other_param': {}}
         for each in parameter_list:
             param[each] = {'docstring': None}
-            
-        _docstring = parse(docstring)
+        
+        rets = []
+        for style in PYTHON_STYLE_MAP:
+            try:
+                ret = parse(docstring, style)
+                # break
+            except ParseError:
+                pass
+            else:
+                rets.append(ret)
+        
+        _docstring = sorted(rets, key=lambda d: len(d.meta), reverse=True)[0]
         
         for item in _docstring.meta:
             if len(item.args) > 0:
@@ -204,7 +222,7 @@ class PythonParser(LanguageParser):
                 if function_metadata['identifier'].startswith('__') and function_metadata['identifier'].endswith('__'):
                     continue  # Blacklist built-in functions
 
-            docstring_node = PythonParser.__get_docstring_node(function_node)
+            docstring_node = PythonParser.get_docstring_node(function_node)
             comment_node = PythonParser.__get_comment_node(function_node)
             docstring = PythonParser.get_docstring(docstring_node, blob)
             _docs = docstring
@@ -242,3 +260,7 @@ class PythonParser(LanguageParser):
                 for c in child.children:
                     if c.type == 'function_definition':
                         yield c
+
+    @staticmethod
+    def get_class_definitions(node):
+        raise NotImplemented()
