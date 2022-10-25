@@ -17,35 +17,31 @@ PYTHON_STYLE_MAP = [
 
 class PythonParser(LanguageParser):
     @staticmethod
-    def get_docstring_node(function_node):
+    def get_docstring_node(node):
         docstring_node = []
-        traverse_type(function_node, docstring_node, kind=['expression_statement']) #, 'comment'])
+        # traverse_type(node, docstring_node, kind=['expression_statement']) #, 'comment'])
+        for child in node.children:
+            if child.type == 'block':
+                for sub_child in child.children:
+                    if sub_child.type == 'expression_statement':
+                        docstring_node.append(sub_child)
+
         docstring_node = [node for node in docstring_node if
                           node.type == 'expression_statement' and node.children[0].type == 'string']
         
-        # get block comment and line comment
-        # docstring_node = [node for node in docstring_node \
-        #     if (node.type == 'expression_statement' and node.children[0].type == 'string' ) \
-        #     or node.type == 'comment']
-        
         if len(docstring_node) > 0:
-            # for node in docstring_node[:]:
-            #     if node.type == 'expression_statement':
-            #         docstring_node.remove(node)
-            #         docstring_node.append(node.children[0])
-            return docstring_node[0].children[0]
-            # return docstring_node
+            return docstring_node[0].children[0]  # only take the first block
+
         return None
     
-    
     @staticmethod
-    def __get_comment_node(function_node):
+    def get_comment_node(node):
         comment_node = []
-        traverse_type(function_node, comment_node, kind=['comment'])
+        traverse_type(node, comment_node, kind=['comment'])
         return comment_node
 
     @staticmethod
-    def get_docstring(docstring_node, blob: str) -> str:
+    def process_docstring(docstring_node, blob: str) -> str:
         docstring = ''
         if docstring_node is not None:
             docstring = match_from_span(docstring_node, blob)
@@ -155,7 +151,8 @@ class PythonParser(LanguageParser):
         metadata = {
             'identifier': '',
             'parameters': '',
-            'return_statement': ''}
+            'return_statement': ''
+        }
 
         is_header = False
         for child in function_node.children:
@@ -190,7 +187,13 @@ class PythonParser(LanguageParser):
                 if child.type == 'identifier':
                     metadata['identifier'] = match_from_span(child, blob)
                 elif child.type == 'argument_list':
-                    metadata['argument_list'] = match_from_span(child, blob)
+                    args = []
+                    argument_list = match_from_span(child, blob).split(',')
+                    for arg in argument_list:
+                        item = re.sub(r'[^a-zA-Z0-9\_]', ' ', arg).split()
+                        if len(item) > 0:
+                            args.append(item[0].strip())
+                    metadata['argument_list'] = args
             if child.type == 'class':
                 is_header = True
             elif child.type == ':':
@@ -209,8 +212,8 @@ class PythonParser(LanguageParser):
         return True
 
     @staticmethod
-    def get_definition(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
-        function_list = PythonParser.get_function_definitions(tree.root_node)
+    def get_function_definition(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
+        function_list = PythonParser.get_function_list(tree.root_node)
         for function_node in function_list:
             if PythonParser.is_function_empty(function_node):
                 continue
@@ -223,13 +226,13 @@ class PythonParser(LanguageParser):
                     continue  # Blacklist built-in functions
 
             docstring_node = PythonParser.get_docstring_node(function_node)
-            comment_node = PythonParser.__get_comment_node(function_node)
-            docstring = PythonParser.get_docstring(docstring_node, blob)
+            comment_node = PythonParser.get_comment_node(function_node)
+            docstring = PythonParser.process_docstring(docstring_node, blob)
             _docs = docstring
             docstring, param = PythonParser.extract_docstring(docstring, function_metadata['parameters'])
             
             docstring = clean_comment(docstring, blob)
-            _comment = [PythonParser.get_docstring(cmt, blob) for cmt in comment_node]
+            _comment = [PythonParser.process_docstring(cmt, blob) for cmt in comment_node]
             comment = [clean_comment(cmt) for cmt in _comment]
             if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
                 continue
@@ -250,17 +253,90 @@ class PythonParser(LanguageParser):
             # function_metadata['end_point'] = function_node.end_point
 
             yield function_metadata
+            
+    @staticmethod
+    def get_class_definition(tree, blob: str) -> Iterator[Dict[str, Any]]:
+        classes_list = PythonParser.get_class_list(tree.root_node)
+        for class_node in classes_list:
+            # filter 
+            class_metadata = PythonParser.get_class_metadata(class_node, blob)
+            
+            docstring_node = PythonParser.get_docstring_node(class_node)
+            docstring = PythonParser.process_docstring(docstring_node, blob)
+            comment_node = PythonParser.get_comment_node(class_node)
+            _docs = docstring
+            docstring, param = PythonParser.extract_docstring(docstring, class_metadata['argument_list'])
+            
+            docstring = clean_comment(docstring, blob)
+            _comment = [PythonParser.process_docstring(cmt, blob) for cmt in comment_node]
+            # comment = [clean_comment(cmt) for cmt in _comment]
+            
+            if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
+                continue
+            
+            if if_comment_generated(class_metadata['identifier'], docstring):  # Auto code generation
+                continue
+            
+            class_metadata['original_docstring'] = _docs
+            class_metadata['docstring'] = docstring
+            # class_metadata['comment'] = comment
+            class_metadata['docstring_tokens'] = tokenize_docstring(class_metadata['docstring'])
+            class_metadata['docstring_param'] = param
+            
+            class_metadata['class'] = match_from_span(class_node, blob)
+            exclude_node = [docstring_node] + comment_node
+            class_metadata['class_tokens'] = tokenize_code(class_node, blob, exclude_node)
+            # class_metadata['start_point'] = function_node.start_point
+            # class_metadata['end_point'] = function_node.end_point
+            
+            yield class_metadata
+            
+    @staticmethod
+    def get_inline_definition(tree, blob: str):
+        function_list = PythonParser.get_function_list(tree.root_node)
+        comment_list = []
+        
+        for function_node in function_list:
+            comment_nodes = PythonParser.get_comment_node(function_node)
+            
+            if not comment_nodes:
+                continue
+            
+            docstring_node = PythonParser.get_docstring_node(function_node)
+            exclude_node = [docstring_node] + comment_nodes
+            comment_metadata = {
+                'identifier': PythonParser.get_function_metadata(function_node, blob)['identifier'],
+                'function': match_from_span(function_node, blob),
+                'function_tokens': tokenize_code(function_node, blob, exclude_node),
+            }
+            
+            for comment_node in comment_nodes:
+                _comment_metadata = comment_metadata.copy()
+                _comment_metadata['prev_context'] = comment_node.prev_sibling
+                _comment_metadata['next_context'] = comment_node.next_sibling
+                _comment_metadata['start_point'] = comment_node.start_point
+                _comment_metadata['end_point'] = comment_node.end_point
+                
+            yield _comment_metadata
+        
+        yield comment_list
 
     @staticmethod
-    def get_function_definitions(node):
-        for child in node.children:
-            if child.type == 'function_definition':
-                yield child
-            elif child.type == 'decorated_definition':
-                for c in child.children:
-                    if c.type == 'function_definition':
-                        yield c
+    def get_function_list(node):
+        res = []
+        traverse_type(node, res, ['function_definition'])
+        return res
+    
+        # for child in node.children:
+        #     if child.type == 'function_definition':
+        #         yield child
+        #     elif child.type == 'decorated_definition':
+        #         for c in child.children:
+        #             if c.type == 'function_definition':
+        #                 yield c
 
     @staticmethod
-    def get_class_definitions(node):
-        raise NotImplemented()
+    def get_class_list(node):
+        res = []
+        traverse_type(node, res, ['class_definition'])
+        return res

@@ -18,18 +18,19 @@ class Test_PythonParser(unittest.TestCase):
         self.parser = parser
         return super().setUp()
 
-    def test_get_function_definitions(self):
+    def test_get_function_list(self):
         tree = self.parser.parse(bytes(self.code_sample, 'utf8'))
         root = tree.root_node
         
-        function_list = list(PythonParser.get_function_definitions(root))
+        function_list = PythonParser.get_function_list(root)
+        
         self.assertEqual(len(function_list), 2)
 
     def test_is_function_empty(self):
         pass
 
 
-    def test_get_class_definitions(self):
+    def test_get_class_list(self):
         pass
 
 
@@ -42,10 +43,9 @@ class Test_PythonParser(unittest.TestCase):
         tree = self.parser.parse(bytes(code_sample, 'utf8'))
         root = tree.root_node
         
-        function = list(PythonParser.get_function_definitions(root))[0]
-        # integrate these 2 functions into 1
+        function = PythonParser.get_function_list(root)[0]
         doc = PythonParser.get_docstring_node(function)
-        docstring = PythonParser.get_docstring(doc, code_sample)
+        docstring = PythonParser.process_docstring(doc, code_sample)
         self.assertEqual(docstring, "This is a docstring")
 
     def test_get_function_metadata(self):
@@ -56,7 +56,7 @@ class Test_PythonParser(unittest.TestCase):
         tree = self.parser.parse(bytes(code_sample, 'utf8'))
         root = tree.root_node
         
-        function = list(PythonParser.get_function_definitions(root))[0]
+        function = list(PythonParser.get_function_list(root))[0]
         metadata = PythonParser.get_function_metadata(function, code_sample)
 
         self.assertEqual(metadata['parameters'], ['arg1', 'arg2'])
