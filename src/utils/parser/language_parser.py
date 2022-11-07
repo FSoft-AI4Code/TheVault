@@ -128,21 +128,36 @@ def match_from_span(node, blob: str) -> str:
 
 
 class LanguageParser(ABC):
-    @staticmethod
-    @abstractmethod
-    def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
-        pass
-
     # @staticmethod
     # @abstractmethod
-    # def get_class_metadata(class_node, blob):
+    # def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
     #     pass
+
+    @staticmethod
+    @abstractmethod
+    def get_class_metadata(class_node, blob):
+        pass
 
     @staticmethod
     @abstractmethod
     def get_function_metadata(function_node, blob) -> Dict[str, str]:
         pass
+    
+    @staticmethod
+    @abstractmethod
+    def get_function_definitions(tree, blob) -> List:
+        pass
 
+    @staticmethod
+    @abstractmethod
+    def get_class_definitions(tree, blob) -> List:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_line_definitions(tree, blob) -> List:
+        pass
+    
     # @staticmethod
     # @abstractmethod
     # def get_context(tree, blob):

@@ -1,11 +1,11 @@
 import re
 from typing import List, Dict, Any
 
-from utils.noise_detection import clean_comment, if_comment_generated
-
 from docstring_parser.common import *
 from docstring_parser import parse
+
 from .language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
+from ..noise_detection import clean_comment, if_comment_generated
 # from function_parser.parsers.commentutils import get_docstring_summary
 
 

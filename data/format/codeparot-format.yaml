@@ -1,0 +1,13 @@
+# CodeParrot's format
+# https://huggingface.co/datasets/codeparrot/github-code
+
+# Main content
+code: code
+repo: repo_name
+path: path
+language: language
+
+# Additional content
+license: license
+size: size
+

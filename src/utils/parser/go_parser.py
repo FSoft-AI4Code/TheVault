@@ -1,8 +1,7 @@
 from typing import List, Dict, Any
 
-from utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
-
 from .language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
+from ..noise_detection import clean_comment, strip_c_style_comment_delimiters
 # from function_parser.parsers.commentutils import get_docstring_summary, strip_c_style_comment_delimiters
 
 

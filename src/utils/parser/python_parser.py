@@ -212,7 +212,7 @@ class PythonParser(LanguageParser):
         return True
 
     @staticmethod
-    def get_function_definition(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
+    def get_function_definitions(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
         function_list = PythonParser.get_function_list(tree.root_node)
         for function_node in function_list:
             if PythonParser.is_function_empty(function_node):
@@ -229,7 +229,10 @@ class PythonParser(LanguageParser):
             comment_node = PythonParser.get_comment_node(function_node)
             docstring = PythonParser.process_docstring(docstring_node, blob)
             _docs = docstring
-            docstring, param = PythonParser.extract_docstring(docstring, function_metadata['parameters'])
+            try:
+                docstring, param = PythonParser.extract_docstring(docstring, function_metadata['parameters'])
+            except:
+                continue
             
             docstring = clean_comment(docstring, blob)
             _comment = [PythonParser.process_docstring(cmt, blob) for cmt in comment_node]
@@ -255,7 +258,7 @@ class PythonParser(LanguageParser):
             yield function_metadata
             
     @staticmethod
-    def get_class_definition(tree, blob: str) -> Iterator[Dict[str, Any]]:
+    def get_class_definitions(tree, blob: str) -> Iterator[Dict[str, Any]]:
         classes_list = PythonParser.get_class_list(tree.root_node)
         for class_node in classes_list:
             # filter 
@@ -265,7 +268,10 @@ class PythonParser(LanguageParser):
             docstring = PythonParser.process_docstring(docstring_node, blob)
             comment_node = PythonParser.get_comment_node(class_node)
             _docs = docstring
-            docstring, param = PythonParser.extract_docstring(docstring, class_metadata['argument_list'])
+            try:
+                docstring, param = PythonParser.extract_docstring(docstring, class_metadata['argument_list'])
+            except:
+                continue
             
             docstring = clean_comment(docstring, blob)
             _comment = [PythonParser.process_docstring(cmt, blob) for cmt in comment_node]
@@ -292,7 +298,7 @@ class PythonParser(LanguageParser):
             yield class_metadata
             
     @staticmethod
-    def get_inline_definition(tree, blob: str):
+    def get_line_definitions(tree, blob: str):
         function_list = PythonParser.get_function_list(tree.root_node)
         comment_list = []
         
@@ -310,16 +316,65 @@ class PythonParser(LanguageParser):
                 'function_tokens': tokenize_code(function_node, blob, exclude_node),
             }
             
+            fn_line_start = function_node.start_point[0]
+                
             for comment_node in comment_nodes:
                 _comment_metadata = comment_metadata.copy()
-                _comment_metadata['prev_context'] = comment_node.prev_sibling
-                _comment_metadata['next_context'] = comment_node.next_sibling
-                _comment_metadata['start_point'] = comment_node.start_point
-                _comment_metadata['end_point'] = comment_node.end_point
                 
-            yield _comment_metadata
-        
-        yield comment_list
+                comments = [match_from_span(comment_node, blob)]
+                prev_node = comment_node.prev_sibling
+                next_node = comment_node.next_sibling
+                
+                _comment_metadata['prev_context'] = None
+                _comment_metadata['next_context'] = None
+                _comment_metadata['start_point'] = list(comment_node.start_point) #[0] - fn_line_start, comment_node.start_point[1]]
+                _comment_metadata['end_point'] = list(comment_node.end_point) #[0] - fn_line_start, comment_node.end_point[1]]
+                
+                if prev_node is not None:
+                    while prev_node.type == 'comment':
+                        comments.insert(0, match_from_span(prev_node, blob))
+                        _comment_metadata['start_point'] = list(prev_node.start_point)
+                        if prev_node.prev_sibling is None: 
+                            break
+                        prev_node = prev_node.prev_sibling
+
+                    if not prev_node.type == ":":
+                        _comment_metadata['prev_context'] = {
+                            'code': prev_node.text.decode(),
+                            'start_point': list(prev_node.start_point), #[0] - fn_line_start, prev_node.start_point[1]],
+                            'end_point': list(prev_node.end_point) # - fn_line_start, prev_node.end_point[1]]
+                        }
+                
+                if next_node is not None:
+                    while next_node.type == 'comment':
+                        comments.append(match_from_span(next_node, blob))
+                        _comment_metadata['end_point'] = list(next_node.start_point)
+                        if next_node.next_sibling is None:
+                            break
+                        next_node = next_node.next_sibling    
+                        
+                    if next_node.type == "block":
+                        next_node = next_node.children[0] if len(next_node.children) > 0 else None
+                        
+                    _comment_metadata['next_context'] = {
+                        'code': next_node.text.decode(),
+                        'start_point': [next_node.start_point[0] - fn_line_start, next_node.start_point[1]],
+                        'end_point': [next_node.end_point[0] - fn_line_start, next_node.end_point[1]],
+                    }
+                
+                _comment_metadata['start_point'][0] -= fn_line_start
+                _comment_metadata['end_point'][0] -= fn_line_start
+                
+                _cmt = '\n'.join(comments)
+                comment = clean_comment(_cmt)
+                if comment == None:
+                    continue
+                
+                _comment_metadata['original_comment'] = _cmt
+                _comment_metadata['comment'] = comment
+                _comment_metadata['comment_tokens'] = tokenize_docstring(comment)
+                
+                yield _comment_metadata
 
     @staticmethod
     def get_function_list(node):

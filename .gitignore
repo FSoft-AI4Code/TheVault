@@ -7,3 +7,4 @@ cache/*
 *.gz
 *.txt
 *.pyc
+*.so

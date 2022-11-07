@@ -1,10 +1,16 @@
 # Preprocessing code description
 
-## Install dependencies
-To getting started with preprocessing step, install dependencies:
+## Installation
+Install dependencies and setup by using `install_env.sh`
 ```bash
-pip install -r requirements.txt
+bash -i ./install_env.sh
 ```
+then activate conda environment named "code-text-env"
+```bash
+conda activate code-text-env
+```
+
+## Dataset source
 
 ## Dataset & Usage
 Preprocessed dataset: [Googledrive](https://drive.google.com/drive/u/0/folders/1FGLK7HwP-W3wbFKefwNgV0IGjUvUxkYN)

@@ -1,0 +1,10 @@
+# CodeSearchNet jsonline format 
+# https://github.com/github/CodeSearchNet#data-details
+
+# Main content
+code: original_string
+repo: repo
+path: path
+language: language
+
+# Additional content

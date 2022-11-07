@@ -2,15 +2,12 @@ import os
 from typing import List, Dict, Any
 
 from tree_sitter import Language, Parser
-from utils.parser.go_parser import GoParser
-from utils.parser.php_parser import PhpParser
-
-from utils.parser.ruby_parser import RubyParser
-
-
-from .java_parser import JavaParser
-from .javascript_parser import JavascriptParser
-from .python_parser import PythonParser
+from src.utils.parser.go_parser import GoParser
+from src.utils.parser.php_parser import PhpParser
+from src.utils.parser.ruby_parser import RubyParser
+from src.utils.parser.java_parser import JavaParser
+from src.utils.parser.javascript_parser import JavascriptParser
+from src.utils.parser.python_parser import PythonParser
 
 
 def extract_raw_code(raw_code, language, language_path='languages/my-languages.so') -> List[Dict[str, Any]]:
