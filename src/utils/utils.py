@@ -3,6 +3,7 @@ import subprocess
 import logging
 from pathlib import Path
 
+import tree_sitter
 from tree_sitter import Language, Parser
 
 
@@ -33,6 +34,8 @@ def build_language(language: str, save_path: str=ROOT_PATH):
         command = f"cd tree-sitter; git clone https://github.com/tree-sitter/tree-sitter-{language}.git"
         subprocess.Popen(command ,shell=True).wait()
         
+        assert os.path.exists(ts_lang_path)==True, f"Unable to find {language} tree-sitter"
+        
     lang_path = os.path.join(save_path, 'tree-sitter', f'{language}.so')
     if not os.path.exists(lang_path):
         logger.info(
@@ -40,6 +43,37 @@ def build_language(language: str, save_path: str=ROOT_PATH):
         )
         Language.build_library(lang_path, [ts_lang_path])
         assert os.path.exists(lang_path)==True
+        
+    
+def parse_code(raw_code: str, language: str) -> tree_sitter.Tree:
+    """
+    Auto parse raw code into `tree_sitter.Tree`
+    
+    Args:
+        raw_code (str): Raw source code need to parse
+        language (str): Language to load parser
+    """
+    # TODO: auto detect language
+    
+    language = str(language).lower()
+    if language == 'c#':
+        language = 'c_sharp'
+    elif language == 'c++':
+        language = 'cpp'
+            
+    ts_lang_path = os.path.join(ROOT_PATH, 'tree-sitter', f'{language}.so')
+    if not os.path.exists(ts_lang_path):
+        build_language(language)
+        
+    parser = Parser()
+    language = Language(ROOT_PATH + f"/tree-sitter/{language}.so", language)
+    parser.set_language(language)
+    
+    if isinstance(raw_code, str):
+        tree = parser.parse(bytes(raw_code, 'utf8'))
+        return tree
+    else:
+        return
         
 
 if __name__ == '__main__':

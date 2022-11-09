@@ -1,5 +1,6 @@
 cache/*
 */build/*
+*/dist/*
 */tree-sitter-*
 *.jsonl
 *.json
@@ -8,3 +9,4 @@ cache/*
 *.txt
 *.pyc
 *.so
+*.whl
