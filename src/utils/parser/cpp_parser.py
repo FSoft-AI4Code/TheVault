@@ -21,10 +21,19 @@ CPP_STYLE_MAP = [
 
 class CppParser(LanguageParser):
     @staticmethod
-    def get_docstring_node(node):
+    def get_docstring(node, blob):
         docstring_node = []
-        pass
-        # return None
+        
+        prev_node = node.prev_sibling
+        while prev_node is not None and prev_node.type == 'comment':
+            docstring_node.insert(0, prev_node)
+            prev_node = prev_node.prev_sibling
+            
+            # else:
+            #     break
+        
+        docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
+        return docstring
     
     @staticmethod
     def get_comment_node(node):
@@ -62,7 +71,7 @@ class CppParser(LanguageParser):
                             param_identifier = match_from_span(param.children[1], blob)
                             
                             metadata['parameters'][param_identifier] = param_type
-        print(metadata)
+
         return metadata
 
     @staticmethod
@@ -183,7 +192,6 @@ class CppParser(LanguageParser):
     @staticmethod
     def get_line_definitions(tree, blob: str):
         function_list = CppParser.get_function_list(tree.root_node)
-        comment_list = []
         
         for function_node in function_list:
             comment_nodes = CppParser.get_comment_node(function_node)
@@ -191,12 +199,10 @@ class CppParser(LanguageParser):
             if not comment_nodes:
                 continue
             
-            docstring_node = CppParser.get_docstring_node(function_node)
-            exclude_node = [docstring_node] + comment_nodes
             comment_metadata = {
                 'identifier': CppParser.get_function_metadata(function_node, blob)['identifier'],
                 'function': match_from_span(function_node, blob),
-                'function_tokens': tokenize_code(function_node, blob, exclude_node),
+                'function_tokens': tokenize_code(function_node, blob, comment_nodes),
             }
             
             fn_line_start = function_node.start_point[0]

@@ -24,3 +24,4 @@ int main() {
   cout << myCar.brand + " " + myCar.model;
   return 0;
 }
+

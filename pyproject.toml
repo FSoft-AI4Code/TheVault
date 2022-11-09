@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codetext"
+version = "0.0.1"
+authors = [
+  { name="Dung Manh Nguyen", email="dungnm.workspace@gmail.com" },
+]
+description = "Multilingual programming language parsers for the extract from raw source code into multiple levels of pair data"
+readme = "README.md"
+requires-python = ">=3.10.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/AI4Code-Research/CodeText-data"
+"Bug Tracker" = "https://github.com/AI4Code-Research/CodeText-data/issues"
