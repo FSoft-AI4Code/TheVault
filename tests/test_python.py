@@ -1,15 +1,17 @@
 '''test for python parser'''
 import os
 import unittest
-from tree_sitter import Language, Parser
-# from ..utils.parser import PythonParser
-from utils.parser import PythonParser
+from pathlib import Path
 
+from tree_sitter import Language, Parser
+from src.utils.parser import PythonParser
+
+ROOT_PATH = str(Path(__file__).parents[1])
 
 class Test_PythonParser(unittest.TestCase):
     def setUp(self) -> None:
         parser = Parser()
-        py_language = Language("languages/my-languages.so", "python")
+        py_language = Language(ROOT_PATH + "/tree-sitter/python.so", "python")
         parser.set_language(py_language)
         
         with open('tests/test_sample/py_test_sample.py', 'r') as file:
@@ -24,21 +26,36 @@ class Test_PythonParser(unittest.TestCase):
         
         function_list = PythonParser.get_function_list(root)
         
-        self.assertEqual(len(function_list), 2)
-
-    def test_is_function_empty(self):
-        pass
-
+        self.assertEqual(len(function_list), 3)
 
     def test_get_class_list(self):
-        pass
-
+        tree = self.parser.parse(bytes(self.code_sample, 'utf8'))
+        root = tree.root_node
+        
+        class_list = PythonParser.get_class_list(root)
+        
+        self.assertEqual(len(class_list), 1)
+    
+    def test_is_function_empty(self):
+        code_sample = '''
+        def test_sample():
+            """This is a docstring"""
+            # This function is empty
+            pass
+        '''
+        tree = self.parser.parse(bytes(code_sample, 'utf8'))
+        root = tree.root_node
+        
+        function = PythonParser.get_function_list(root)[0]
+        
+        is_empty = PythonParser.is_function_empty(function)
+        self.assertEqual(is_empty, True)
 
     def test_get_docstring(self):
         code_sample = '''
         def test_sample():
             """This is a docstring"""
-            pass
+            return
         '''
         tree = self.parser.parse(bytes(code_sample, 'utf8'))
         root = tree.root_node
@@ -61,7 +78,24 @@ class Test_PythonParser(unittest.TestCase):
 
         self.assertEqual(metadata['parameters'], ['arg1', 'arg2'])
         self.assertEqual(metadata['identifier'], 'test_sample')
-        # self.assertEqual(metadata['return_statement'], 'NotImplement')
+
+    def test_get_class_metadata(self):
+        code_sample = '''
+        class Sample(ABC):
+            def __init__(self):
+                pass
+
+            def test_sample(self, arg1: str = "string", arg2 = "another_string"):
+                return NotImplement()
+        '''
+        tree = self.parser.parse(bytes(code_sample, 'utf8'))
+        root = tree.root_node
+        
+        classes = list(PythonParser.get_class_list(root))[0]
+        metadata = PythonParser.get_class_metadata(classes, code_sample)
+
+        self.assertEqual(metadata['argument_list'], ['ABC'])
+        self.assertEqual(metadata['identifier'], 'Sample')
 
     def test_extract_docstring(self):
         # Test epydoc style ===================
@@ -165,10 +199,6 @@ class Test_PythonParser(unittest.TestCase):
         self.assertTrue('returns' in param.keys())
         self.assertTrue('raises' in param.keys())
         
-
-
-    def test_get_definition(self):
-        pass
 
 if __name__ == '__main__':
     unittest.main()

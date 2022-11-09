@@ -8,6 +8,8 @@ from src.utils.parser.ruby_parser import RubyParser
 from src.utils.parser.java_parser import JavaParser
 from src.utils.parser.javascript_parser import JavascriptParser
 from src.utils.parser.python_parser import PythonParser
+from src.utils.parser.cpp_parser import CppParser
+from src.utils.parser.c_sharp_parser import CsharpParser
 
 
 def extract_raw_code(raw_code, language, language_path='languages/my-languages.so') -> List[Dict[str, Any]]:

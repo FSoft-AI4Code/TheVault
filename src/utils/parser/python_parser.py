@@ -151,7 +151,7 @@ class PythonParser(LanguageParser):
         metadata = {
             'identifier': '',
             'parameters': '',
-            'return_statement': ''
+            'return': ''
         }
 
         is_header = False
@@ -172,7 +172,7 @@ class PythonParser(LanguageParser):
             elif child.type == ':':
                 is_header = False
             elif child.type == 'return_statement':
-                metadata['return_statement'] = match_from_span(child, blob)
+                metadata['return'] = match_from_span(child, blob)
         return metadata
 
     @staticmethod
@@ -207,9 +207,21 @@ class PythonParser(LanguageParser):
         for child in function_node.children:
             if child.type == 'block':
                 for item in child.children:
-                    if item.type != 'pass_statement' and item.type != 'raise_statement':
+                    print(item.type)
+                    if item.type == 'comment' or (item.type == 'expression_statement' and item.children[0].type == 'string'):
+                        continue
+                    elif item.type != 'pass_statement' and item.type != 'raise_statement':
                         return False
         return True
+    
+    @staticmethod
+    def is_error_node(function_node) -> bool:
+        error_node = []
+        traverse_type(function_node, error_node, ['ERROR'])
+        if len(error_node) > 0:
+            return True
+        else:
+            return False
 
     @staticmethod
     def get_function_definitions(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:
@@ -217,6 +229,9 @@ class PythonParser(LanguageParser):
         for function_node in function_list:
             if PythonParser.is_function_empty(function_node):
                 continue
+            if PythonParser.is_error_node(function_node):
+                continue
+
             function_metadata = PythonParser.get_function_metadata(function_node, blob)
             if func_identifier_scope is not None:
                 # identifier is function name
