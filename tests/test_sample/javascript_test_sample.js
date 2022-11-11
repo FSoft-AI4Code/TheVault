@@ -21,25 +21,25 @@ import {
       LOAD_SONGS_ERROR,
 } from './constants';
 
-// /**
-//  * Load the repositories, this action starts the request saga
-//  *
-//  * @return {object} An action object with a type of LOAD_REPOS
-//  */
+/**
+ * Load the repositories, this action starts the request saga
+ *
+ * @return {object} An action object with a type of LOAD_REPOS
+ */
 export function loadSongs() {
       return {
         type: LOAD_SONGS,
   };
 }
 
-// /**
-//  * Dispatched when the repositories are loaded by the request saga
-//  *
-//  * @param  {array} repos The repository data
-//  * @param  {string} username The current username
-//  *
-//  * @return {object}      An action object with a type of LOAD_REPOS_SUCCESS passing the repos
-//  */
+/**
+ * Dispatched when the repositories are loaded by the request saga
+ *
+ * @param  {array} repos The repository data
+ * @param  {string} username The current username
+ *
+ * @return {object}      An action object with a type of LOAD_REPOS_SUCCESS passing the repos
+ */
 export function songsLoaded(repos, username) {
       return {
         type: LOAD_SONGS_SUCCESS,
@@ -48,16 +48,47 @@ export function songsLoaded(repos, username) {
   };
 }
 
-// /**
-//  * Dispatched when loading the repositories fails
-//  *
-//  * @param  {object} error The error
-//  *
-//  * @return {object}       An action object with a type of LOAD_REPOS_ERROR passing the error
-//  */
+/**
+ * Dispatched when loading the repositories fails
+ *
+ * @param  {object} error The error
+ *
+ * @return {object}       An action object with a type of LOAD_REPOS_ERROR passing the error
+ */
 export function songsLoadingError(error) {
       return {
         type: LOAD_SONGS_ERROR,
     error,
   };
+}
+
+class Model extends Car {
+  constructor(brand, mod) {
+    super(brand);
+    this.model = mod;
+  }
+  
+  /**
+  * Comment something
+  */
+  show() {
+    return this.present() + ', it is a ' + this.model;
+  }
+}
+
+class Car {
+  constructor(brand) {
+    this.carname = brand;
+  }
+  
+    /**
+    * Dispatched when loading the repositories fails
+    *
+    * @param  {object} error The error
+    *
+    * @return {object}       An action object with a type of LOAD_REPOS_ERROR passing the error
+    */
+  present() {
+    return 'I have a ' + this.carname;
+  }
 }

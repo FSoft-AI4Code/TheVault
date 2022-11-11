@@ -11,52 +11,84 @@ class JavascriptParser(LanguageParser):
 
     FILTER_PATHS = ('test', 'node_modules')
 
-    BLACKLISTED_FUNCTION_NAMES = {'toString', 'toLocaleString', 'valueOf'}
+    BLACKLISTED_FUNCTION_NAMES = {'toString', 'toLocaleString', 'valueOf', 'constructor'}
 
     @staticmethod
-    def get_docstring(parent_node, tree, node, blob: str) -> str:
-        docstring = ''
+    def get_docstring_node(node):
+        docstring_node = []
+        parent_node = node.parent
+        
+        if parent_node:
+            if parent_node.type == 'class_body':  # node inside a class
+                prev_node = node.prev_sibling
+            else:
+                prev_node = parent_node.prev_sibling
 
-        if parent_node.type == 'variable_declarator':
-            base_node = node_parent(tree, parent_node)  # Get the variable declaration
-            parent_node = node_parent(tree, base_node)
-        elif parent_node.type == 'pair':
-            base_node = parent_node  # This is a common pattern where a function is assigned as a value to a dictionary.
-            parent_node = node_parent(tree, base_node)
-        else:
-            base_node = node
-
-        index = 0
-        for i, node_at_i in enumerate(parent_node.children):
-            if nodes_are_equal(base_node, node_at_i):
-                index = i
-                 
-        prev_sibling = None
-        if index > 0:   
-            prev_sibling = parent_node.children[index-1]
-
-        if prev_sibling is not None and prev_sibling.type == 'comment':
-            all_prev_comment_nodes = [prev_sibling]
-            if index > 1:
-                prev_sibling = parent_node.children[index-2]
-                i = index - 2
-                while prev_sibling is not None and prev_sibling.type == 'comment':
-                    all_prev_comment_nodes.append(prev_sibling)
-                    last_comment_start_line = prev_sibling.start_point[0]
-                    i -= 1
-                    prev_sibling = parent_node.children[i]
-                    if prev_sibling.end_point[0] + 1 < last_comment_start_line:
-                        break  # if there is an empty line, stop expanding.
-
-            docstring = ' '.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in all_prev_comment_nodes[::-1]))
+            if prev_node and prev_node.type == 'comment':
+                docstring_node.append(prev_node)
+            
+        return docstring_node
+    
+    @staticmethod
+    def get_docstring(node, blob):
+        docstring_node = JavascriptParser.get_docstring_node(node)
+        docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
         return docstring
     
     @staticmethod
-    def __get_comment_node(function_node):
+    def get_comment_node(function_node):
         comment_node = []
         traverse_type(function_node, comment_node, kind=['comment'])
         return comment_node
     
+    @staticmethod
+    def get_function_list(node):
+        res = []
+        traverse_type(node, res, ['function_declaration', 'method_definition'])
+        return res
+    
+    @staticmethod
+    def get_class_list(node):
+        res = []
+        traverse_type(node, res, ['class_declaration'])
+        return res
+
+    @staticmethod
+    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
+        metadata = {
+            'identifier': '',
+            'parameters': '',
+        }
+        param = []
+        for child in function_node.children:
+            if child.type == 'identifier':
+                metadata['identifier'] = match_from_span(child, blob)
+            elif child.type == 'formal_parameters':
+                for subchild in child.children:
+                    if subchild.type == 'identifier':
+                        param.append(match_from_span(subchild, blob))
+
+        metadata['parameters'] = param
+        return metadata
+
+    @staticmethod
+    def get_class_metadata(class_node, blob):
+        metadata = {
+            'identifier': '',
+            'argument_list': '',
+        }
+        param = []
+        for child in class_node.children:
+            if child.type == 'identifier':
+                metadata['identifier'] = match_from_span(child, blob)
+            elif child.type == 'class_heritage':
+                for subchild in child.children:
+                    if subchild.type == 'identifier':
+                        param.append(match_from_span(subchild, blob))
+                        
+        metadata['argument_list'] = param
+        return metadata
+
     @staticmethod
     def extract_docstring(docstring:str, parameter_list:List) -> List:
         if docstring == '':
@@ -126,7 +158,7 @@ class JavascriptParser(LanguageParser):
             new_docstring += _docstring.long_description
         
         return new_docstring, param
-        
+
     @staticmethod
     def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
         # function_nodes = []
@@ -181,26 +213,3 @@ class JavascriptParser(LanguageParser):
                 'end_point': function_node.end_point     
             })
         return definitions
-
-
-    @staticmethod
-    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
-        metadata = {
-            'identifier': '',
-            'parameters': '',
-        }
-        identifier_nodes = [child for child in function_node.children if child.type == 'identifier']
-        formal_parameters_nodes = [child for child in function_node.children if child.type == 'formal_parameters']
-        if identifier_nodes:
-            metadata['identifier'] = match_from_span(identifier_nodes[0], blob)
-        if formal_parameters_nodes:
-            params = []
-            parameter_list = match_from_span(formal_parameters_nodes[0], blob).split(',')
-            for param in parameter_list:
-                item = param.strip('(').strip(')')
-                if '=' in item:
-                    item = item.split('=')[0]
-                if item != '':
-                    params.append(item.strip())
-            metadata['parameters'] = params
-        return metadata
