@@ -42,7 +42,8 @@ def build_language(language: str, save_path: str=ROOT_PATH):
         subprocess.Popen(command ,shell=True).wait()
         
         assert os.path.exists(ts_lang_path)==True, f"Unable to find {language} tree-sitter"
-        
+    
+    if language == 'c-sharp': language = 'c_sharp'
     lang_path = os.path.join(save_path, 'tree-sitter', f'{language}.so')
     if not os.path.exists(lang_path):
         logger.info(
