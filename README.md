@@ -40,7 +40,7 @@ pip install codetext
 ## Build your language
 Auto build tree-sitter into `<language>.so` located in `/tree-sitter/`
 ```python
-from src.utils import build_language
+from codetext.utils import build_language
 
 language = 'rust'
 build_language(language)
@@ -57,7 +57,7 @@ We supported 8 programming languages, namely `Python`, `Java`, `JavaScript`, `Go
 
 Setup
 ```python
-from src.utils import parse_code
+from codetext.utils import parse_code
 
 raw_code = """
 /**
@@ -76,7 +76,7 @@ root_node = root.root_node
 
 Get all function nodes inside a specific node, use:
 ```python
-from src.utils.parser import CppParser
+from codetext.utils.parser import CppParser
 
 function_list = CppParser.get_function_list(root_node)
 print(function_list)
@@ -116,7 +116,7 @@ The dataset we used to extract was collected by codeparrot. They host the raw da
 For start preprocessing data, define a .yaml file to declare raw data format. (More detail: `/data/format/README.md`)
 
 ```bash
-python -m src.processing 
+python -m codetext.processing 
 <DATASET_PATH>
 --save_path <SAVE_PATH>  # path to save dir
 

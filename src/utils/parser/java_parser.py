@@ -14,10 +14,91 @@ class JavaParser(LanguageParser):
     BLACKLISTED_FUNCTION_NAMES = {'toString', 'hashCode', 'equals', 'finalize', 'notify', 'notifyAll', 'clone'}
 
     @staticmethod
-    def __get_comment_node(function_node):
+    def get_docstring_node(node):
+        docstring_node = []
+        
+        if node.prev_sibling:
+            prev_node = node.prev_sibling
+            if prev_node.type == 'block_comment' or prev_node.type == 'line_comment':
+                docstring_node.append(prev_node)
+        
+        return docstring_node
+
+    @staticmethod
+    def get_docstring(node, blob):
+        docstring_node = JavaParser.get_docstring_node(node)
+
+        docstring = ''
+        if docstring_node:
+            docstring = match_from_span(docstring_node[0], blob)
+            docstring = strip_c_style_comment_delimiters(docstring)
+        return docstring
+
+    @staticmethod
+    def get_comment_node(function_node):
         comment_node = []
         traverse_type(function_node, comment_node, kind=['line_comment'])
         return comment_node
+    
+    @staticmethod
+    def get_class_list(node):
+        res = []
+        traverse_type(node, res, ['class_declaration'])
+        return res
+    
+    @staticmethod
+    def get_function_list(node):
+        res = []
+        traverse_type(node, res, ['method_declaration'])
+        return res
+    
+    @staticmethod
+    def is_method_body_empty(node):
+        for c in node.children:
+            if c.type in {'method_body', 'constructor_body'}:
+                if c.start_point[0] == c.end_point[0]:
+                    return True
+    
+    @staticmethod
+    def get_class_metadata(class_node, blob: str) -> Dict[str, str]:
+        metadata = {
+            'identifier': '',
+            'argument_list': '',
+        }
+        is_header = False
+        for n in class_node.children:
+            if is_header:
+                if n.type == 'identifier':
+                    metadata['identifier'] = match_from_span(n, blob).strip('(:')
+                elif n.type == 'argument_list':
+                    metadata['argument_list'] = match_from_span(n, blob)
+            if n.type == 'class':
+                is_header = True
+            elif n.type == ':':
+                break
+        return metadata
+
+    @staticmethod
+    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
+        metadata = {
+            'identifier': '',
+            'parameters': '',
+        }
+
+        declarators = []
+        traverse_type(function_node, declarators, '{}_declaration'.format(function_node.type.split('_')[0]))
+        params = {}
+        for n in declarators[0].children:
+            if n.type == 'identifier':
+                metadata['identifier'] = match_from_span(n, blob).strip('(')
+            elif n.type == 'formal_parameters':
+                parameter_list = match_from_span(n, blob).split(',')
+                for param in parameter_list:
+                    item = param.strip('(').strip(')').split()
+                    if len(item) > 0:
+                        params[item[-1].strip()] = item[0]  # arg, type
+        metadata['parameters'] = params
+        return metadata
     
     @staticmethod
     def extract_docstring(docstring:str, parameter_list:Dict[str, str]) -> List:
@@ -151,50 +232,4 @@ class JavaParser(LanguageParser):
                         })
         return definitions
 
-    @staticmethod
-    def get_class_metadata(class_node, blob: str) -> Dict[str, str]:
-        metadata = {
-            'identifier': '',
-            'argument_list': '',
-        }
-        is_header = False
-        for n in class_node.children:
-            if is_header:
-                if n.type == 'identifier':
-                    metadata['identifier'] = match_from_span(n, blob).strip('(:')
-                elif n.type == 'argument_list':
-                    metadata['argument_list'] = match_from_span(n, blob)
-            if n.type == 'class':
-                is_header = True
-            elif n.type == ':':
-                break
-        return metadata
 
-    @staticmethod
-    def is_method_body_empty(node):
-        for c in node.children:
-            if c.type in {'method_body', 'constructor_body'}:
-                if c.start_point[0] == c.end_point[0]:
-                    return True
-
-    @staticmethod
-    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
-        metadata = {
-            'identifier': '',
-            'parameters': '',
-        }
-
-        declarators = []
-        traverse_type(function_node, declarators, '{}_declaration'.format(function_node.type.split('_')[0]))
-        params = {}
-        for n in declarators[0].children:
-            if n.type == 'identifier':
-                metadata['identifier'] = match_from_span(n, blob).strip('(')
-            elif n.type == 'formal_parameters':
-                parameter_list = match_from_span(n, blob).split(',')
-                for param in parameter_list:
-                    item = param.strip('(').strip(')').split()
-                    if len(item) > 0:
-                        params[item[-1].strip()] = item[0]  # arg, type
-        metadata['parameters'] = params
-        return metadata

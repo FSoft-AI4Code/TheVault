@@ -5,10 +5,11 @@ from pathlib import Path
 
 from tree_sitter import Language, Parser
 from src.utils.parser import CsharpParser
+from src.utils import parse_code
 
 ROOT_PATH = str(Path(__file__).parents[1])
 
-class Test_PythonParser(unittest.TestCase):
+class Test_CsharpParser(unittest.TestCase):
     def setUp(self) -> None:
         parser = Parser()
         language = Language(ROOT_PATH + "/tree-sitter/c_sharp.so", 'c_sharp')
@@ -37,7 +38,43 @@ class Test_PythonParser(unittest.TestCase):
         self.assertEqual(len(class_list), 1)
 
     def test_get_docstring(self):
-        pass
+        code_sample = """
+        class Vehicle
+        {
+            public string brand = "Ford";  // Vehicle field
+            
+            // <summary>
+            // Docstring of a method
+            // </summary>
+            // <param name="animal_honk">Argument.</param>
+            // <returns>
+            // None.
+            public void honk(string animal_honk)
+            {                    
+                Console.WriteLine(animal_honk);
+                Console.WriteLine("Tuut, tuut!");
+            }
+            
+            /* Another method docstring
+            in multiple line */
+            public void _honk()
+            {
+                Console.WriteLine("Tuut, tuut!");
+            }
+        }   
+        """
+        tree = parse_code(code_sample, 'c_sharp')
+        root = tree.root_node
+        
+        fn1, fn2 = list(CsharpParser.get_function_list(root))
+
+        docs1 = CsharpParser.get_docstring(fn1, code_sample)
+        docs2 = CsharpParser.get_docstring(fn2, code_sample)
+        
+        
+        self.assertEqual(docs1, '<summary>\nDocstring of a method\n</summary>\n<param name="animal_honk">Argument.</param>\n<returns>\nNone.')
+        self.assertEqual(docs2, '/* Another method docstring\nin multiple line')
+        
 
     def test_get_function_metadata(self):
         tree = self.parser.parse(bytes(self.code_sample, 'utf8'))

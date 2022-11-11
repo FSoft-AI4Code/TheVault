@@ -2,6 +2,8 @@ import re
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Set, Optional
 
+import tree_sitter
+
 DOCSTRING_REGEX = re.compile(r"(['\"])\1\1(.*?)\1{3}", flags=re.DOTALL)
 DOCSTRING_REGEX_TOKENIZER = re.compile(r"[^\s,'\"`.():\[\]=*;>{\}+-/\\]+|\\+|\.+|\(\)|{\}|\[\]|\(+|\)+|:+|\[+|\]+|{+|\}+|=+|\*+|;+|>+|\++|-+|/+")
 
@@ -128,11 +130,26 @@ def match_from_span(node, blob: str) -> str:
 
 
 class LanguageParser(ABC):
-    # @staticmethod
-    # @abstractmethod
-    # def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
-    #     pass
-
+    @staticmethod
+    @abstractmethod
+    def get_function_list(node):
+        pass
+    
+    @staticmethod
+    @abstractmethod
+    def get_class_list(node):
+        pass
+    
+    @staticmethod
+    @abstractmethod
+    def get_docstring_node(node) -> List[tree_sitter.Node]:
+        pass
+    
+    @staticmethod
+    @abstractmethod
+    def get_comment_node(node) -> List[tree_sitter.Node]:
+        pass
+    
     @staticmethod
     @abstractmethod
     def get_class_metadata(class_node, blob):
@@ -143,20 +160,21 @@ class LanguageParser(ABC):
     def get_function_metadata(function_node, blob) -> Dict[str, str]:
         pass
     
-    @staticmethod
-    @abstractmethod
-    def get_function_definitions(tree, blob) -> List:
-        pass
+    
+    # @staticmethod
+    # @abstractmethod
+    # def get_function_definitions(tree, blob) -> List:
+    #     pass
 
-    @staticmethod
-    @abstractmethod
-    def get_class_definitions(tree, blob) -> List:
-        pass
+    # @staticmethod
+    # @abstractmethod
+    # def get_class_definitions(tree, blob) -> List:
+    #     pass
 
-    @staticmethod
-    @abstractmethod
-    def get_line_definitions(tree, blob) -> List:
-        pass
+    # @staticmethod
+    # @abstractmethod
+    # def get_line_definitions(tree, blob) -> List:
+    #     pass
     
     # @staticmethod
     # @abstractmethod
