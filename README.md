@@ -52,7 +52,7 @@ build_language(language)
 ```
 
 ## Language Parser
-We supported 8 programming languages, namely `Python`, `Java`, `JavaScript`, `Golang`, `Ruby`, `PHP`, `C#`, `C++` and `C`.
+We supported 10 programming languages, namely `Python`, `Java`, `JavaScript`, `Golang`, `Ruby`, `PHP`, `C#`, `C++`, `C` and `Rust`.
 
 Setup
 ```python

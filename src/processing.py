@@ -12,12 +12,12 @@ import multiprocessing
 from datasets import load_dataset
 from tree_sitter import Parser, Language
 
-# from src.utils.parser.go_parser import GoParser
+from src.utils.parser.go_parser import GoParser
 # from src.utils.parser.ruby_parser import RubyParser
-# from src.utils.parser.php_parser import PhpParser
-# from src.utils.parser.java_parser import JavaParser
-# from src.utils.parser.javascript_parser import JavascriptParser
-# from src.utils.parser.python_parser import PythonParser
+from src.utils.parser.php_parser import PhpParser
+from src.utils.parser.java_parser import JavaParser
+from src.utils.parser.javascript_parser import JavascriptParser
+from src.utils.parser.python_parser import PythonParser
 from src.utils.parser.c_sharp_parser import CsharpParser
 from src.utils.utils import build_language, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
 
@@ -106,23 +106,23 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     if language == 'c_sharp':
         language_parser = CsharpParser()
         
-    # if language == 'python':
-    #     language_parser = PythonParser()
+    if language == 'python':
+        language_parser = PythonParser()
 
-    # elif language == 'java':
-    #     language_parser = JavaParser()
+    elif language == 'java':
+        language_parser = JavaParser()
     
-    # elif language == 'javascript':
-    #     language_parser = JavascriptParser()
+    elif language == 'javascript':
+        language_parser = JavascriptParser()
         
-    # elif language == 'go':
-    #     language_parser = GoParser()
+    elif language == 'go':
+        language_parser = GoParser()
         
     # elif language == 'ruby':
     #     language_parser = RubyParser()
 
-    # elif language == 'php':
-    #     language_parser = PhpParser()
+    elif language == 'php':
+        language_parser = PhpParser()
         
     else:
         raise ValueError(f'Language {language} not supported')
@@ -168,13 +168,17 @@ def _processing(dataset, indexs, ast, lang_parser, idx, opt): # is_file=None):
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
         
-        # Filter raw function and class
+        # Extract raw function, class and line
         raw_fn = list(process_raw_node(tree, raw_code, lang_parser))
         raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
         raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
         
+        # Filter raw function and class
         filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
         filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+        
+        # Extract docstring of function and class
+        
         
         # Save to batch data
         raw_function_set.extend(raw_fn)

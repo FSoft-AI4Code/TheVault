@@ -3,10 +3,12 @@ import os
 import subprocess
 import logging
 from pathlib import Path
-from typing import List, Any, Union
+from typing import List, Dict, Any, Union
 
 import tree_sitter
 from tree_sitter import Language, Parser
+from docstring_parser.common import *
+from docstring_parser.parser import parse
 
 from src.utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
 from src.utils.noise_removal.noise_removal import check_function
@@ -17,6 +19,22 @@ ROOT_PATH = str(Path(__file__).parents[2])
 
 logger = logging.getLogger('utils')
 logging.basicConfig(level = logging.INFO)
+
+SUPPORTED_LANGUAGE = ['python', 'java', 'javascript', 'ruby', 'go', 'c', 'cpp', 'c_sharp', 'php', 'rust']
+STYLE_MAP = {
+    'python': [DocstringStyle.REST,
+               DocstringStyle.GOOGLE,
+               DocstringStyle.NUMPYDOC,
+               DocstringStyle.EPYDOC,],
+    'java': [DocstringStyle.JAVADOC],
+    'javascript': [DocstringStyle.JSDOC],
+    'ruby': [DocstringStyle.RDOC],
+    'php': [DocstringStyle.PHPDOC],
+    'c': [DocstringStyle.JAVADOC],
+    'cpp': [DocstringStyle.JAVADOC],
+    'go': [],
+    # 'c_sharp': [DocstringStyle.XML],
+}
 
 
 def build_language(language: str, save_path: str=ROOT_PATH):
@@ -279,6 +297,146 @@ def get_line_definitions(tree, blob: str, language_parser):
                 _comment_metadata['comment_tokens'] = tokenize_docstring(comment)
                 
                 yield _comment_metadata
+
+
+def extract_docstring(docstring: str, parameter_list: Union[List, Dict], language: str) -> Dict[str, Any]:
+    """Extract docstring into parameter docstring
+        
+    Args:
+        docstring (str): Input docstring
+        parameter_list (List or Dict): List of parameter's name or Dict of name and its type
+        language (str): Language
+    
+    Return:
+        Dict[str, Any]: metadata of docstring
+    """
+    assert type(language) == str
+    assert type(docstring) == str
+    # assert type(parameter_list) in [List, Dict]
+    
+    # Checking
+    if docstring == '' or docstring is None:
+        return None
+    
+    language = str(language).lower()
+    if language == 'c#':
+        language = 'c_sharp'
+    elif language == 'c++':
+        language = 'cpp'
+    assert language in SUPPORTED_LANGUAGE, f'Expect {language} in {SUPPORTED_LANGUAGE}'
+    
+    # Setup
+    metadata = {
+        'docstring': '',
+        'docstring_params': {
+            'returns': [],
+            'raises': [],
+            'other_params': {},
+        },
+        
+    }
+    type_flag = False
+    if isinstance(parameter_list, List):
+        for each in parameter_list:
+            metadata['docstring_params'][each] = {'docstring': None, 'docstring_tokens': []}
+    elif isinstance(parameter_list, Dict):
+        type_flag = True
+        for key, val in parameter_list.items():
+            metadata['docstring_params'][key] = {'docstring': None, 'type': val, 'docstring_tokens': []}
+    
+    # Extract docstring
+    docstring_style_list = STYLE_MAP[language]
+    rets = []
+    for style in docstring_style_list:
+        try:
+            ret = parse(docstring, style)
+            # break
+        except ParseError:
+            pass
+        else:
+            rets.append(ret)
+    extract_docstring = sorted(rets, key=lambda d: len(d.meta), reverse=True)[0]
+    
+    assert type(extract_docstring) == Docstring
+    
+    new_docstring = ''
+    if extract_docstring.short_description != None:
+        new_docstring += extract_docstring.short_description
+    if extract_docstring.long_description != None:
+        new_docstring += '\n' + extract_docstring.long_description
+    metadata['docstring'] = new_docstring
+    metadata['docstring_tokens'] = tokenize_docstring(new_docstring)
+    
+    visited = []
+    for param in extract_docstring.params:
+        visited.append(param)
+        param_identifier = param.arg_name
+        param_type = param.type_name
+        param_default = param.default
+        param_is_optional = param.is_optional
+        param_docstring = clean_comment(param.description)
+        param_token = tokenize_docstring(param_docstring)
+        
+        param_metadata = {
+            'docstring': param_docstring,
+            'docstring_tokens': param_token,
+            'default': param_default,
+            'is_optional': param_is_optional,
+        }
+
+        if not type_flag:
+            param_metadata['type'] = param_type
+            if param_identifier in parameter_list:
+                metadata['docstring_params'][param_identifier] = param_metadata
+            else:
+                metadata['docstring_params']['other_params'][param_identifier] = param_metadata
+        else:    
+            if param_identifier in parameter_list.keys():
+                metadata['docstring_params'][param_identifier] = param_metadata
+            else:
+                metadata['docstring_params']['other_params'][param_identifier] = param_metadata
+
+    for retun in extract_docstring.many_returns:
+        visited.append(retun)
+        return_docstring = clean_comment(retun.description)
+        return_tokens = tokenize_docstring(return_docstring)
+        return_type = retun.type_name
+        
+        return_metadata = {
+            'docstring': return_docstring,
+            'docstring_tokens': return_tokens,
+            'type': return_type,
+        }
+        
+        metadata['docstring_params']['returns'].append(return_metadata)
+    
+    for raiser in extract_docstring.raises:
+        visited.append(raiser)
+        raise_docstring = clean_comment(raiser.description)
+        raise_tokens = tokenize_docstring(raise_docstring)
+        raise_type = raiser.type_name
+        
+        raise_metadata = {
+            'docstring': raise_docstring,
+            'docstring_tokens': raise_tokens,
+            'type': raise_type,
+        }
+        
+        metadata['docstring_params']['raises'].append(raise_metadata)
+        
+    for item in extract_docstring.meta:
+        if item not in visited:
+            try:
+                item_docs = clean_comment(item.description)
+                metadata['docstring_params'][item.args[0]] = {
+                    'docstring': item_docs,
+                    'docstring_token': tokenize_docstring(item_docs),
+                }
+            except Exception:
+                # Let it go ...
+                pass
+    
+    return metadata
 
 
 def write_jsonl(data, save_path: str):
