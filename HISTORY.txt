@@ -1,0 +1,15 @@
+========
+Releases
+========
+
+Version 0.0.1
+=============
+Release date: Nov 9, 2022
+
+*  Language parser for Java, Python, JavaScript, PHP, Golang, Ruby, C++, C#, C
+    * get_docstring
+    * get_class_list, get_function_list
+    * get_class_metadata, get_function_metadata
+*  Clean docstring function
+*  Data preprocessing source code
+*  Tree-sitter utils: build_language, parse_code

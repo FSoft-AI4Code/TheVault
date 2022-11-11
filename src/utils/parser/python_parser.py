@@ -17,7 +17,17 @@ PYTHON_STYLE_MAP = [
 
 class PythonParser(LanguageParser):
     @staticmethod
-    def get_docstring_node(node):
+    def get_docstring(node, blob):
+        docstring_node = PythonParser.get_docstring_node
+        
+        docstring = ''
+        if docstring_node is not None:
+            docstring = match_from_span(docstring_node, blob)
+            docstring = docstring.strip('"').strip("'").strip("#")
+        return docstring
+    
+    @staticmethod
+    def get_docstring_node(node, blob=None):
         docstring_node = []
         # traverse_type(node, docstring_node, kind=['expression_statement']) #, 'comment'])
         for child in node.children:
@@ -207,21 +217,11 @@ class PythonParser(LanguageParser):
         for child in function_node.children:
             if child.type == 'block':
                 for item in child.children:
-                    print(item.type)
                     if item.type == 'comment' or (item.type == 'expression_statement' and item.children[0].type == 'string'):
                         continue
                     elif item.type != 'pass_statement' and item.type != 'raise_statement':
                         return False
         return True
-    
-    @staticmethod
-    def is_error_node(function_node) -> bool:
-        error_node = []
-        traverse_type(function_node, error_node, ['ERROR'])
-        if len(error_node) > 0:
-            return True
-        else:
-            return False
 
     @staticmethod
     def get_function_definitions(tree, blob: str, func_identifier_scope: Optional[str]=None) -> Iterator[Dict[str, Any]]:

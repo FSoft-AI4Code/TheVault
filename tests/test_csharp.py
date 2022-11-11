@@ -69,6 +69,7 @@ class Test_CsharpParser(unittest.TestCase):
         fn1, fn2 = list(CsharpParser.get_function_list(root))
 
         docs1 = CsharpParser.get_docstring(fn1, code_sample)
+        print([docs1])
         docs2 = CsharpParser.get_docstring(fn2, code_sample)
         
         

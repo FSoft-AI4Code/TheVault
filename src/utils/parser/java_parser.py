@@ -65,17 +65,16 @@ class JavaParser(LanguageParser):
             'identifier': '',
             'argument_list': '',
         }
-        is_header = False
-        for n in class_node.children:
-            if is_header:
-                if n.type == 'identifier':
-                    metadata['identifier'] = match_from_span(n, blob).strip('(:')
-                elif n.type == 'argument_list':
-                    metadata['argument_list'] = match_from_span(n, blob)
-            if n.type == 'class':
-                is_header = True
-            elif n.type == ':':
-                break
+        argument_list = []
+        for child in class_node.children:
+            if child.type == 'identifier':
+                metadata['identifier'] = match_from_span(child, blob)
+            elif child.type == 'superclass' or child.type == 'super_interfaces':
+                for subchild in child.children:
+                    if subchild.type == 'type_list' or subchild.type == 'type_identifier':
+                        argument_list.append(match_from_span(subchild, blob))
+                    
+        metadata['argument_list'] = argument_list
         return metadata
 
     @staticmethod
@@ -83,20 +82,26 @@ class JavaParser(LanguageParser):
         metadata = {
             'identifier': '',
             'parameters': '',
+            'type': ''
         }
-
-        declarators = []
-        traverse_type(function_node, declarators, '{}_declaration'.format(function_node.type.split('_')[0]))
+        
         params = {}
-        for n in declarators[0].children:
-            if n.type == 'identifier':
-                metadata['identifier'] = match_from_span(n, blob).strip('(')
-            elif n.type == 'formal_parameters':
-                parameter_list = match_from_span(n, blob).split(',')
-                for param in parameter_list:
-                    item = param.strip('(').strip(')').split()
-                    if len(item) > 0:
-                        params[item[-1].strip()] = item[0]  # arg, type
+        for child in function_node.children:
+            if child.type == 'identifier':
+                metadata['identifier'] = match_from_span(child, blob)
+            elif child.type == 'type_identifier':
+                metadata['type'] = match_from_span(child, blob)
+            elif child.type == 'formal_parameters':
+                param_list = []
+                traverse_type(child, param_list, ['formal_parameter'])
+                for param in param_list:
+                    for subchild in param.children:
+                        if subchild.type == 'identifier':
+                            identifier = match_from_span(subchild, blob)
+                        elif subchild.type in ['type_identifier', 'integral_type']:
+                            param_type = match_from_span(subchild, blob)
+                    params[identifier] = param_type
+        
         metadata['parameters'] = params
         return metadata
     

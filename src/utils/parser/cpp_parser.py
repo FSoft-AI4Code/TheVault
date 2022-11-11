@@ -25,15 +25,18 @@ class CppParser(LanguageParser):
         docstring_node = []
         
         prev_node = node.prev_sibling
-        while prev_node is not None and prev_node.type == 'comment':
-            docstring_node.insert(0, prev_node)
+        if prev_node and prev_node.type == 'comment':
+            docstring_node.append(prev_node)
             prev_node = prev_node.prev_sibling
-        
+
+        while prev_node and prev_node.type == 'comment':
             # Assume the comment is dense
             x_current = prev_node.start_point[0]
-            x_prev = prev_node.prev_sibling.start_point[0]
-            if x_current - x_prev > 1:
+            x_next = prev_node.next_sibling.start_point[0]
+            if x_next - x_current > 1:
                 break
+            
+            docstring_node.insert(0, prev_node)    
             prev_node = prev_node.prev_sibling
             
         return docstring_node

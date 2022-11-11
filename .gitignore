@@ -1,4 +1,5 @@
 cache/*
+src/*/*.txt
 */build/*
 */dist/*
 */tree-sitter-*
@@ -6,7 +7,7 @@ cache/*
 *.json
 *.zip
 *.gz
-*.txt
 *.pyc
 *.so
 *.whl
+

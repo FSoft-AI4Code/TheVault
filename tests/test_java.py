@@ -65,8 +65,6 @@ class Test_JavaParser(unittest.TestCase):
         
         function = list(JavaParser.get_function_list(root))[0]
         metadata = JavaParser.get_function_metadata(function, self.code_sample)
-        
-        print(metadata)
 
         self.assertEqual(metadata['parameters'], {'context': 'Context', 'userIndex': 'int'})
         self.assertEqual(metadata['identifier'], 'getHabitList')
@@ -77,10 +75,8 @@ class Test_JavaParser(unittest.TestCase):
         
         classes = list(JavaParser.get_class_list(root))[0]
         metadata = JavaParser.get_class_metadata(classes, self.code_sample)
-        
-        print(metadata)
 
-        self.assertEqual(metadata['argument_list'], ['SudoUser'])
+        self.assertEqual(metadata['argument_list'], ['SudoUser', 'FileController'])
         self.assertEqual(metadata['identifier'], 'SaveFileController')
 
     def test_extract_docstring(self):

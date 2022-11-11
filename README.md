@@ -9,9 +9,9 @@ ______________________________________________________________________
 
 
 <!-- Badge start -->
-| Branch 	| Build 	| Coverage 	| Linting 	| Release 	| License 	|
+| Branch 	| Build 	| Unittest 	| Linting 	| Release 	| License 	|
 |--------	|-------	|----------	|---------	|---------	|---------	|
-| main   	|       	|           |       	| [![release](https://img.shields.io/pypi/v/codetext)](https://pypi.org/project/codetext/) [![pyversion](https://img.shields.io/pypi/pyversions/codetext)](https://pypi.org/project/codetext/)| [![license](https://img.shields.io/github/license/AI4Code-Research/CodeText-data)](https://github.com/UETAILab/AI4Code-Research/CodeText-data/LICENSE.txt) |
+| main   	|       	| [![Unittest](https://github.com/AI4Code-Research/CodeText-data/actions/workflows/unittest.yml/badge.svg)](https://github.com/AI4Code-Research/CodeText-data/actions/workflows/unittest.yml) |       	| [![release](https://img.shields.io/pypi/v/codetext)](https://pypi.org/project/codetext/) [![pyversion](https://img.shields.io/pypi/pyversions/codetext)](https://pypi.org/project/codetext/)| [![license](https://img.shields.io/github/license/AI4Code-Research/CodeText-data)](https://github.com/UETAILab/AI4Code-Research/CodeText-data/LICENSE.txt) |
 
 <!-- Badge end -->
 </div>

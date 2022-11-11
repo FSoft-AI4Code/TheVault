@@ -3,13 +3,13 @@
  *
  * @version 1.0
  */
-public class SaveFileController extends SudoUser {
+public class SaveFileController extends SudoUser implements FileController {
     private ArrayList<User> allUsers;
     //private String username;
     private String saveFile = "test_save_file4.sav";
 
     public SaveFileController(){
-            this.allUsers = new ArrayList<User>();
+        this.allUsers = new ArrayList<User>();
     }
 
     /**
@@ -21,7 +21,7 @@ public class SaveFileController extends SudoUser {
      * @see HabitList
      */
     public HabitList getHabitList(Context context, int userIndex){
-            loadFromFile(context);
+        loadFromFile(context);
         return this.allUsers.get(userIndex).getHabitList();
     }
 
@@ -34,7 +34,7 @@ public class SaveFileController extends SudoUser {
      * @param habitEventIndex integer index of habit event
      */
     public void removeHabitEvent(Context context, int userIndex, int habitIndex, int habitEventIndex){
-            loadFromFile(context);
+        loadFromFile(context);
         this.allUsers.get(userIndex).getHabitList().getHabit(habitIndex)
                 .getHabitEventHistory().getHabitEvents().remove(habitEventIndex);
         saveToFile(context);
