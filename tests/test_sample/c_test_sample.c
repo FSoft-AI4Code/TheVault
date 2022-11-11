@@ -1,10 +1,5 @@
 #include <stdio.h>
 void reverseSentence();
-int main() {
-    printf("Enter a sentence: ");
-    reverseSentence();
-    return 0;
-}
 
 /**
  * A brief description. A more elaborate class description
@@ -19,4 +14,10 @@ void reverseSentence(int random_seed) {
         reverseSentence();
         printf("%c", c);
     }
+}
+
+int main() {
+    printf("Enter a sentence: ");
+    reverseSentence();
+    return 0;
 }

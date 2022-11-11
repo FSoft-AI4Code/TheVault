@@ -10,11 +10,76 @@ class GoParser(LanguageParser):
     FILTER_PATHS = ('test', 'vendor')
     
     @staticmethod
-    def __get_comment_node(function_node):
+    def get_comment_node(function_node):
         comment_node = []
         traverse_type(function_node, comment_node, kind='comment')
         return comment_node
     
+    @staticmethod
+    def get_docstring_node(node):
+        docstring_node = []
+        
+        prev_node = node.prev_sibling
+        if prev_node and prev_node.type == 'comment':
+            docstring_node.append(prev_node)
+            prev_node = prev_node.prev_sibling
+
+        while prev_node and prev_node.type == 'comment':
+            # Assume the comment is dense
+            x_current = prev_node.start_point[0]
+            x_next = prev_node.next_sibling.start_point[0]
+            if x_next - x_current > 1:
+                break
+            
+            docstring_node.insert(0, prev_node)    
+            prev_node = prev_node.prev_sibling
+            
+        return docstring_node
+    
+    @staticmethod
+    def get_docstring(node, blob):
+        docstring_node = GoParser.get_docstring_node(node)
+        docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
+        return docstring
+    
+    @staticmethod
+    def get_function_list(node):
+        res = []
+        traverse_type(node, res, ['method_declaration', 'function_declaration'])
+        return res
+    
+    @staticmethod
+    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
+        metadata = {
+            'identifier': '',
+            'parameters': {},
+            'type': '',
+        }
+        
+        for child in function_node.children:
+            if child.type == 'field_identifier':
+                metadata['identifier'] = match_from_span(child, blob)
+            elif child.type == 'type_identifier':
+                metadata['type'] = match_from_span(child, blob)
+            elif child.type == 'parameter_list':
+                for subchild in child.children:
+                    if subchild.type in ['parameter_declaration', 'variadic_parameter_declaration']:
+                        identifier = match_from_span(subchild.child_by_field_name('name'), blob)
+                        param_type = match_from_span(subchild.child_by_field_name('type'), blob)
+                        
+                        if identifier and param_type:
+                            metadata['parameters'][identifier] = param_type
+        
+        return metadata
+
+    @staticmethod
+    def get_class_list(node):
+        raise NotImplementedError()
+    
+    @staticmethod
+    def get_class_metadata(class_node, blob) -> Dict[str, str]:
+        raise UserWarning('Golang does not support class concept')
+
     @staticmethod
     def extract_docstring(docstring:str, parameter_list:Dict) -> List:
         if docstring == '':
@@ -25,7 +90,7 @@ class GoParser(LanguageParser):
             param[key] = {'docstring': None, 'type': val}
         
         return docstring, param
-
+    
     @staticmethod
     def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
         definitions = []
@@ -68,29 +133,3 @@ class GoParser(LanguageParser):
             else:
                 comment_buffer = []
         return definitions
-
-
-    @staticmethod
-    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
-        metadata = {
-            'identifier': '',
-            'parameters': '',
-        }
-        params = {}
-        if function_node.type == 'function_declaration':
-            metadata['identifier'] = match_from_span(function_node.children[1], blob)
-            paramerter_list = match_from_span(function_node.children[2], blob).split(',')
-        elif function_node.type == 'method_declaration':
-            metadata['identifier'] = match_from_span(function_node.children[2], blob)
-            paramerter_list = ','.join([match_from_span(function_node.children[1], blob),
-                                        match_from_span(function_node.children[3], blob)]).split(',')
-
-        for param in paramerter_list:
-            item = param.strip('(').strip(')').split()
-            if len(item) == 2:
-                params[item[0].strip()] = item[1] # arg, type (no Optional)
-            if len(item) == 1:
-                params[item[0].strip()] = None
-
-        metadata['parameters'] = params
-        return metadata
