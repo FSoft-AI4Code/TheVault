@@ -1,17 +1,5 @@
 <?php
 
-namespace Doctrine\\DBAL\\Driver\\PDO\\SQLSrv;
-
-use Doctrine\\DBAL\\Driver\\AbstractSQLServerDriver;
-use Doctrine\\DBAL\\Driver\\AbstractSQLServerDriver\\Exception\\PortWithoutHost;
-use Doctrine\\DBAL\\Driver\\Exception;
-use Doctrine\\DBAL\\Driver\\PDO\\Connection as PDOConnection;
-use Doctrine\\DBAL\\Driver\\PDO\\Exception as PDOException;
-use PDO;
-
-use function is_int;
-use function sprintf;
-
 final class Driver extends AbstractSQLServerDriver
 {
     /**

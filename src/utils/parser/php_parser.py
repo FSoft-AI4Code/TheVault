@@ -1,5 +1,6 @@
 import re
 from typing import List, Dict, Any
+import tree_sitter
 
 from docstring_parser import parse
 from docstring_parser.common import *
@@ -20,18 +21,87 @@ class PhpParser(LanguageParser):
                                   '__unserialize'}
 
     @staticmethod
-    def get_docstring(trait_node, blob: str, idx: int) -> str:
+    def get_docstring(node, blob: str) -> str:
+        docstring_node = PhpParser.get_docstring_node(node)
+        
         docstring = ''
-        if idx - 1 >= 0 and trait_node.children[idx-1].type == 'comment':
-            docstring = match_from_span(trait_node.children[idx-1], blob)
+        if docstring_node:
+            docstring = match_from_span(docstring_node[0], blob)
             docstring = strip_c_style_comment_delimiters(docstring)
+        
         return docstring
     
     @staticmethod
-    def __get_comment_node(function_node):
+    def get_docstring_node(node):
+        docstring_node = []
+        
+        if node.prev_sibling is not None:
+            prev_node = node.prev_sibling
+            if prev_node.type == 'comment':
+                docstring_node.append(prev_node)
+        
+        return docstring_node
+    
+    @staticmethod
+    def get_comment_node(function_node):
         comment_node = []
         traverse_type(function_node, comment_node, kind='comment')
         return comment_node
+    
+    @staticmethod
+    def get_class_list(node):
+        res = []
+        traverse_type(node, res, ['class_declaration', 'trait_declaration'])
+        return res
+    
+    @staticmethod
+    def get_function_list(node):
+        res = []
+        traverse_type(node, res, ['function_definition', 'method_declaration'])
+        return res
+    
+    @staticmethod
+    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
+        metadata = {
+            'identifier': '',
+            'parameters': '',
+        }
+
+        params = []
+        for n in function_node.children:
+            if n.type == 'name':
+                metadata['identifier'] = match_from_span(n, blob)
+            if n.type == 'union_type':
+                metadata['type'] = match_from_span(n, blob)
+            elif n.type == 'formal_parameters':
+                for param_node in n.children:
+                    if param_node.type in ['simple_parameter', 'variadic_parameter', 'property_promotion_parameter']:
+                        identifier = param_node.child_by_field_name('name')
+                        params.append(match_from_span(identifier, blob))
+                        
+        metadata['parameters'] = params
+        return metadata
+
+    
+    @staticmethod
+    def get_class_metadata(class_node, blob):
+        metadata = {
+            'identifier': '',
+            'argument_list': '',
+        }
+        assert type(class_node) == tree_sitter.Node
+        
+        for child in class_node.children:
+            if child.type == 'name':
+                metadata['identifier'] = match_from_span(child, blob)
+            elif child.type == 'base_clause':
+                argument_list = []
+                for param in child.children:
+                    if param.type == 'name':
+                        argument_list.append(match_from_span(param, blob))
+                metadata['argument_list'] = argument_list 
+    
+        return metadata
 
     @staticmethod
     def extract_docstring(docstring:str, parameter_list:List) -> List:
@@ -204,26 +274,3 @@ class PhpParser(LanguageParser):
         for class_declaration in class_declarations:
             definitions.extend(PhpParser.get_declarations(class_declaration, blob, class_declaration.type))
         return definitions
-
-
-    @staticmethod
-    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
-        metadata = {
-            'identifier': '',
-            'parameters': '',
-        }
-        # metadata['identifier'] = match_from_span(function_node.children[1], blob)
-        # metadata['parameters'] = match_from_span(function_node.children[2], blob)
-        params = []
-        for n in function_node.children:
-            if n.type == 'name':
-                metadata['identifier'] = match_from_span(n, blob)
-            elif n.type == 'formal_parameters':
-                parameter_list = match_from_span(n, blob).split(',')
-                for param in parameter_list:
-                    item = param.strip('(').strip(')').split()
-                    for word in (word for word in item if re.search(r'\$', word)):
-                        word = re.search(r"[\w\d_-]*$", word.strip()).group()
-                        params.append(word)  # arg_name
-        metadata['parameters'] = params
-        return metadata
