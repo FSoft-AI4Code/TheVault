@@ -11,28 +11,32 @@ class JavascriptParser(LanguageParser):
 
     FILTER_PATHS = ('test', 'node_modules')
 
-    BLACKLISTED_FUNCTION_NAMES = {'toString', 'toLocaleString', 'valueOf', 'constructor'}
+    BLACKLISTED_FUNCTION_NAMES = ['toString', 'toLocaleString', 'valueOf', 'constructor']
 
     @staticmethod
     def get_docstring_node(node):
         docstring_node = []
+        prev_node = node.prev_sibling
         parent_node = node.parent
+                
+        if prev_node and prev_node.type == 'comment':
+            docstring_node.append(prev_node)
         
-        if parent_node:
-            if parent_node.type == 'class_body':  # node inside a class
-                prev_node = node.prev_sibling
-            else:
+        elif parent_node:
+            if parent_node.type != 'class_body':  # node not inside a class
                 prev_node = parent_node.prev_sibling
-
-            if prev_node and prev_node.type == 'comment':
-                docstring_node.append(prev_node)
+                if prev_node and prev_node.type == 'comment':
+                    docstring_node.append(prev_node)
             
         return docstring_node
     
     @staticmethod
     def get_docstring(node, blob):
         docstring_node = JavascriptParser.get_docstring_node(node)
-        docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
+        
+        docstring = ''
+        if docstring_node:
+            docstring = strip_c_style_comment_delimiters(match_from_span(docstring_node[0], blob))
         return docstring
     
     @staticmethod
@@ -75,7 +79,7 @@ class JavascriptParser(LanguageParser):
     def get_class_metadata(class_node, blob):
         metadata = {
             'identifier': '',
-            'argument_list': '',
+            'parameters': '',
         }
         param = []
         for child in class_node.children:
@@ -86,7 +90,7 @@ class JavascriptParser(LanguageParser):
                     if subchild.type == 'identifier':
                         param.append(match_from_span(subchild, blob))
                         
-        metadata['argument_list'] = param
+        metadata['parameters'] = param
         return metadata
 
     @staticmethod

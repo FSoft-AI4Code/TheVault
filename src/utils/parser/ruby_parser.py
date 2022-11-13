@@ -13,8 +13,8 @@ class RubyParser(LanguageParser):
 
     FILTER_PATHS = ('test', 'vendor')
 
-    BLACKLISTED_FUNCTION_NAMES = {'initialize', 'to_text', 'display', 'dup', 'clone', 'equal?', '==', '<=>',
-                                  '===', '<=', '<', '>', '>=', 'between?', 'eql?', 'hash'}
+    BLACKLISTED_FUNCTION_NAMES = ['initialize', 'to_text', 'display', 'dup', 'clone', 'equal?', '==', '<=>',
+                                  '===', '<=', '<', '>', '>=', 'between?', 'eql?', 'hash']
 
     @staticmethod
     def get_docstring(trait_node, blob: str, idx: int) -> str:

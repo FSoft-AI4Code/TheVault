@@ -16,18 +16,33 @@ PYTHON_STYLE_MAP = [
 ]
 
 class PythonParser(LanguageParser):
+    
+    BLACKLISTED_FUNCTION_NAMES = ['__init__', '__name__', '__main__']
+    
     @staticmethod
     def get_docstring(node, blob):
-        docstring_node = PythonParser.get_docstring_node
+        docstring_node = PythonParser.get_docstring_node(node)
         
         docstring = ''
         if docstring_node is not None:
-            docstring = match_from_span(docstring_node, blob)
+            docstring = match_from_span(docstring_node[0], blob)
             docstring = docstring.strip('"').strip("'").strip("#")
         return docstring
     
     @staticmethod
-    def get_docstring_node(node, blob=None):
+    def get_function_list(node):
+        res = []
+        traverse_type(node, res, ['function_definition'])
+        return res
+
+    @staticmethod
+    def get_class_list(node):
+        res = []
+        traverse_type(node, res, ['class_definition'])
+        return res
+    
+    @staticmethod
+    def get_docstring_node(node):
         docstring_node = []
         # traverse_type(node, docstring_node, kind=['expression_statement']) #, 'comment'])
         for child in node.children:
@@ -40,7 +55,7 @@ class PythonParser(LanguageParser):
                           node.type == 'expression_statement' and node.children[0].type == 'string']
         
         if len(docstring_node) > 0:
-            return docstring_node[0].children[0]  # only take the first block
+            return [docstring_node[0].children[0]]  # only take the first block
 
         return None
     
@@ -189,7 +204,7 @@ class PythonParser(LanguageParser):
     def get_class_metadata(class_node, blob: str) -> Dict[str, str]:
         metadata = {
             'identifier': '',
-            'argument_list': '',
+            'parameters': '',
         }
         is_header = False
         for child in class_node.children:
@@ -203,7 +218,7 @@ class PythonParser(LanguageParser):
                         item = re.sub(r'[^a-zA-Z0-9\_]', ' ', arg).split()
                         if len(item) > 0:
                             args.append(item[0].strip())
-                    metadata['argument_list'] = args
+                    metadata['parameters'] = args
             if child.type == 'class':
                 is_header = True
             elif child.type == ':':
@@ -390,23 +405,3 @@ class PythonParser(LanguageParser):
                 _comment_metadata['comment_tokens'] = tokenize_docstring(comment)
                 
                 yield _comment_metadata
-
-    @staticmethod
-    def get_function_list(node):
-        res = []
-        traverse_type(node, res, ['function_definition'])
-        return res
-    
-        # for child in node.children:
-        #     if child.type == 'function_definition':
-        #         yield child
-        #     elif child.type == 'decorated_definition':
-        #         for c in child.children:
-        #             if c.type == 'function_definition':
-        #                 yield c
-
-    @staticmethod
-    def get_class_list(node):
-        res = []
-        traverse_type(node, res, ['class_definition'])
-        return res

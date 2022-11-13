@@ -76,7 +76,7 @@ class Test_JavaParser(unittest.TestCase):
         classes = list(JavaParser.get_class_list(root))[0]
         metadata = JavaParser.get_class_metadata(classes, self.code_sample)
 
-        self.assertEqual(metadata['argument_list'], ['SudoUser', 'FileController'])
+        self.assertEqual(metadata['parameters'], ['SudoUser', 'FileController'])
         self.assertEqual(metadata['identifier'], 'SaveFileController')
 
     def test_extract_docstring(self):

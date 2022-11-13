@@ -12,7 +12,7 @@ from docstring_parser.parser import parse
 
 from src.utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
 from src.utils.noise_removal.noise_removal import check_function
-from src.utils.parser.language_parser import match_from_span, tokenize_code, tokenize_docstring, traverse_type
+from src.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 
 
 ROOT_PATH = str(Path(__file__).parents[2])
@@ -102,7 +102,7 @@ def parse_code(raw_code: str, language: str) -> tree_sitter.Tree:
         return
 
 
-def process_raw_node(tree: List, blob: str, language_parser, is_class=False):
+def process_raw_node(tree, blob: str, language_parser, is_class=False):
     """
     Process all extractable functions or class
     Args:
@@ -118,34 +118,53 @@ def process_raw_node(tree: List, blob: str, language_parser, is_class=False):
             - 'docstring_tokens'
             - 'comment'
     """
-    if not isinstance(tree, tree_sitter.Tree):
-        raise ValueError(f'Expect `List` type, get {type(tree)}')
     
-    if is_class:
-        node_list = language_parser.get_class_list(tree.root_node)
-    else:
-        node_list = language_parser.get_function_list(tree.root_node)
+    assert isinstance(tree, tree_sitter.Tree), f'Expect tree is `tree_sitter.Tree` type, get {type(tree)}'
+    
+    try:
+        if is_class:
+            node_list = language_parser.get_class_list(tree.root_node)
+        else:
+            node_list = language_parser.get_function_list(tree.root_node)
+    except Exception:
+        return []
 
     outputs = []
     for function in node_list:
-        if is_class:
-            fn_metadata = language_parser.get_class_metadata(function, blob)
-        else:
-            fn_metadata = language_parser.get_function_metadata(function, blob)
+        try:
+            if is_class:
+                fn_metadata = language_parser.get_class_metadata(function, blob)
+            else:
+                fn_metadata = language_parser.get_function_metadata(function, blob)
 
-        if check_function(function, fn_metadata, is_class):
-            outputs.append([function, fn_metadata])
-        else:
+            if check_function(function, fn_metadata, language_parser.BLACKLISTED_FUNCTION_NAMES, is_class=is_class):
+                outputs.append([function, fn_metadata])
+            else:
+                continue
+
+        except Exception:
             continue
     
     for function, fn_metadata in outputs:
         # TODO: get class name to compare if function is class's constructor
-        comment_nodes = language_parser.get_comment_node(function)
-        docstring = language_parser.get_docstring(function, blob)
-        code = match_from_span(function, blob)
-        code_tokens = tokenize_code(function, blob, comment_nodes)
-        
-        comment_list = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_nodes]
+        try:
+            comment_nodes = language_parser.get_comment_node(function)
+            docstring_node = language_parser.get_docstring_node(function)
+            
+            exclude_node = []
+            if docstring_node:
+                exclude_node.extend(docstring_node)
+            if comment_nodes:
+                exclude_node.extend(comment_nodes)
+            
+            docstring = language_parser.get_docstring(function, blob)
+            code = match_from_span(function, blob)
+            code_tokens = tokenize_code(function, blob, exclude_node)
+            
+            comment_list = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_nodes]
+
+        except Exception:
+            continue
         
         if docstring == '' or docstring is None:
             docstring = None
@@ -171,14 +190,14 @@ def get_node_definitions(metadata: List, blob: str) -> List:
         metadata (List): List of function or class metadata
         blob (str): source code
     Returns:
-        List contains these keys
+        List[str]: List contains these keys
             - 'identifier'
             - 'parameter_list'
             - 'code'
             - 'code_tokens'
             - 'original_docstring'
-            - 'docstring'
-            - 'docstring_tokens'
+            - 'docstring' (new)
+            - 'docstring_tokens' (modified)
             - 'comment'
     """
     for node_metadata in metadata:
@@ -299,6 +318,55 @@ def get_line_definitions(tree, blob: str, language_parser):
                 yield _comment_metadata
 
 
+def extract_node(metadata_list, language:str):
+    """Get metadata as input and parse docstring into metadata
+    
+    Args:
+        metadata (Dict): Metadata
+    
+    Returns: 
+        Dict[str, Any]: Extracted docstring and metadata, contains:
+            - 'identifier'
+            - 'parameter'
+            - 'code'
+            - 'code_tokens'
+            - 'original_docstring'
+            - 'docstring' (modified)
+            - 'docstring_tokens' (modified)
+            - 'comment'
+            - 'docstring_params' (new)
+    """
+    assert isinstance(metadata_list, List), f'Expect `List`, get {type(metadata_list)}'
+    language = str(language).lower()
+    if language == 'c#':
+        language = 'c_sharp'
+    elif language == 'c++':
+        language = 'cpp'
+    
+    for metadata in metadata_list:
+        assert isinstance(metadata, Dict), f'Expect `Dict`, get {type(metadata)}'
+        assert language in SUPPORTED_LANGUAGE, f'{language} not supported!'
+        for key in ['identifier', 'code', 'code_tokens', 'docstring']:
+            assert key in metadata.keys(), f"Expect keyword '{key}'"
+
+        output_metadata = {
+            'identifier': metadata['identifier'],
+            'parameters': metadata['parameters'],
+            'code': metadata['code'],
+            'code_tokens': metadata['code_tokens'],
+            'original_docstring': metadata['original_docstring'],
+            'comment': metadata['comment']
+        }
+        
+        extracted_res = extract_docstring(metadata['original_docstring'], metadata['parameters'], language)
+        if not extracted_res:  # extract fail
+            continue
+        if extracted_res['docstring'] == '':
+            continue
+        output_metadata.update(extracted_res)
+        yield output_metadata
+
+
 def extract_docstring(docstring: str, parameter_list: Union[List, Dict], language: str) -> Dict[str, Any]:
     """Extract docstring into parameter docstring
         
@@ -310,8 +378,8 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
     Return:
         Dict[str, Any]: metadata of docstring
     """
-    assert type(language) == str
-    assert type(docstring) == str
+    assert isinstance(language, str)
+    assert isinstance(docstring, str)
     # assert type(parameter_list) in [List, Dict]
     
     # Checking
@@ -347,23 +415,33 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
     # Extract docstring
     docstring_style_list = STYLE_MAP[language]
     rets = []
-    for style in docstring_style_list:
-        try:
-            ret = parse(docstring, style)
-            # break
-        except ParseError:
-            pass
-        else:
-            rets.append(ret)
-    extract_docstring = sorted(rets, key=lambda d: len(d.meta), reverse=True)[0]
     
-    assert type(extract_docstring) == Docstring
+    try:
+        for style in docstring_style_list:
+            try:
+                ret = parse(docstring, style)
+                # break
+            except ParseError:
+                pass
+            else:
+                rets.append(ret)
+    except Exception:
+        return None
+    extract_docstring = sorted(rets, key=lambda d: len(d.meta), reverse=True)
+    
+    if len(extract_docstring) < 1:
+        return None  # unable to parse
+    extract_docstring = extract_docstring[0]
+    
+    assert isinstance(extract_docstring, Docstring)
     
     new_docstring = ''
     if extract_docstring.short_description != None:
         new_docstring += extract_docstring.short_description
     if extract_docstring.long_description != None:
         new_docstring += '\n' + extract_docstring.long_description
+        
+    new_docstring = clean_comment(new_docstring)
     metadata['docstring'] = new_docstring
     metadata['docstring_tokens'] = tokenize_docstring(new_docstring)
     

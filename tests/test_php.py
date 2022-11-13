@@ -68,7 +68,7 @@ class Test_PhpParser(unittest.TestCase):
         function = list(PhpParser.get_function_list(root))[1]
         metadata = PhpParser.get_function_metadata(function, self.code_sample)
 
-        self.assertEqual(metadata['parameters'], ['$params', '$connectionOptions'])
+        self.assertEqual(metadata['parameters'], ['params', 'connectionOptions'])
         self.assertEqual(metadata['identifier'], 'constructDsn')
         self.assertEqual(metadata['type'], 'string')
 
@@ -78,7 +78,7 @@ class Test_PhpParser(unittest.TestCase):
         classes = list(PhpParser.get_class_list(root))[0]
         metadata = PhpParser.get_class_metadata(classes, self.code_sample)
 
-        self.assertEqual(metadata['argument_list'], ['AbstractSQLServerDriver'])
+        self.assertEqual(metadata['parameters'], ['AbstractSQLServerDriver'])
         self.assertEqual(metadata['identifier'], 'Driver')
 
     def test_extract_docstring(self):

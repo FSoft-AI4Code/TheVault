@@ -12,6 +12,7 @@ import multiprocessing
 from datasets import load_dataset
 from tree_sitter import Parser, Language
 
+from src.utils.parser.cpp_parser import CppParser
 from src.utils.parser.go_parser import GoParser
 # from src.utils.parser.ruby_parser import RubyParser
 from src.utils.parser.php_parser import PhpParser
@@ -19,7 +20,7 @@ from src.utils.parser.java_parser import JavaParser
 from src.utils.parser.javascript_parser import JavascriptParser
 from src.utils.parser.python_parser import PythonParser
 from src.utils.parser.c_sharp_parser import CsharpParser
-from src.utils.utils import build_language, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
+from src.utils.utils import build_language, extract_node, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
 
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -32,7 +33,7 @@ ROOT_PATH = str(Path(__file__).parents[1])
     
 def main(opt):
     if opt.load_from_file:
-        logger.info("============ Load dataset from file %s ... ============" % opt.data_path)
+        logger.info("\n============ Load dataset from file %s ... ============" % opt.data_path)
         if not str(opt.data_path).endswith(('json', 'jsonl')):
             raise ValueError("Not found `json` or `jsonl` file, instead found %s" % opt.data_path)
         
@@ -40,12 +41,9 @@ def main(opt):
             dataset = list(json_file)
 
     else:
-        logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
+        logger.info("\n============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
         dataset = load_dataset("codeparrot/github-code", languages=[opt.language], split='train', cache_dir=opt.data_path)
     logger.info("Load dataset done. Number of sample: %i ============" % len(dataset))
-        
-    if not os.path.exists(opt.save_path):
-        os.mkdir(opt.save_path)
 
     # Start processing
     start = time.perf_counter()
@@ -55,37 +53,39 @@ def main(opt):
         n_worker = opt.n_core
     
     # start_executor(dataset, language, save_path, split, is_file)
-    logger.info("============ Start multiprocessing using %i worker ============" % n_worker)
+    logger.info("\n============ Start multiprocessing using %i worker ============" % n_worker)
     
     # split dataset
-    dataset_size = len(dataset)
+    dataset_size = 2000000 if len(dataset) > 2000000 else len(dataset)
     index_list = range(dataset_size)
     chunk_size = dataset_size//opt.n_split
-    logger.info("Spliting datset into %i sub-dataset with chunk size %i" % (opt.n_split, chunk_size))
+    logger.info("Spliting %i samples into %i sub-dataset with chunk size %i" % (dataset_size, opt.n_split, chunk_size))
     
     jobs_list = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]  # n set
     args = []
-    # for idx, job_index in enumerate(jobs_list):
-    #     args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
-    # logger.info("Total %i processes" % len(args))
+    for idx, job_index in enumerate(jobs_list):
+        args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
+    logger.info("Total %i processes" % len(args))
 
-    # executor = multiprocessing.Pool(n_worker)
-    # result = list(executor.starmap(processing, args))
+    executor = multiprocessing.Pool(n_worker)
+    result = list(executor.starmap(processing, args))
 
-    # for debuging
-    processing(dataset, jobs_list[0], opt)
+    # # for debuging
+    # processing(dataset, jobs_list[0], opt)
 
     # TODO: embed count repo? count file? extract file into this?
     fn_total, c_total, l_total = 0, 0, 0
+    final_res = []
     # for res in result:
+    #     final_res.append(res)
     #     _fn, _c, _l = res
     #     fn_total += _fn
     #     c_total += _c
     #     l_total += _l
     
     finish = time.perf_counter()
-    logger.info("============ Language %s | Total sample: %i functions | %i classes | %i lines ============" % (opt.language, fn_total, c_total, l_total))
-    logger.info("============ Processing done, finished in %.3f seconds ============" % (finish - start))
+    # logger.info("============ Language %s | Total sample: %i functions | %i classes | %i lines ============" % (opt.language, fn_total, c_total, l_total))
+    logger.info("\n============ Processing done, finished in %.3f seconds ============" % (finish - start))
     
 
 def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, is_file=None):
@@ -106,7 +106,10 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     if language == 'c_sharp':
         language_parser = CsharpParser()
         
-    if language == 'python':
+    elif language == 'c' or language == 'cpp':
+        language_parser = CppParser()
+        
+    elif language == 'python':
         language_parser = PythonParser()
 
     elif language == 'java':
@@ -138,11 +141,12 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     return list_res
 
 
-def _processing(dataset, indexs, ast, lang_parser, idx, opt): # is_file=None):
+def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=None):
     raw_function_set, raw_class_set, raw_line_set = [], [], []
     filtered_function_set, filtered_class_set = [], []
+    extracted_function_set, extracted_class_set = [], []
     
-    for idx in tqdm(indexs, desc=f'Thread {idx} processing: '):
+    for idx in tqdm(indexs, desc=f'Thread {thread_idx} processing: '):
         data = dataset[idx]
         if opt.load_from_file:
             data = json.loads(data)
@@ -168,25 +172,29 @@ def _processing(dataset, indexs, ast, lang_parser, idx, opt): # is_file=None):
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
         
-        # Extract raw function, class and line
+        # Extract function
         raw_fn = list(process_raw_node(tree, raw_code, lang_parser))
-        raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
-        raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
-        
-        # Filter raw function and class
         filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
-        filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+        extracted_function_list = list(extract_node(filtered_fn_list, language))
         
-        # Extract docstring of function and class
-        
-        
-        # Save to batch data
+        # For saving
         raw_function_set.extend(raw_fn)
-        raw_class_set.extend(raw_class)
-        raw_line_set.extend(raw_line)
-        
         filtered_function_set.extend(filtered_fn_list)
-        filtered_class_set.extend(filtered_class_list)
+        extracted_function_set.extend(extracted_function_list)
+        
+        # # Extract line
+        # raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
+        # raw_line_set.extend(raw_line)
+        
+        # # Extract class
+        # if not (language == 'GO' or language == 'C'):
+        #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
+        #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+        #     extracted_class_list = list(extract_node(filtered_class_list, language))
+        
+        #     raw_class_set.extend(raw_class)    
+        #     filtered_class_set.extend(filtered_class_list)
+        #     extracted_class_set.extend(extracted_class_list)
         
     
     raw_path = os.path.join(opt.save_path, 'raw')
@@ -197,15 +205,25 @@ def _processing(dataset, indexs, ast, lang_parser, idx, opt): # is_file=None):
         if not os.path.exists(path):
             os.mkdir(path)
     
-    write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{idx}_function_data.jsonl'))
-    write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{idx}_class_data.jsonl'))
-    write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{idx}_line_data.jsonl'))
+    write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
+    write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
+    write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
     
-    write_jsonl(filtered_function_set, os.path.join(filtered_path, f'batch_{idx}_function_data.jsonl'))
-    write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{idx}_class_data.jsonl'))
+    write_jsonl(filtered_function_set, os.path.join(filtered_path, f'batch_{thread_idx}_function_data.jsonl'))
+    write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
     
-    return len(raw_function_set), len(raw_class_set), len(raw_line_set), \
-        len(filtered_function_set), len(filtered_class_set)
+    write_jsonl(extracted_function_set, os.path.join(extracted_path, f'batch_{thread_idx}_function_data.jsonl'))
+    write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
+    
+    logger.info(
+        f'\n'
+        f'End of batch {thread_idx} \n'
+        f'Total raw function {len(raw_function_set)}| Total raw class {len(raw_class_set)} | Total inline {len(raw_line_set)} \n'
+        f'Total filterable function {len(filtered_function_set)} | Total filterable class {len(filtered_class_set)} \n'
+        f'Total extractable function {len(extracted_function_set)} | Total extractable class {len(extracted_class_set)} \n'
+    )
+
+    return True
 
 
 if __name__ == '__main__':
@@ -273,6 +291,8 @@ if __name__ == '__main__':
     logger.info("")
     logger.info(f'Execute Arguments: {opt}')
     
+    if not os.path.exists(opt.save_path):
+        os.mkdir(opt.save_path)
     log_path = os.path.join(opt.save_path, 'log')
     if not os.path.exists(log_path):
         os.mkdir(log_path)

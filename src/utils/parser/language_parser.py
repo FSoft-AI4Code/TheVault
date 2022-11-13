@@ -130,6 +130,8 @@ def match_from_span(node, blob: str) -> str:
 
 
 class LanguageParser(ABC):
+    BLACKLISTED_FUNCTION_NAMES = []
+    
     @staticmethod
     @abstractmethod
     def get_function_list(node):

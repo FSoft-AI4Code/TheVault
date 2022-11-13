@@ -14,14 +14,17 @@ CPP_STYLE_MAP = [
 ]
 
 class CppParser(LanguageParser):
+    
+    BLACKLISTED_FUNCTION_NAMES = ['main', 'constructor']
+    
     @staticmethod
     def get_docstring(node, blob):
-        docstring_node = CppParser.get_docstring_node(node, blob)
+        docstring_node = CppParser.get_docstring_node(node)
         docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
         return docstring
     
     @staticmethod
-    def get_docstring_node(node, blob):
+    def get_docstring_node(node):
         docstring_node = []
         
         prev_node = node.prev_sibling
@@ -38,7 +41,8 @@ class CppParser(LanguageParser):
             
             docstring_node.insert(0, prev_node)    
             prev_node = prev_node.prev_sibling
-            
+        
+        print(docstring_node)
         return docstring_node
     
     @staticmethod
@@ -85,6 +89,8 @@ class CppParser(LanguageParser):
                         param_nodes = []
                         traverse_type(subchild, param_nodes, ['parameter_declaration'])
                         for param in param_nodes:
+                            if len(param.children) < 2:
+                                continue
                             param_type = match_from_span(param.children[0], blob)
                             param_identifier = match_from_span(param.children[1], blob)
                             
@@ -97,11 +103,11 @@ class CppParser(LanguageParser):
         """
         Class metadata contains:
             - identifier (str): class's name
-            - argument_list (List[str]): inheritance class
+            - parameters (List[str]): inheritance class
         """
         metadata = {
             'identifier': '',
-            'argument_list': '',
+            'parameters': '',
         }
         assert type(class_node) == tree_sitter.Node
         
@@ -113,6 +119,6 @@ class CppParser(LanguageParser):
                 for param in child.children:
                     if param.type == 'type_identifier':
                         argument_list.append(match_from_span(param, blob))
-                metadata['argument_list'] = argument_list
+                metadata['parameters'] = argument_list
 
         return metadata

@@ -54,7 +54,7 @@ class Test_CppParser(unittest.TestCase):
         classes = list(CppParser.get_class_list(root))[0]
         metadata = CppParser.get_class_metadata(classes, self.code_sample)
 
-        self.assertEqual(metadata['argument_list'], ['Vehicle', 'B'])
+        self.assertEqual(metadata['parameters'], ['Vehicle', 'B'])
         self.assertEqual(metadata['identifier'], 'Car')
 
     def test_get_docstring(self):

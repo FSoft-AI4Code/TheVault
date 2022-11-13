@@ -14,11 +14,11 @@ class PhpParser(LanguageParser):
 
     FILTER_PATHS = ('test', 'tests')
 
-    BLACKLISTED_FUNCTION_NAMES = {'__construct', '__destruct', '__call', '__callStatic',
+    BLACKLISTED_FUNCTION_NAMES = ['__construct', '__destruct', '__call', '__callStatic',
                                   '__get', '__set', '__isset', '__unset',
                                   '__sleep', '__wakeup', '__toString', '__invoke',
                                   '__set_state', '__clone', '__debugInfo', '__serialize',
-                                  '__unserialize'}
+                                  '__unserialize']
 
     @staticmethod
     def get_docstring(node, blob: str) -> str:
@@ -77,7 +77,10 @@ class PhpParser(LanguageParser):
                 for param_node in n.children:
                     if param_node.type in ['simple_parameter', 'variadic_parameter', 'property_promotion_parameter']:
                         identifier = param_node.child_by_field_name('name')
-                        params.append(match_from_span(identifier, blob))
+                        name = match_from_span(identifier, blob)
+                        if name.startswith('$'):
+                            name = name[1:]
+                        params.append(name)
                         
         metadata['parameters'] = params
         return metadata
@@ -87,7 +90,7 @@ class PhpParser(LanguageParser):
     def get_class_metadata(class_node, blob):
         metadata = {
             'identifier': '',
-            'argument_list': '',
+            'parameters': '',
         }
         assert type(class_node) == tree_sitter.Node
         
@@ -99,7 +102,7 @@ class PhpParser(LanguageParser):
                 for param in child.children:
                     if param.type == 'name':
                         argument_list.append(match_from_span(param, blob))
-                metadata['argument_list'] = argument_list 
+                metadata['parameters'] = argument_list 
     
         return metadata
 

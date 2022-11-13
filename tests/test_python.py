@@ -62,7 +62,7 @@ class Test_PythonParser(unittest.TestCase):
         
         function = PythonParser.get_function_list(root)[0]
         doc = PythonParser.get_docstring_node(function)
-        docstring = PythonParser.process_docstring(doc, code_sample)
+        docstring = PythonParser.process_docstring(doc[0], code_sample)
         self.assertEqual(docstring, "This is a docstring")
 
     def test_get_function_metadata(self):
@@ -94,7 +94,7 @@ class Test_PythonParser(unittest.TestCase):
         classes = list(PythonParser.get_class_list(root))[0]
         metadata = PythonParser.get_class_metadata(classes, code_sample)
 
-        self.assertEqual(metadata['argument_list'], ['ABC'])
+        self.assertEqual(metadata['parameters'], ['ABC'])
         self.assertEqual(metadata['identifier'], 'Sample')
 
     def test_extract_docstring(self):

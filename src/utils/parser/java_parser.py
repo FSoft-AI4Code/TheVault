@@ -11,7 +11,7 @@ class JavaParser(LanguageParser):
 
     FILTER_PATHS = ('test', 'tests')
 
-    BLACKLISTED_FUNCTION_NAMES = {'toString', 'hashCode', 'equals', 'finalize', 'notify', 'notifyAll', 'clone'}
+    BLACKLISTED_FUNCTION_NAMES = ['toString', 'hashCode', 'equals', 'finalize', 'notify', 'notifyAll', 'clone']
 
     @staticmethod
     def get_docstring_node(node):
@@ -63,7 +63,7 @@ class JavaParser(LanguageParser):
     def get_class_metadata(class_node, blob: str) -> Dict[str, str]:
         metadata = {
             'identifier': '',
-            'argument_list': '',
+            'parameters': '',
         }
         argument_list = []
         for child in class_node.children:
@@ -74,7 +74,7 @@ class JavaParser(LanguageParser):
                     if subchild.type == 'type_list' or subchild.type == 'type_identifier':
                         argument_list.append(match_from_span(subchild, blob))
                     
-        metadata['argument_list'] = argument_list
+        metadata['parameters'] = argument_list
         return metadata
 
     @staticmethod
@@ -95,11 +95,8 @@ class JavaParser(LanguageParser):
                 param_list = []
                 traverse_type(child, param_list, ['formal_parameter'])
                 for param in param_list:
-                    for subchild in param.children:
-                        if subchild.type == 'identifier':
-                            identifier = match_from_span(subchild, blob)
-                        elif subchild.type in ['type_identifier', 'integral_type']:
-                            param_type = match_from_span(subchild, blob)
+                    param_type = match_from_span(param.child_by_field_name('type'), blob)
+                    identifier = match_from_span(param.child_by_field_name('name'), blob)
                     params[identifier] = param_type
         
         metadata['parameters'] = params

@@ -94,7 +94,7 @@ class Test_CsharpParser(unittest.TestCase):
         classes = list(CsharpParser.get_class_list(root))[0]
         metadata = CsharpParser.get_class_metadata(classes, self.code_sample)
 
-        self.assertEqual(metadata['argument_list'], ['Animal'])
+        self.assertEqual(metadata['parameters'], ['Animal'])
         self.assertEqual(metadata['identifier'], 'Dog')
 
     def test_extract_docstring(self):

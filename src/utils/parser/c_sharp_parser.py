@@ -15,6 +15,9 @@ C_SHARP_STYLE_MAP = [
 ]
 
 class CsharpParser(LanguageParser):
+    
+    BLACKLISTED_FUNCTION_NAMES = []
+    
     @staticmethod
     def get_docstring(node, blob):
         docstring_node = CsharpParser.get_docstring_node(node)
@@ -97,11 +100,11 @@ class CsharpParser(LanguageParser):
         """
         Class metadata contains:
             - identifier (str): class's name
-            - argument_list (List[str]): inheritance class
+            - parameters (List[str]): inheritance class
         """
         metadata = {
             'identifier': '',
-            'argument_list': '',
+            'parameters': '',
         }
         assert type(class_node) == tree_sitter.Node
         
@@ -113,7 +116,7 @@ class CsharpParser(LanguageParser):
                 for arg in child.children:
                     if arg.type == 'identifier':
                         argument_list.append(match_from_span(arg, blob))
-                metadata['argument_list'] = argument_list
+                metadata['parameters'] = argument_list
 
         return metadata
     

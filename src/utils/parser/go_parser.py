@@ -7,7 +7,7 @@ from ..noise_detection import clean_comment, strip_c_style_comment_delimiters
 
 class GoParser(LanguageParser):
 
-    FILTER_PATHS = ('test', 'vendor')
+    BLACKLISTED_FUNCTION_NAMES = ['test', 'vendor']
     
     @staticmethod
     def get_comment_node(function_node):
@@ -64,9 +64,13 @@ class GoParser(LanguageParser):
             elif child.type == 'parameter_list':
                 for subchild in child.children:
                     if subchild.type in ['parameter_declaration', 'variadic_parameter_declaration']:
-                        identifier = match_from_span(subchild.child_by_field_name('name'), blob)
+                        identifier_node = subchild.child_by_field_name('name')
                         param_type = match_from_span(subchild.child_by_field_name('type'), blob)
                         
+                        if not identifier_node:
+                            continue
+                        
+                        identifier = match_from_span(identifier_node, blob)
                         if identifier and param_type:
                             metadata['parameters'][identifier] = param_type
         
@@ -74,11 +78,11 @@ class GoParser(LanguageParser):
 
     @staticmethod
     def get_class_list(node):
-        raise NotImplementedError()
+        pass
     
     @staticmethod
     def get_class_metadata(class_node, blob) -> Dict[str, str]:
-        raise UserWarning('Golang does not support class concept')
+        pass
 
     @staticmethod
     def extract_docstring(docstring:str, parameter_list:Dict) -> List:
