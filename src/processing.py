@@ -62,11 +62,11 @@ def main(opt):
         args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
     logger.info("Total %i processes" % len(args))
 
-    # executor = multiprocessing.Pool(n_worker)
-    # result = list(executor.starmap(processing, args))
+    executor = multiprocessing.Pool(n_worker)
+    result = list(executor.starmap(processing, args))
 
-    # for debuging
-    processing(dataset, jobs_list[0], opt)
+    # # for debuging
+    # processing(dataset, jobs_list[0], opt)
 
     # TODO: embed count repo? count file? extract file into this?
     fn_total, c_total, l_total = 0, 0, 0

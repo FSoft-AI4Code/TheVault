@@ -174,7 +174,7 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
         else:
             docstring_tokens = tokenize_docstring(docstring)
         
-        # fn_metadata.update(metadata)
+        fn_metadata.update(metadata)
         fn_metadata.update({
             'code': code,
             'code_tokens': code_tokens,
@@ -182,9 +182,6 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             'docstring_tokens': docstring_tokens,
             'comment': comment_list
         })
-        
-        print(docstring)
-        print(fn_metadata)
         
         yield fn_metadata
         
