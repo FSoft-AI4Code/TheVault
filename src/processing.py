@@ -11,6 +11,7 @@ import multiprocessing
 
 from datasets import load_dataset
 from tree_sitter import Parser, Language
+from src.utils.logger import create_logger
 
 from src.utils.parser.cpp_parser import CppParser
 from src.utils.parser.go_parser import GoParser
@@ -23,17 +24,11 @@ from src.utils.parser.c_sharp_parser import CsharpParser
 from src.utils.utils import build_language, extract_node, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
 
 
-logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                    datefmt = '%m/%d/%Y %H:%M:%S',
-                    level = logging.INFO)
-logger = logging.getLogger('Processing')
-
 ROOT_PATH = str(Path(__file__).parents[1])
 
-    
 def main(opt):
     if opt.load_from_file:
-        logger.info("\n============ Load dataset from file %s ... ============" % opt.data_path)
+        logger.info("============ Load dataset from file %s ... ============" % opt.data_path)
         if not str(opt.data_path).endswith(('json', 'jsonl')):
             raise ValueError("Not found `json` or `jsonl` file, instead found %s" % opt.data_path)
         
@@ -41,7 +36,7 @@ def main(opt):
             dataset = list(json_file)
 
     else:
-        logger.info("\n============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
+        logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
         dataset = load_dataset("codeparrot/github-code", languages=[opt.language], split='train', cache_dir=opt.data_path)
     logger.info("Load dataset done. Number of sample: %i ============" % len(dataset))
 
@@ -53,7 +48,7 @@ def main(opt):
         n_worker = opt.n_core
     
     # start_executor(dataset, language, save_path, split, is_file)
-    logger.info("\n============ Start multiprocessing using %i worker ============" % n_worker)
+    logger.info("============ Start multiprocessing using %i worker ============" % n_worker)
     
     # split dataset
     dataset_size = 2000000 if len(dataset) > 2000000 else len(dataset)
@@ -67,11 +62,11 @@ def main(opt):
         args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
     logger.info("Total %i processes" % len(args))
 
-    executor = multiprocessing.Pool(n_worker)
-    result = list(executor.starmap(processing, args))
+    # executor = multiprocessing.Pool(n_worker)
+    # result = list(executor.starmap(processing, args))
 
-    # # for debuging
-    # processing(dataset, jobs_list[0], opt)
+    # for debuging
+    processing(dataset, jobs_list[0], opt)
 
     # TODO: embed count repo? count file? extract file into this?
     fn_total, c_total, l_total = 0, 0, 0
@@ -85,7 +80,7 @@ def main(opt):
     
     finish = time.perf_counter()
     # logger.info("============ Language %s | Total sample: %i functions | %i classes | %i lines ============" % (opt.language, fn_total, c_total, l_total))
-    logger.info("\n============ Processing done, finished in %.3f seconds ============" % (finish - start))
+    logger.info("============ Processing done, finished in %.3f seconds ============" % (finish - start))
     
 
 def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, is_file=None):
@@ -180,36 +175,35 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
         
-        try:
+        # try:
         
-            # Extract function
-            raw_fn = list(process_raw_node(tree, raw_code, lang_parser))
-            raw_fn = [item.update(metadata_data) for item in raw_fn]
-            filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
-            extracted_function_list = list(extract_node(filtered_fn_list, language))
-            
-            # For saving
-            raw_function_set.extend(raw_fn)
-            filtered_function_set.extend(filtered_fn_list)
-            extracted_function_set.extend(extracted_function_list)
+        # Extract function
+        raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
+        # raw_fn = [item.update(metadata_data) for item in raw_fn]
+        
+        filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
+        extracted_function_list = list(extract_node(filtered_fn_list, language))
+        
+        # For saving
+        raw_function_set.extend(raw_fn)
+        filtered_function_set.extend(filtered_fn_list)
+        extracted_function_set.extend(extracted_function_list)
             
             # # Extract line
-            # raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
-            # raw_line = [item.update(metadata_data) for item in raw_line]
+            # raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
             # raw_line_set.extend(raw_line)
             
             # # Extract class
             # if not (language == 'GO' or language == 'C'):
-            #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
-            #     raw_class = [item.update(metadata_data) for item in raw_class]
+            #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, , metadata_data, is_class=True))
             #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
             #     extracted_class_list = list(extract_node(filtered_class_list, language))
             
             #     raw_class_set.extend(raw_class)    
             #     filtered_class_set.extend(filtered_class_list)
             #     extracted_class_set.extend(extracted_class_list)
-        except Exception:
-            continue
+        # except Exception:
+        #     continue
         
     
     raw_path = os.path.join(opt.save_path, 'raw')
@@ -235,9 +229,8 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         res.append(length)
     
     logger.info(
-        f'\n'
         f'End of batch {thread_idx} \n'
-        f'Total raw function {res[0]}| Total raw class {res[1]} | Total inline {res[2]} \n'
+        f'Total raw function {res[0]} | Total raw class {res[1]} | Total inline {res[2]} \n'
         f'Total filterable function {res[3]} | Total filterable class {res[4]} \n'
         f'Total extractable function {res[5]} | Total extractable class {res[6]} \n'
     )
@@ -302,19 +295,20 @@ if __name__ == '__main__':
     parser.add_argument(
         '--n_core',
         type=int,
-        default=-1,
+        default=1,
         help='Number of maximum process to create'
     )
 
     opt = parser.parse_args()
-    logger.info("")
-    logger.info(f'Execute Arguments: {opt}')
     
     if not os.path.exists(opt.save_path):
         os.mkdir(opt.save_path)
     log_path = os.path.join(opt.save_path, 'log')
     if not os.path.exists(log_path):
         os.mkdir(log_path)
-    logging.basicConfig(filename=os.path.join(log_path, 'run.log'), filemode='w')
+    
+    create_logger(filepath=os.path.join(opt.save_path, 'log.txt'), rank=0)
+    logger = logging.getLogger()
+    logger.info(f'Execute Arguments: {opt}')
 
     main(opt)

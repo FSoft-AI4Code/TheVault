@@ -102,12 +102,14 @@ def parse_code(raw_code: str, language: str) -> tree_sitter.Tree:
         return
 
 
-def process_raw_node(tree, blob: str, language_parser, is_class=False):
+def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False):
     """
     Process all extractable functions or class
     Args:
         tree (tree_sitter.Tree): Tree AST of source code
         blob (str): source code
+        language_parser (LanguageParser): Language parser (`utils/parser`)
+        metadata (Dict): file metadata
     Returns:
         List contains these keys
             - 'identifier'
@@ -172,6 +174,7 @@ def process_raw_node(tree, blob: str, language_parser, is_class=False):
         else:
             docstring_tokens = tokenize_docstring(docstring)
         
+        # fn_metadata.update(metadata)
         fn_metadata.update({
             'code': code,
             'code_tokens': code_tokens,
@@ -179,6 +182,9 @@ def process_raw_node(tree, blob: str, language_parser, is_class=False):
             'docstring_tokens': docstring_tokens,
             'comment': comment_list
         })
+        
+        print(docstring)
+        print(fn_metadata)
         
         yield fn_metadata
         

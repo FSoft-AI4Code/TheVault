@@ -259,15 +259,8 @@ if __name__ == '__main__':
 
     opt = parser.parse_args()
     create_logger(filepath=os.path.join(opt.save_path, 'log.txt'), rank=0)
-    # logging.basicConfig(filename=,
-    #                     filemode='a',
-    #                     format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-    #                     datefmt = '%m/%d/%Y %H:%M:%S',
-    #                     level = logging.DEBUG)
     
     logger = logging.getLogger()
-    
-    logger.info("")
     logger.info(f'Execute Arguments: {opt}')
     
     main(opt)

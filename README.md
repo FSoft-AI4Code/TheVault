@@ -125,7 +125,7 @@ python -m codetext.processing
 --data_format './data/format/codeparot-format.yaml'  # load raw data format
 
 --n_split 20  # split original dataset into N subset
---n_core -1  # number of multiple processor (default to -1 == using all core)
+--n_core -1  # number of multiple processor (default to 1) (-1 == using all core)
 ```
 
 *NOTES:*  <DATASET_PATH> dir must contains raw data store in `.jsonl` extension if you pass argument `--load_from_file` or contains huggingface dataset's 

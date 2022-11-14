@@ -15,6 +15,7 @@ git clone https://github.com/tree-sitter/tree-sitter-php.git
 git clone https://github.com/tree-sitter/tree-sitter-go.git
 git clone https://github.com/tree-sitter/tree-sitter-rust.git
 git clone https://github.com/tree-sitter/tree-sitter-c-sharp
+git clone https://github.com/tree-sitter/tree-sitter-c
 cd ../
 
 # install custom docstringparser
