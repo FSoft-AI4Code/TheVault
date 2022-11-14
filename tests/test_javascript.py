@@ -43,7 +43,7 @@ class Test_JavascriptParser(unittest.TestCase):
         *
         * @return {object}      An action object with a type of LOAD_REPOS_SUCCESS passing the repos
         */
-        export function songsLoaded(repos, username) {
+        function songsLoaded(repos, username) {
             return {
                 type: LOAD_SONGS_SUCCESS,
             repos,
@@ -91,7 +91,7 @@ class Test_JavascriptParser(unittest.TestCase):
         metadata = JavascriptParser.get_class_metadata(classes, self.code_sample)
 
         self.assertEqual(metadata['identifier'], 'Model')
-        self.assertEqual(metadata['argument_list'], ['Car'])
+        self.assertEqual(metadata['parameters'], ['Car'])
 
     def test_extract_docstring(self):
         pass

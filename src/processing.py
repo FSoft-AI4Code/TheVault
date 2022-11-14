@@ -26,7 +26,7 @@ from src.utils.utils import build_language, extract_node, get_line_definitions, 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
-logger = logging.getLogger('Processing.py')
+logger = logging.getLogger('Processing')
 
 ROOT_PATH = str(Path(__file__).parents[1])
 
@@ -131,6 +131,14 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
         raise ValueError(f'Language {language} not supported')
     
     t_start = time.perf_counter()
+    raw_path = os.path.join(opt.save_path, 'raw')
+    filtered_path = os.path.join(opt.save_path, 'filtered')
+    extracted_path = os.path.join(opt.save_path, 'extracted')
+    
+    for path in [raw_path, filtered_path, extracted_path]:
+        if not os.path.exists(path):
+            os.mkdir(path)
+
     list_res = _processing(dataset, job_index, ast_parser, language_parser, idx, opt)
     
     t_finish = time.perf_counter()
@@ -172,38 +180,38 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
         
-        # Extract function
-        raw_fn = list(process_raw_node(tree, raw_code, lang_parser))
-        filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
-        extracted_function_list = list(extract_node(filtered_fn_list, language))
+        try:
         
-        # For saving
-        raw_function_set.extend(raw_fn)
-        filtered_function_set.extend(filtered_fn_list)
-        extracted_function_set.extend(extracted_function_list)
-        
-        # # Extract line
-        # raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
-        # raw_line_set.extend(raw_line)
-        
-        # # Extract class
-        # if not (language == 'GO' or language == 'C'):
-        #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
-        #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
-        #     extracted_class_list = list(extract_node(filtered_class_list, language))
-        
-        #     raw_class_set.extend(raw_class)    
-        #     filtered_class_set.extend(filtered_class_list)
-        #     extracted_class_set.extend(extracted_class_list)
+            # Extract function
+            raw_fn = list(process_raw_node(tree, raw_code, lang_parser))
+            filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
+            extracted_function_list = list(extract_node(filtered_fn_list, language))
+            
+            # For saving
+            raw_function_set.extend(raw_fn)
+            filtered_function_set.extend(filtered_fn_list)
+            extracted_function_set.extend(extracted_function_list)
+            
+            # # Extract line
+            # raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
+            # raw_line_set.extend(raw_line)
+            
+            # # Extract class
+            # if not (language == 'GO' or language == 'C'):
+            #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
+            #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+            #     extracted_class_list = list(extract_node(filtered_class_list, language))
+            
+            #     raw_class_set.extend(raw_class)    
+            #     filtered_class_set.extend(filtered_class_list)
+            #     extracted_class_set.extend(extracted_class_list)
+        except Exception:
+            continue
         
     
     raw_path = os.path.join(opt.save_path, 'raw')
     filtered_path = os.path.join(opt.save_path, 'filtered')
     extracted_path = os.path.join(opt.save_path, 'extracted')
-    
-    for path in [raw_path, filtered_path, extracted_path]:
-        if not os.path.exists(path):
-            os.mkdir(path)
     
     write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
     write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
@@ -215,15 +223,24 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
     write_jsonl(extracted_function_set, os.path.join(extracted_path, f'batch_{thread_idx}_function_data.jsonl'))
     write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
     
+    res = []
+    for item in [raw_function_set, raw_class_set, raw_line_set, \
+        filtered_function_set, filtered_class_set, \
+        extracted_function_set, extracted_class_set]:
+        
+        length = int(len(item))
+        res.append(length)
+    
     logger.info(
         f'\n'
         f'End of batch {thread_idx} \n'
-        f'Total raw function {len(raw_function_set)}| Total raw class {len(raw_class_set)} | Total inline {len(raw_line_set)} \n'
-        f'Total filterable function {len(filtered_function_set)} | Total filterable class {len(filtered_class_set)} \n'
-        f'Total extractable function {len(extracted_function_set)} | Total extractable class {len(extracted_class_set)} \n'
+        f'Total raw function {res[0]}| Total raw class {res[1]} | Total inline {res[2]} \n'
+        f'Total filterable function {res[3]} | Total filterable class {res[4]} \n'
+        f'Total extractable function {res[5]} | Total extractable class {res[6]} \n'
     )
-
-    return True
+    
+    
+    return res
 
 
 if __name__ == '__main__':

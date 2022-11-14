@@ -42,7 +42,6 @@ class CppParser(LanguageParser):
             docstring_node.insert(0, prev_node)    
             prev_node = prev_node.prev_sibling
         
-        print(docstring_node)
         return docstring_node
     
     @staticmethod

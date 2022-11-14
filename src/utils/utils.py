@@ -486,7 +486,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
             'type': return_type,
         }
         
-        metadata['docstring_params']['returns'].append(return_metadata)
+        metadata['docstring_params']['returns'].append([return_metadata])
     
     for raiser in extract_docstring.raises:
         visited.append(raiser)
@@ -500,7 +500,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
             'type': raise_type,
         }
         
-        metadata['docstring_params']['raises'].append(raise_metadata)
+        metadata['docstring_params']['raises'].append([raise_metadata])
         
     for item in extract_docstring.meta:
         if item not in visited:
