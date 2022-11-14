@@ -9,23 +9,23 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
+from src.utils import create_logger
 
-logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                    datefmt = '%m/%d/%Y %H:%M:%S',
-                    level = logging.INFO)
-logger = logging.getLogger('Post-processing')
 
 ROOT_PATH = str(Path(__file__).parents[1])
 
-def seperate_filname(list_filename, parent_path):
+def seperate_filename(list_filename, parent_path):
     fn_list, cls_list, line_list = [], [], []
     for filename in list_filename:
         if 'function' in filename:
             fn_list.append(os.path.join(parent_path, filename))
-        if 'class' in filename:
+        elif 'class' in filename:
             cls_list.append(os.path.join(parent_path, filename))
-        else:
+        elif 'line' in filename:
             line_list.append(os.path.join(parent_path, filename))
+    
+    if not line_list:
+        return fn_list, cls_list
 
     return fn_list, cls_list, line_list
 
@@ -45,7 +45,8 @@ def summary_total(list_file):
                 
     return list_file
 
-def merge_file(file_list, opt, s: str='RAW'):
+
+def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=False):
     """
     Count number of repo, number of sample
     Merge all .jsonl in file_list
@@ -58,32 +59,32 @@ def merge_file(file_list, opt, s: str='RAW'):
     n_sample = 0
     n_repos = set()
     
-    # For analyser
+    # For analyzer
     repos = []
     n_samples = []
     sets = []
-    zip_output = zipfile.ZipFile(f'{s}_code.zip', "w", zipfile.ZIP_DEFLATED)
+    zip_output = zipfile.ZipFile(os.path.join(opt.save_path, f'{name}_code.zip'), "w", zipfile.ZIP_DEFLATED)
     
-    with open(opt.save_path, 'a') as output_file:
-        for idx, file in enumerate(file_list):
+    with open(os.path.join(opt.save_path, f'{name}_merge.jsonl'), 'a') as output_file:
+        for file in file_list:
             with open(file, 'r') as json_file:
                 dataset = list(json_file)
         
-            for data in dataset:
+            for idx, data in enumerate(dataset):
                 try:
                     data = json.loads(data)
                 except Exception:
                     fail_sample += 1
                     continue
                 
-                assert 'code' in data.keys
-                assert 'repo' in data.keys
-                assert 'path' in data.keys
+                assert 'code' in data.keys()
+                assert 'repo' in data.keys()
+                assert 'path' in data.keys()
                 
                 code = data['code']
                 repo = data['repo']
                 path = data['path']
-                unique_path = idx + path[-50:]
+                unique_idx = str(idx) + code[-10:] + repo + path[-50:]
                 n_repos.add(repo)
                 
                 if repo not in repos:
@@ -95,23 +96,28 @@ def merge_file(file_list, opt, s: str='RAW'):
                     index = repos.index(repo)
                     n_samples[index] += 1
                 
-                if opt.analyse:
-                    zip_output.writestr(unique_path, code)
+                if opt.analyze:
+                    zip_output.writestr(unique_idx, code)
             
                 json.dump(data, output_file)
                 output_file.write('\n')
                 n_sample += 1
+                
+    assert os.path.exists(os.path.join(opt.save_path, f'{name}_merge.jsonl')) == True
+    assert os.path.exists(os.path.join(opt.save_path, f'{name}_code.zip')) == True
+    logger.info('Meraged in %s' % (os.path.join(opt.save_path, f'{name}_merge.jsonl')))
 
-    if opt.split:
+    if opt.split and split:
         valid_ratio = test_ratio = opt.ratio
         valid_len = min(opt.max_sample, int(valid_ratio*n_sample))
         test_len = min(opt.max_sample, int(test_ratio*n_sample))
         train_len = n_sample - valid_len - test_len
+        logger.info(f"Split data into: Train size: {train_len} ({(100*train_len/n_sample):.2f})% | Valid size: {valid_len} ({(100*valid_len/n_sample):.2f})% | Test ratio: {test_len} ({(100*test_len/n_sample):.2f})%")
 
         metadata_dict = {'repo': repos, 'n_sample': n_samples, 'set': sets}
         df = pd.DataFrame(metadata_dict, columns = ['repo', 'n_sample', 'set'])
 
-        for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+        for index, row in tqdm(df.iterrows(), total=df.shape[0], desc='Spliting data'):
             if df.at[index, 'set'] is None:
                 if valid_len - row['n_sample'] > 0:
                     valid_len -= row['n_sample']
@@ -124,13 +130,18 @@ def merge_file(file_list, opt, s: str='RAW'):
                 else:
                     df.at[index, 'set'] = 'train'
 
-        df.to_csv(os.path.join(opt.save_path, 'split_info'), index=False)
+        if not os.path.exists(os.path.join(opt.save_path, 'final')):
+            os.mkdir(os.path.join(opt.save_path, 'final'))
 
-        trainfile = open(os.path.join(opt.save_path, f'train.jsonl'), "a")
-        validfile = open(os.path.join(opt.save_path, f'valid.jsonl'), "a")
-        testfile = open(os.path.join(opt.save_path, f'test.jsonl'), "a")
+        df.to_csv(os.path.join(opt.save_path, 'final', 'split_info.csv'), index=False)
+            
+        trainfile = open(os.path.join(opt.save_path, 'final', f'{name}_train.jsonl'), "a")
+        validfile = open(os.path.join(opt.save_path, 'final', f'{name}_valid.jsonl'), "a")
+        testfile = open(os.path.join(opt.save_path, 'final', f'{name}_test.jsonl'), "a")
 
-        for ids in tqdm(range(len(dataset))):
+        with open(os.path.join(opt.save_path, f'{name}_merge.jsonl'), 'r') as data_reader:
+            dataset = list(data_reader)
+        for ids in tqdm(range(len(dataset)), desc='Writing splited dataset'):
             data = json.loads(dataset[ids])
             
             repo = data['repo']
@@ -150,15 +161,26 @@ def merge_file(file_list, opt, s: str='RAW'):
                 json.dump(data, validfile, ensure_ascii=False)
                 validfile.write('\n')
     
-        logger.info(f"\n Split data into: Train size: {train_len} ({(train_len/n_sample):.2f})% | Valid size: {valid_len} ({(valid_len/n_sample):.2f})% | Test ratio: {test_len} ({(test_len/n_sample):.2f})%")
 
     # Analyze
     zip_output.close()
-    if opt.analyse:
-        command = f""
+    if opt.analyze:
+        command = f"cloc {os.path.join(opt.save_path, f'{name}_code.zip')} --processes={opt.n_core}"
         subprocess.Popen(command ,shell=True).wait()
     
-    logger.info('\n\n=============%s Total %i samples in %i repos =============%' % (name, n_sample, len(n_repos)))
+    logger.info(f'============= SUMMARY: {name} | Total {n_sample} samples in {len(n_repos)} repos =============\n')
+
+
+def merge_file(file_list, opt, name: str='raw', split: bool=False):
+    if len(file_list) >= 2:  # function & class
+        function_list, class_list = file_list[:2]
+        
+        merge_embled_file(function_list, opt, f'{name}_function', split)
+        merge_embled_file(class_list, opt, f'{name}_class', split)
+        
+        if len(file_list) == 3:  # inline
+            line_list = file_list[-1]
+            merge_embled_file(line_list, opt, f'{name}_line', split=True)
 
 
 def main(opt):
@@ -170,20 +192,24 @@ def main(opt):
     filter_list_file = os.listdir(os.path.join(opt.data_path, 'filtered'))
     extract_list_file = os.listdir(os.path.join(opt.data_path, 'extracted'))
     
-    raw_list = seperate_filname(raw_list_file, os.path.join(opt.data_path, 'raw'))
-    filter_list = seperate_filname(filter_list_file, os.path.join(opt.data_path, 'filtered'))
-    extract_list = seperate_filname(extract_list_file, os.path.join(opt.data_path, 'extracted'))
+    raw_list = seperate_filename(raw_list_file, os.path.join(opt.data_path, 'raw'))
+    filter_list = seperate_filename(filter_list_file, os.path.join(opt.data_path, 'filtered'))
+    extract_list = seperate_filename(extract_list_file, os.path.join(opt.data_path, 'extracted'))
+    
     
     raw_list = summary_total(raw_list)
     filter_list = summary_total(filter_list)
     extract_list = summary_total(extract_list)
     
-    s = f"\nRAW | #function file {len(raw_list[0])} | #class file {len(raw_list[1])} | #inline file {len(raw_list[2])}" + \
-    f"\nFILTERED | #function file {len(filter_list[0])} | #class file {len(filter_list[1])}" + \
-    f"\nEXTRACTED | #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
+    s = f"RAW: #function file {len(raw_list[0])} | #class file {len(raw_list[1])} | #inline file {len(raw_list[2])}" + \
+    f"\nFILTERED: #function file {len(filter_list[0])} | #class file {len(filter_list[1])}" + \
+    f"\nEXTRACTED: #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
     logger.info(s)
-
-    # TODO Merge file
+    
+    merge_file(raw_list, opt, 'raw')
+    merge_file(filter_list, opt, 'filter')
+    merge_file(extract_list, opt, 'extract', split=True)
+    logger.info('============= Done =============%')
 
 
 if __name__ == '__main__':
@@ -197,6 +223,12 @@ if __name__ == '__main__':
         type=str, 
         default='path/to/final',
         help='Save path'
+    )
+    parser.add_argument(
+        '--n_core', 
+        type=int, 
+        default=0,
+        help='Multiprocessing analyzer'
     )
     
     # Analyze
@@ -213,19 +245,28 @@ if __name__ == '__main__':
         help='Split data into train/set/valid or not'
     )
     parser.add_argument(
-        '--n_test', 
+        '--ratio', 
         type=float, 
         default=0.05,
-        help='test ratio'
+        help='test and valid ratio'
     )
     parser.add_argument(
-        '--n_valid', 
+        '--max_sample', 
         type=float, 
-        default=0.05,
-        help='valid ratio'
+        default=20000,
+        help='test and valid ratio'
     )
 
     opt = parser.parse_args()
+    create_logger(filepath=os.path.join(opt.save_path, 'log.txt'), rank=0)
+    # logging.basicConfig(filename=,
+    #                     filemode='a',
+    #                     format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+    #                     datefmt = '%m/%d/%Y %H:%M:%S',
+    #                     level = logging.DEBUG)
+    
+    logger = logging.getLogger()
+    
     logger.info("")
     logger.info(f'Execute Arguments: {opt}')
     

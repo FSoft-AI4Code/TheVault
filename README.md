@@ -112,6 +112,7 @@ The dataset we used to extract was collected by codeparrot. They host the raw da
 *You can create your own dataset using Google Bigquery and the [query here](https://huggingface.co/datasets/codeparrot/github-code/blob/main/query.sql)*
 
 ## Getting started
+### Process custom dataset
 For start preprocessing data, define a .yaml file to declare raw data format. (More detail: `/data/format/README.md`)
 
 ```bash
@@ -129,3 +130,19 @@ python -m codetext.processing
 
 *NOTES:*  <DATASET_PATH> dir must contains raw data store in `.jsonl` extension if you pass argument `--load_from_file` or contains huggingface dataset's 
 
+### Analyse and split dataset
+The code process is going to save cleaned sample by batch, you can merge it using `postprocess.py`. We also provide analyse tool for get total number of sample, blank_line(\*), comment(\*) and code(\*). You can also split your dataset into `train`, `valid`, `test`.
+
+```bash
+python -m codetext.postprocessing 
+<DATASET_PATH>  # path to dir contains /extracted, /filered, /raw
+--save_path <SAVE_PATH>  # path to save final output
+
+--n_core 10  # number of core for multiprocessing analyzer
+--analyze  # Analyze trigger
+--split  # Split train/test/valid trigger
+--ratio 0.05  # Test and valid ratio (defaul to equal)
+--max_sample 20000  # Max size of test set and valid set
+```
+
+*NOTES:* (\*) We run `cloc` underneath the program to count blank, comment and code. See more [github.com/AlDanial/cloc](github.com/AlDanial/cloc)

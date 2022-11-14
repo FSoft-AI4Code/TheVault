@@ -184,6 +184,7 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         
             # Extract function
             raw_fn = list(process_raw_node(tree, raw_code, lang_parser))
+            raw_fn = [item.update(metadata_data) for item in raw_fn]
             filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
             extracted_function_list = list(extract_node(filtered_fn_list, language))
             
@@ -194,11 +195,13 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
             
             # # Extract line
             # raw_line = list(get_line_definitions(tree, raw_code, lang_parser))
+            # raw_line = [item.update(metadata_data) for item in raw_line]
             # raw_line_set.extend(raw_line)
             
             # # Extract class
             # if not (language == 'GO' or language == 'C'):
             #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, is_class=True))
+            #     raw_class = [item.update(metadata_data) for item in raw_class]
             #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
             #     extracted_class_list = list(extract_node(filtered_class_list, language))
             
@@ -238,7 +241,6 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         f'Total filterable function {res[3]} | Total filterable class {res[4]} \n'
         f'Total extractable function {res[5]} | Total extractable class {res[6]} \n'
     )
-    
     
     return res
 

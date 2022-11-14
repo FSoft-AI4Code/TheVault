@@ -6,3 +6,6 @@ tree-sitter
 docstring-parser
 bs4
 Levenshtein
+
+# for post-processing
+cloc
