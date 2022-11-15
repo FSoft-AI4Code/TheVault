@@ -63,23 +63,12 @@ def main(opt):
     logger.info("Total %i processes" % len(args))
 
     executor = multiprocessing.Pool(n_worker)
-    result = list(executor.starmap(processing, args))
+    executor.starmap(processing, args)
 
     # # for debuging
     # processing(dataset, jobs_list[0], opt)
-
-    # TODO: embed count repo? count file? extract file into this?
-    fn_total, c_total, l_total = 0, 0, 0
-    final_res = []
-    # for res in result:
-    #     final_res.append(res)
-    #     _fn, _c, _l = res
-    #     fn_total += _fn
-    #     c_total += _c
-    #     l_total += _l
     
     finish = time.perf_counter()
-    # logger.info("============ Language %s | Total sample: %i functions | %i classes | %i lines ============" % (opt.language, fn_total, c_total, l_total))
     logger.info("============ Processing done, finished in %.3f seconds ============" % (finish - start))
     
 
@@ -139,7 +128,6 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     t_finish = time.perf_counter()
     
     logger.info("Saved batch %i | Processing took %.3f s" % (idx, t_finish - t_start))
-    # logger.info("Batch %i total: %i raw functions | %i raw classes | %i raw inline | %i filtered functions | %i filtered classes" % (idx, [res for res in list_res]))
     
     return list_res
 
@@ -179,7 +167,6 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         
         # Extract function
         raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
-        # raw_fn = [item.update(metadata_data) for item in raw_fn]
         
         filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
         extracted_function_list = list(extract_node(filtered_fn_list, language))
@@ -211,14 +198,14 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
     extracted_path = os.path.join(opt.save_path, 'extracted')
     
     write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
-    write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
-    write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
+    # write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
+    # write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
     
     write_jsonl(filtered_function_set, os.path.join(filtered_path, f'batch_{thread_idx}_function_data.jsonl'))
-    write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
+    # write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
     
     write_jsonl(extracted_function_set, os.path.join(extracted_path, f'batch_{thread_idx}_function_data.jsonl'))
-    write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
+    # write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
     
     res = []
     for item in [raw_function_set, raw_class_set, raw_line_set, \

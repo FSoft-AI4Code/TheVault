@@ -66,7 +66,7 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
     zip_output = zipfile.ZipFile(os.path.join(opt.save_path, f'{name}_code.zip'), "w", zipfile.ZIP_DEFLATED)
     
     with open(os.path.join(opt.save_path, f'{name}_merge.jsonl'), 'a') as output_file:
-        for file in file_list:
+        for file in tqdm(file_list, desc='Merging jsonl file'):
             with open(file, 'r') as json_file:
                 dataset = list(json_file)
         

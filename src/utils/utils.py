@@ -352,14 +352,15 @@ def extract_node(metadata_list, language:str):
         for key in ['identifier', 'code', 'code_tokens', 'docstring']:
             assert key in metadata.keys(), f"Expect keyword '{key}'"
 
-        output_metadata = {
+        output_metadata = metadata.copy()
+        output_metadata.update({
             'identifier': metadata['identifier'],
             'parameters': metadata['parameters'],
             'code': metadata['code'],
             'code_tokens': metadata['code_tokens'],
             'original_docstring': metadata['original_docstring'],
             'comment': metadata['comment']
-        }
+        })
         
         extracted_res = extract_docstring(metadata['original_docstring'], metadata['parameters'], language)
         if not extracted_res:  # extract fail
