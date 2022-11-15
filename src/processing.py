@@ -15,7 +15,7 @@ from src.utils.logger import create_logger
 
 from src.utils.parser.cpp_parser import CppParser
 from src.utils.parser.go_parser import GoParser
-# from src.utils.parser.ruby_parser import RubyParser
+from src.utils.parser.ruby_parser import RubyParser
 from src.utils.parser.php_parser import PhpParser
 from src.utils.parser.java_parser import JavaParser
 from src.utils.parser.javascript_parser import JavascriptParser
@@ -105,8 +105,8 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     elif language == 'go':
         language_parser = GoParser()
         
-    # elif language == 'ruby':
-    #     language_parser = RubyParser()
+    elif language == 'ruby':
+        language_parser = RubyParser()
 
     elif language == 'php':
         language_parser = PhpParser()

@@ -1,5 +1,5 @@
 module RedditKit
-    class Client
+    class Client < API
     
         # Methods for searching reddit's links.
         module Search
