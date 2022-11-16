@@ -33,15 +33,15 @@ def strip_c_style_comment_delimiters(comment: str) -> str:
         l = l.strip()
         if l.endswith('*/'):
             l = l[:-2]
-        elif l.startswith('*'):
+        if l.startswith('*'):
             l = l[1:]
-        elif l.startswith('#'):
+        if l.startswith('#'):
             l = l[1:]
-        elif l.startswith('/**'):
+        if l.startswith('/**'):
             l = l[3:]
-        elif l.startswith('///'):
+        if l.startswith('///'):
             l = l[3:]
-        elif l.startswith('//'):
+        if l.startswith('//'):
             l = l[2:]
         cleaned_lines.append(l.strip())
     return '\n'.join(cleaned_lines)

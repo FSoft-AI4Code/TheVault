@@ -11,6 +11,7 @@ from .javascript_parser import JavascriptParser
 from .python_parser import PythonParser
 from .cpp_parser import CppParser
 from .c_sharp_parser import CsharpParser
+from .rust_parser import RustParser
 
 
 # def extract_raw_code(raw_code, language, language_path='languages/my-languages.so') -> List[Dict[str, Any]]:
