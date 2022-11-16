@@ -73,7 +73,7 @@ class Test_CsharpParser(unittest.TestCase):
         
         
         self.assertEqual(docs1, '<summary>\nDocstring of a method\n</summary>\n<param name="animal_honk">Argument.</param>\n<returns>\nNone.')
-        self.assertEqual(docs2, '/* Another method docstring\nin multiple line')
+        self.assertEqual(docs2, 'Another method docstring\nin multiple line')
         
 
     def test_get_function_metadata(self):
