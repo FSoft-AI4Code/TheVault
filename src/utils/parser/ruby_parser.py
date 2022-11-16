@@ -90,9 +90,10 @@ class RubyParser(LanguageParser):
             if child.type == 'identifier':
                 metadata['identifier'] = match_from_span(child, blob)
             elif child.type in ['method_parameters', 'parameters', 'bare_parameters']:
-                for subchild in child.children:
-                    if subchild.type == 'identifier':
-                        metadata['parameters'].append(match_from_span(subchild, blob))
+                params = []
+                traverse_type(child, params, ['identifier'])
+                for item in params:
+                    metadata['parameters'].append(match_from_span(item, blob))
 
         return metadata
     
