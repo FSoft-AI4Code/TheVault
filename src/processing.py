@@ -294,7 +294,7 @@ if __name__ == '__main__':
     if not os.path.exists(log_path):
         os.mkdir(log_path)
     
-    create_logger(filepath=os.path.join(opt.save_path, 'log.txt'), rank=0)
+    create_logger(filepath=os.path.join(log_path, 'log.txt'), rank=0)
     logger = logging.getLogger()
     logger.info(f'Execute Arguments: {opt}')
 

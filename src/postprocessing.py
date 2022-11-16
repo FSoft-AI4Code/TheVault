@@ -57,6 +57,7 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
     # For statistic
     fail_sample = 0
     n_sample = 0
+    n_total_sample = 0
     n_repos = set()
     
     # For analyzer
@@ -65,6 +66,10 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
     sets = []
     zip_output = zipfile.ZipFile(os.path.join(opt.save_path, f'{name}_code.zip'), "w", zipfile.ZIP_DEFLATED)
     
+    # Deduplicate
+    code_base = set()
+    docstring_base = set()
+
     with open(os.path.join(opt.save_path, f'{name}_merge.jsonl'), 'a') as output_file:
         for file in tqdm(file_list, desc='Merging jsonl file'):
             with open(file, 'r') as json_file:
@@ -81,11 +86,21 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
                 assert 'repo' in data.keys()
                 assert 'path' in data.keys()
                 
-                code = data['code']
                 repo = data['repo']
                 path = data['path']
+                
+                code = ''.join(data['code_tokens'])
+                docs = data['original_docstring']
+                
                 unique_idx = str(idx) + code[-10:] + repo + path[-50:]
                 n_repos.add(repo)
+                n_total_sample += 1
+                
+                if docs not in docstring_base and code not in code_base:
+                    docstring_base.add(docs)
+                    code_base.add(code)
+                else:
+                    continue
                 
                 if repo not in repos:
                     repos.append(repo)
@@ -102,10 +117,12 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
                 json.dump(data, output_file)
                 output_file.write('\n')
                 n_sample += 1
+
                 
     assert os.path.exists(os.path.join(opt.save_path, f'{name}_merge.jsonl')) == True
     assert os.path.exists(os.path.join(opt.save_path, f'{name}_code.zip')) == True
     logger.info('Meraged in %s' % (os.path.join(opt.save_path, f'{name}_merge.jsonl')))
+    logger.info(f"Total number of sample {n_sample} | Deduplicated {n_total_sample-n_sample} samples")
 
     if opt.split and split:
         valid_ratio = test_ratio = opt.ratio
@@ -174,7 +191,7 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
         process_output, _ = command_line_process.communicate()
         logger.info(process_output.decode())
     
-    logger.info(f'============= SUMMARY: {name} | Total {n_sample} samples in {len(n_repos)} repos =============\n')
+    logger.info(f'============= SUMMARY =============\n {name} | Total {n_sample} samples in {len(n_repos)} repos =============')
 
 
 def merge_file(file_list, opt, name: str='raw', split: bool=False):
@@ -212,8 +229,8 @@ def main(opt):
     # f"\nEXTRACTED: #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
     # logger.info(s)
     
-    merge_file(raw_list, opt, 'raw')
-    merge_file(filter_list, opt, 'filter')
+    # merge_file(raw_list, opt, 'raw')
+    # merge_file(filter_list, opt, 'filter')
     merge_file(extract_list, opt, 'extract', split=True)
     logger.info('============= Done =============%')
 
@@ -264,7 +281,7 @@ if __name__ == '__main__':
     )
 
     opt = parser.parse_args()
-    create_logger(filepath=os.path.join(opt.save_path, 'log.txt'), rank=0)
+    create_logger(filepath=os.path.join(opt.save_path, 'log', 'post_log.txt'), rank=0)
     
     logger = logging.getLogger()
     logger.info(f'Execute Arguments: {opt}')

@@ -310,22 +310,3 @@ class RubyParser(LanguageParser):
                     # for class_node in classes:
                     definitions.extend(RubyParser.get_methods(classes, blob, module_name))
         return definitions
-
-
-    @staticmethod
-    def get_function_metadata(function_node, blob: str) -> Dict[str, str]:
-        metadata = {
-            'identifier': '',
-            'parameters': '',
-        }
-        metadata['identifier'] = match_from_span(function_node.children[1], blob)
-        params = []
-        if function_node.children[2].type == 'method_parameters':
-            parameter_list = match_from_span(function_node.children[2], blob).split(',')
-            for param in parameter_list:
-                item = re.sub(r'[^a-zA-Z0-9\_]', ' ', param).split()
-                if len(item) > 0:
-                    params.append(item[0].strip())
-            # metadata['parameters'] = match_from_span(function_node.children[2], blob)
-        metadata['parameters'] = params
-        return metadata
