@@ -31,18 +31,30 @@ def strip_c_style_comment_delimiters(comment: str) -> str:
     cleaned_lines = []
     for l in comment_lines:
         l = l.strip()
+        if l.startswith('/***'):
+            l = l[4:]
+        if l.startswith('/**'):
+            l = l[3:]
+        if l.startswith('/*!!'):
+            l = l[4:]
+        if l.startswith('/*!'):
+            l = l[3:]
+        if l.startswith('/*'):
+            l = l[2:]
+        if l.startswith('///'):
+            l = l[3:]
+        if l.startswith('//!!'):
+            l = l[4:]
+        if l.startswith('//!'):
+            l = l[3:]
+        if l.startswith('//'):
+            l = l[2:]
         if l.endswith('*/'):
             l = l[:-2]
         if l.startswith('*'):
             l = l[1:]
         if l.startswith('#'):
             l = l[1:]
-        if l.startswith('/**'):
-            l = l[3:]
-        if l.startswith('///'):
-            l = l[3:]
-        if l.startswith('//'):
-            l = l[2:]
         cleaned_lines.append(l.strip())
     return '\n'.join(cleaned_lines)
 
