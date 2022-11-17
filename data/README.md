@@ -3,7 +3,7 @@
 ## Function-level and Class-level
 - **repo** the owner/repo
 - **path** the full path to the original file
-- **func_name/class_name** the function or method name
+- **identifier** the function or method name
 - **license** repo license
 - **original_string** the raw string before tokenization or parsing
 - **language** the programming language
