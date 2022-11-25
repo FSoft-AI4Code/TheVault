@@ -186,7 +186,7 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
             
             # Extract class
             if not (language == 'GO' or language == 'C'):
-                raw_class = list(process_raw_node(tree, raw_code, lang_parser, , metadata_data, is_class=True))
+                raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
                 filtered_class_list = list(get_node_definitions(raw_class, raw_code))
                 extracted_class_list = list(extract_node(filtered_class_list, language))
             

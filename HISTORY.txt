@@ -13,3 +13,22 @@ Release date: Nov 9, 2022
 *  Clean docstring function
 *  Data preprocessing source code
 *  Tree-sitter utils: build_language, parse_code
+
+Version 0.0.2
+=============
+Release date: Nov 25, 2022
+
+*  Language parser for Rust
+    * get_docstring
+    * get_class_list, get_function_list
+    * get_class_metadata, get_function_metadata
+* Processing utils:
+    * extract_docstring
+    * extract_node
+    * get_line_definitions
+    * get_node_definitions
+    * process_raw_node
+* Postprocessing:
+    * Merge file (from batches)
+    * Split into train/test/valid (by #sample category)
+    * Deduplicate sample
