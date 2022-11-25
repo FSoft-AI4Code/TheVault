@@ -33,7 +33,9 @@ STYLE_MAP = {
     'c': [DocstringStyle.JAVADOC],
     'cpp': [DocstringStyle.JAVADOC],
     'go': [],
-    # 'c_sharp': [DocstringStyle.XML],
+    'c_sharp': [DocstringStyle.XML,
+                DocstringStyle.JAVADOC],
+    'rust': [DocstringStyle.RUSTDOC], 
 }
 
 
@@ -210,11 +212,13 @@ def get_node_definitions(metadata: List, blob: str) -> List:
         
         if docstring == None:
             continue
-        if len(docstring_tokens) <= 3 or len(docstring_tokens) >= 256:
-            continue
         
         docstring = clean_comment(docstring, code)
         if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
+            continue
+        
+        docstring_tokens = tokenize_docstring(docstring)
+        if len(docstring_tokens) <= 3 or len(docstring_tokens) >= 256:
             continue
         
         # TODO: replace clean_comment with check_docstring
@@ -222,7 +226,7 @@ def get_node_definitions(metadata: List, blob: str) -> List:
         #     continue
         
         node_metadata['docstring'] = docstring
-        node_metadata['docstring_tokens'] = tokenize_docstring(docstring)
+        node_metadata['docstring_tokens'] = docstring_tokens
         
         yield node_metadata
         

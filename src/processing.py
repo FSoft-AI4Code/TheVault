@@ -167,34 +167,34 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
         
-        # try:
+        try:
         
-        # Extract function
-        raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
-        
-        filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
-        extracted_function_list = list(extract_node(filtered_fn_list, language))
-        
-        # For saving
-        raw_function_set.extend(raw_fn)
-        filtered_function_set.extend(filtered_fn_list)
-        extracted_function_set.extend(extracted_function_list)
+            # Extract function
+            raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
             
-            # # Extract line
-            # raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
-            # raw_line_set.extend(raw_line)
+            filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
+            extracted_function_list = list(extract_node(filtered_fn_list, language))
             
-            # # Extract class
-            # if not (language == 'GO' or language == 'C'):
-            #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, , metadata_data, is_class=True))
-            #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
-            #     extracted_class_list = list(extract_node(filtered_class_list, language))
+            # For saving
+            raw_function_set.extend(raw_fn)
+            filtered_function_set.extend(filtered_fn_list)
+            extracted_function_set.extend(extracted_function_list)
             
-            #     raw_class_set.extend(raw_class)    
-            #     filtered_class_set.extend(filtered_class_list)
-            #     extracted_class_set.extend(extracted_class_list)
-        # except Exception:
-        #     continue
+            # Extract line
+            raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
+            raw_line_set.extend(raw_line)
+            
+            # Extract class
+            if not (language == 'GO' or language == 'C'):
+                raw_class = list(process_raw_node(tree, raw_code, lang_parser, , metadata_data, is_class=True))
+                filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+                extracted_class_list = list(extract_node(filtered_class_list, language))
+            
+                raw_class_set.extend(raw_class)    
+                filtered_class_set.extend(filtered_class_list)
+                extracted_class_set.extend(extracted_class_list)
+        except Exception:
+            continue
         
     
     raw_path = os.path.join(opt.save_path, 'raw')
@@ -202,14 +202,14 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
     extracted_path = os.path.join(opt.save_path, 'extracted')
     
     write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
-    # write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
-    # write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
+    write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
+    write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
     
     write_jsonl(filtered_function_set, os.path.join(filtered_path, f'batch_{thread_idx}_function_data.jsonl'))
-    # write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
+    write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
     
     write_jsonl(extracted_function_set, os.path.join(extracted_path, f'batch_{thread_idx}_function_data.jsonl'))
-    # write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
+    write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
     
     res = []
     for item in [raw_function_set, raw_class_set, raw_line_set, \

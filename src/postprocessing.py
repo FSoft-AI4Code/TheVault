@@ -199,11 +199,11 @@ def merge_file(file_list, opt, name: str='raw', split: bool=False):
         function_list, class_list = file_list[:2]
         
         merge_embled_file(function_list, opt, f'{name}_function', split)
-        # merge_embled_file(class_list, opt, f'{name}_class', split)
+        merge_embled_file(class_list, opt, f'{name}_class', split)
         
-        # if len(file_list) == 3:  # inline
-        #     line_list = file_list[-1]
-        #     merge_embled_file(line_list, opt, f'{name}_line', split=True)
+        if len(file_list) == 3:  # inline
+            line_list = file_list[-1]
+            merge_embled_file(line_list, opt, f'{name}_line', split=True)
 
 
 def main(opt):
@@ -224,13 +224,13 @@ def main(opt):
     filter_list = summary_total(filter_list)
     extract_list = summary_total(extract_list)
     
-    # s = f"RAW: #function file {len(raw_list[0])} | #class file {len(raw_list[1])} | #inline file {len(raw_list[2])}" + \
-    # f"\nFILTERED: #function file {len(filter_list[0])} | #class file {len(filter_list[1])}" + \
-    # f"\nEXTRACTED: #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
-    # logger.info(s)
+    s = f"RAW: #function file {len(raw_list[0])} | #class file {len(raw_list[1])} | #inline file {len(raw_list[2])}" + \
+    f"\nFILTERED: #function file {len(filter_list[0])} | #class file {len(filter_list[1])}" + \
+    f"\nEXTRACTED: #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
+    logger.info(s)
     
-    # merge_file(raw_list, opt, 'raw')
-    # merge_file(filter_list, opt, 'filter')
+    merge_file(raw_list, opt, 'raw')
+    merge_file(filter_list, opt, 'filter')
     merge_file(extract_list, opt, 'extract', split=True)
     logger.info('============= Done =============%')
 

@@ -11,12 +11,45 @@ class GoParser(LanguageParser):
     
     @staticmethod
     def get_comment_node(function_node):
+        """
+        Return all comment node inside a parent node
+        Args:
+            node (tree_sitter.Node)
+        Return:
+            List: list of comment nodes
+        """
         comment_node = []
         traverse_type(function_node, comment_node, kind='comment')
         return comment_node
     
     @staticmethod
     def get_docstring_node(node):
+        """
+        Get docstring node from it parent node.
+        Go's docstring is written line by line
+        
+        Args:
+            node (tree_sitter.Node): parent node (usually function node) to get its docstring
+        Return:
+            List: list of docstring nodes
+        Example:
+            str = '''
+                // The path package should only be used for paths separated by forward
+                // slashes, such as the paths in URLs. This package does not deal with
+                // Windows paths with drive letters or backslashes; to manipulate
+                // operating system paths, use the [path/filepath] package.
+                func (e TypeError) Error() string {
+                    ...
+                }
+            '''
+            ...
+            print(GoParser.get_docstring_node(function_node))
+            
+            >>> [<Node type=comment, start_point=(x, y), end_point=(x, y)>, \
+                <Node type=comment, start_point=(x, y), end_point=(x, y)>, \
+                <Node type=comment, start_point=(x, y), end_point=(x, y)>, \
+                <Node type=comment, start_point=(x, y), end_point=(x, y)>]
+        """
         docstring_node = []
         
         prev_node = node.prev_sibling
@@ -38,6 +71,15 @@ class GoParser(LanguageParser):
     
     @staticmethod
     def get_docstring(node, blob):
+        """
+        Get docstring description for node
+        
+        Args:
+            node (tree_sitter.Node)
+            blob (str): original source code which parse the `node`
+        Returns:
+            str: docstring
+        """
         docstring_node = GoParser.get_docstring_node(node)
         docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
         return docstring
@@ -83,57 +125,3 @@ class GoParser(LanguageParser):
     @staticmethod
     def get_class_metadata(class_node, blob) -> Dict[str, str]:
         pass
-
-    @staticmethod
-    def extract_docstring(docstring:str, parameter_list:Dict) -> List:
-        if docstring == '':
-            return None, None
-        
-        param = {'other_param': {}}
-        for key, val in parameter_list.items():
-            param[key] = {'docstring': None, 'type': val}
-        
-        return docstring, param
-    
-    @staticmethod
-    def get_definition(tree, blob: str) -> List[Dict[str, Any]]:
-        definitions = []
-        comment_buffer = []
-        for child in tree.root_node.children:
-            if child.type == 'comment':
-                comment_buffer.append(child)
-            elif child.type in ('method_declaration', 'function_declaration'):
-                
-                docstring = '\n'.join([match_from_span(comment, blob) for comment in comment_buffer])
-                docstring = strip_c_style_comment_delimiters(docstring)
-
-                # docstring_summary = strip_c_style_comment_delimiters((get_docstring_summary(docstring)))
-
-                metadata = GoParser.get_function_metadata(child, blob)
-                
-                _docs = docstring
-                docstring, param = GoParser.extract_docstring(docstring, metadata['parameters'])
-                comment_node = GoParser.__get_comment_node(child)
-                docstring = clean_comment(docstring, blob)
-                _comment = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_node]
-                comment = [clean_comment(cmt) for cmt in _comment]
-                
-                definitions.append({
-                    'type': child.type,
-                    'identifier': metadata['identifier'],
-                    'parameters': metadata['parameters'],
-                    'function': match_from_span(child, blob),
-                    'function_tokens': tokenize_code(child, blob),
-                    'original_docstring': _docs,
-                    'docstring': docstring,
-                    'docstring_tokens': tokenize_docstring(docstring),
-                    'docstring_param': param,
-                    'comment': comment,
-                    # 'docstring_summary': docstring_summary,
-                    'start_point': child.start_point,
-                    'end_point': child.end_point     
-                })
-                comment_buffer = []
-            else:
-                comment_buffer = []
-        return definitions

@@ -5,26 +5,54 @@ import tree_sitter
 from src.utils.noise_detection import strip_c_style_comment_delimiters
 from src.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 
-from docstring_parser import parse
-from docstring_parser.common import *
-
-
-CPP_STYLE_MAP = [
-    DocstringStyle.JAVADOC,
-]
-
 class CppParser(LanguageParser):
     
     BLACKLISTED_FUNCTION_NAMES = ['main', 'constructor']
     
     @staticmethod
     def get_docstring(node, blob):
+        """
+        Get docstring description for node
+        
+        Args:
+            node (tree_sitter.Node)
+            blob (str): original source code which parse the `node`
+        Returns:
+            str: docstring
+        """
         docstring_node = CppParser.get_docstring_node(node)
         docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
         return docstring
     
     @staticmethod
     def get_docstring_node(node):
+        """
+        Get docstring node from it parent node.
+        C and C++ share the same syntax. Their docstring usually is 1 single block
+        Expect length of return list == 1
+        
+        Args:
+            node (tree_sitter.Node): parent node (usually function node) to get its docstring
+        Return:
+            List: list of docstring nodes (expect==1)
+        Example:
+            str = '''
+                /**
+                * Find 2 sum
+                *
+                * @param nums List number.
+                * @param target Sum target.
+                * @return postion of 2 number.
+                */
+                vector<int> twoSum(vector<int>& nums, int target) {
+                    ...
+                }
+            '''
+            ...
+            print(CppParser.get_docstring_node(function_node))
+            
+            >>> [<Node type=comment, start_point=(x, y), end_point=(x, y)>]
+        """
         docstring_node = []
         
         prev_node = node.prev_sibling
@@ -58,6 +86,13 @@ class CppParser(LanguageParser):
         
     @staticmethod
     def get_comment_node(node):
+        """
+        Return all comment node inside a parent node
+        Args:
+            node (tree_sitter.Node)
+        Return:
+            List: list of comment nodes
+        """
         comment_node = []
         traverse_type(node, comment_node, kind=['comment'])
         return comment_node

@@ -2,12 +2,9 @@ import re
 from typing import List, Dict, Any
 
 import tree_sitter
-from docstring_parser.common import *
-from docstring_parser import parse
 
 from .language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 from ..noise_detection import clean_comment, if_comment_generated, strip_c_style_comment_delimiters
-# from function_parser.parsers.commentutils import get_docstring_summary
 
 
 class RustParser(LanguageParser):

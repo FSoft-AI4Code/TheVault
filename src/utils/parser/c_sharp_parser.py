@@ -7,25 +7,59 @@ from src.utils.parser.language_parser import LanguageParser, match_from_span, tr
 from docstring_parser import parse
 from docstring_parser.common import *
 
-
-C_SHARP_STYLE_MAP = [
-    # DocstringStyle.XML,
-    DocstringStyle.JAVADOC,
-    
-]
-
 class CsharpParser(LanguageParser):
     
     BLACKLISTED_FUNCTION_NAMES = []
     
     @staticmethod
     def get_docstring(node, blob):
+        """
+        Get docstring description for node
+        
+        Args:
+            node (tree_sitter.Node)
+            blob (str): original source code which parse the `node`
+        Returns:
+            str: docstring
+        """
         docstring_node = CsharpParser.get_docstring_node(node)
         docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
         return docstring
     
     @staticmethod
     def get_docstring_node(node):
+        """
+        Get docstring node from it parent node.
+        C# docstring is written line by line and stay outside it own node, see example below.
+        
+        Args:
+            node (tree_sitter.Node): parent node (usually function node) to get its docstring
+        Return:
+            List: list of docstring nodes
+        Example:
+            str = '''
+                // <summary>
+                // Docstring of a method
+                // </summary>
+                // <param name="animal_honk">Argument.</param>
+                // <returns>
+                // None.
+                public void honk(string animal_honk)
+                {                    
+                    Console.WriteLine(animal_honk);
+                    Console.WriteLine("Tuut, tuut!");
+                }
+            '''
+            ...
+            print(C_sharp.get_docstring_node(function_node))
+            
+            >>> [<Node type=comment, start_point=(5, 12), end_point=(5, 24)>, \
+                <Node type=comment, start_point=(6, 12), end_point=(6, 36)>, \
+                <Node type=comment, start_point=(7, 12), end_point=(7, 25)>, \
+                <Node type=comment, start_point=(8, 12), end_point=(8, 58)>, \
+                <Node type=comment, start_point=(9, 12), end_point=(9, 24)>, \
+                <Node type=comment, start_point=(10, 12), end_point=(10, 20)>]
+        """
         docstring_node = []
         
         prev_node = node.prev_sibling
@@ -47,6 +81,13 @@ class CsharpParser(LanguageParser):
     
     @staticmethod
     def get_comment_node(node):
+        """
+        Return all comment node inside a parent node
+        Args:
+            node (tree_sitter.Node)
+        Return:
+            List: list of comment nodes
+        """
         comment_node = []
         traverse_type(node, comment_node, kind=['comment'])
         return comment_node
