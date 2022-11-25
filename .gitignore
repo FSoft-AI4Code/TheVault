@@ -1,5 +1,6 @@
 cache/*
 src/*/*.txt
+src/codetext.egg-info/*
 */build/*
 */dist/*
 */tree-sitter-*
