@@ -167,7 +167,6 @@ def if_UnderDevelop(comment):
     elif re.fullmatch(p4, comment) or re.fullmatch(p5, comment):
         return True
     else:
-
         return False
 
 
@@ -247,7 +246,6 @@ def if_comment_generated(fn_name, comment, th=0.4):
     d0 = lev.distance(fn_name_splited, comment)
     d1 = max(len(fn_name_splited), len(comment))
     
-    # print(d0, d1)
     if d0 <= d1*th:
         # print('Auto-code')
         return True
