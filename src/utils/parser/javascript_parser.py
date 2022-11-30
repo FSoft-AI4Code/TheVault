@@ -45,13 +45,21 @@ class JavascriptParser(LanguageParser):
     @staticmethod
     def get_function_list(node):
         res = []
-        traverse_type(node, res, ['function_declaration', 'method_definition'])
+        traverse_type(node, res, ['function_declaration', 'function', 'method_definition', 'generator_function_declaration'])
+        for node in res[:]:
+            if not node.children:
+                res.remove(node)
+
         return res
     
     @staticmethod
     def get_class_list(node):
         res = []
-        traverse_type(node, res, ['class_declaration'])
+        traverse_type(node, res, ['class_declaration', 'class'])
+        for node in res[:]:
+            if not node.children:
+                res.remove(node)
+
         return res
 
     @staticmethod
