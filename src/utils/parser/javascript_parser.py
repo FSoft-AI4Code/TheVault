@@ -33,7 +33,7 @@ class JavascriptParser(LanguageParser):
         
         docstring = ''
         if docstring_node:
-            docstring = strip_c_style_comment_delimiters(match_from_span(docstring_node[0], blob))
+            docstring = match_from_span(docstring_node[0], blob)
         return docstring
     
     @staticmethod

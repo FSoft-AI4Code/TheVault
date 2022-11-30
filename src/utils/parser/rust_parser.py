@@ -58,7 +58,6 @@ class RustParser(LanguageParser):
         if docstring_node:
             for item in docstring_node:
                 doc = match_from_span(item, blob)
-                doc = strip_c_style_comment_delimiters(doc)
                 docstring.append(doc)
 
         docstring = '\n'.join(docstring)

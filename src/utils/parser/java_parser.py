@@ -46,7 +46,6 @@ class JavaParser(LanguageParser):
         docstring = ''
         if docstring_node:
             docstring = match_from_span(docstring_node[0], blob)
-            docstring = strip_c_style_comment_delimiters(docstring)
         return docstring
 
     @staticmethod

@@ -21,7 +21,7 @@ class CppParser(LanguageParser):
             str: docstring
         """
         docstring_node = CppParser.get_docstring_node(node)
-        docstring = '\n'.join((strip_c_style_comment_delimiters(match_from_span(s, blob)) for s in docstring_node))
+        docstring = '\n'.join(match_from_span(s, blob) for s in docstring_node)
         return docstring
     
     @staticmethod

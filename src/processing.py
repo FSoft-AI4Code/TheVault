@@ -35,6 +35,15 @@ def main(opt):
         
         with open(opt.data_path, 'r') as json_file:
             dataset = list(json_file)
+            
+    elif opt.cons_from_raw:
+        logger.info("============ Load dataset from dir %s ... ============" % opt.data_path)
+        assert os.path.exists(opt.data_path) and os.path.isdir(opt.data_path)
+        dataset = []
+        filelist = os.listdir(opt.data_path)
+        for file in tqdm(filelist):
+            with open(os.path.join(opt.data_path, file), 'r') as json_file:
+                dataset.extend(list(json_file))
 
     else:
         logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
@@ -52,7 +61,7 @@ def main(opt):
     logger.info("============ Start multiprocessing using %i worker ============" % n_worker)
     
     # split dataset
-    dataset_size = 2000000 if len(dataset) > 2000000 else len(dataset)
+    dataset_size = len(dataset)
     index_list = range(dataset_size)
     chunk_size = dataset_size//opt.n_split
     logger.info("Spliting %i samples into %i sub-dataset with chunk size %i" % (dataset_size, opt.n_split, chunk_size))
@@ -124,8 +133,7 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     extracted_path = os.path.join(opt.save_path, 'extracted')
     
     for path in [raw_path, filtered_path, extracted_path]:
-        if not os.path.exists(path):
-            os.mkdir(path)
+        os.makedirs(path, exist_ok = True)
 
     list_res = _processing(dataset, job_index, ast_parser, language_parser, idx, opt)
     
@@ -143,11 +151,9 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
     
     for idx in tqdm(indexs, desc=f'Thread {thread_idx} processing: '):
         data = dataset[idx]
-        if opt.load_from_file:
+        if opt.load_from_file or opt.cons_from_raw:
             data = json.loads(data)
-        
-        if not os.path.exists(opt.data_format):
-            raise FileNotFoundError("Not found data format (.yaml file)")
+        assert os.path.exists(opt.data_format), "Not found data format (.yaml file)"
         
         with open(opt.data_format, 'r') as stream:
             data_format = yaml.safe_load(stream)
@@ -168,9 +174,11 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         tree = ast.parse(bytes(raw_code, "utf8"))
         
         try:
-        
             # Extract function
-            raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
+            if opt.cons_from_raw:
+                raw_fn = data
+            else:
+                raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
             
             filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
             extracted_function_list = list(extract_node(filtered_fn_list, language))
@@ -180,19 +188,19 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
             filtered_function_set.extend(filtered_fn_list)
             extracted_function_set.extend(extracted_function_list)
             
-            # Extract line
-            raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
-            raw_line_set.extend(raw_line)
+            # # Extract line
+            # raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
+            # raw_line_set.extend(raw_line)
             
-            # Extract class
-            if not (language == 'GO' or language == 'C'):
-                raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
-                filtered_class_list = list(get_node_definitions(raw_class, raw_code))
-                extracted_class_list = list(extract_node(filtered_class_list, language))
+            # # Extract class
+            # if not (language == 'GO' or language == 'C'):
+            #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
+            #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+            #     extracted_class_list = list(extract_node(filtered_class_list, language))
             
-                raw_class_set.extend(raw_class)    
-                filtered_class_set.extend(filtered_class_list)
-                extracted_class_set.extend(extracted_class_list)
+            #     raw_class_set.extend(raw_class)    
+            #     filtered_class_set.extend(filtered_class_list)
+            #     extracted_class_set.extend(extracted_class_list)
         except Exception:
             continue
         
@@ -201,15 +209,15 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
     filtered_path = os.path.join(opt.save_path, 'filtered')
     extracted_path = os.path.join(opt.save_path, 'extracted')
     
-    write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
-    write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
-    write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
+    # write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
+    # write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
+    # write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
     
     write_jsonl(filtered_function_set, os.path.join(filtered_path, f'batch_{thread_idx}_function_data.jsonl'))
-    write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
+    # write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
     
     write_jsonl(extracted_function_set, os.path.join(extracted_path, f'batch_{thread_idx}_function_data.jsonl'))
-    write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
+    # write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
     
     res = []
     for item in [raw_function_set, raw_class_set, raw_line_set, \
@@ -259,6 +267,11 @@ if __name__ == '__main__':
         '--load_from_file', 
         action='store_true',
         help='Load from .json or .jsonl'
+    )
+    parser.add_argument(
+        '--cons_from_raw', 
+        action='store_true',
+        help='Continues from raw .jsonl (pass folder path to data)'
     )
     parser.add_argument(
         '--raw_only', 

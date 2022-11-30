@@ -64,7 +64,7 @@ class RubyParser(LanguageParser):
         docstring_node = RubyParser.get_docstring_node(node)
         docstring = []
         for item in docstring_node:
-            doc = strip_c_style_comment_delimiters(match_from_span(item, blob))
+            doc = match_from_span(item, blob)
             doc_lines = doc.split('\n')
             for line in doc_lines:
                 if '=begin' in line or '=end' in line:

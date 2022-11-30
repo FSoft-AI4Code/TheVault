@@ -165,7 +165,7 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             code = match_from_span(function, blob)
             code_tokens = tokenize_code(function, blob, exclude_node)
             
-            comment_list = [strip_c_style_comment_delimiters(match_from_span(cmt, blob)) for cmt in comment_nodes]
+            comment_list = [match_from_span(cmt, blob) for cmt in comment_nodes]
 
         except Exception:
             continue
