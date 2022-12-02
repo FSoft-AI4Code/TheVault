@@ -4,10 +4,8 @@ import unittest
 from pathlib import Path
 
 from tree_sitter import Language, Parser
-from src.utils.parser import CppParser
-from src.utils.utils import parse_code
-
-ROOT_PATH = str(Path(__file__).parents[1])
+from src.codetext.utils.parser import CppParser
+from src.codetext.utils.utils import parse_code
 
 class Test_CppParser_with_C(unittest.TestCase):
     def setUp(self) -> None:

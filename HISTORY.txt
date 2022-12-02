@@ -50,3 +50,10 @@ Release date: Dec 2, 2022
     * check_contain_many_repeated_word
     * check_contain_many_uppercase_word
     * check_contain_many_long_word
+
+Version 0.0.4
+=============
+Release date: Dec 2, 2022
+
+*  Fix main package root path
+*  Loosen `docstring_parser` dependency

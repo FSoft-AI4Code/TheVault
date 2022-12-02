@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from tree_sitter import Language, Parser
-from src.utils.parser import PythonParser
+from src.codetext.utils.parser import PythonParser
 
 ROOT_PATH = str(Path(__file__).parents[1])
 

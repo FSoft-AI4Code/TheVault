@@ -1,12 +1,12 @@
 # for data crawl
-datasets
+# datasets
 
 # for preprocessing
 tree-sitter
-docstring-parser
-bs4
+# docstring-parser
 Levenshtein
 langdetect
+bs4
 
 # for post-processing
 cloc

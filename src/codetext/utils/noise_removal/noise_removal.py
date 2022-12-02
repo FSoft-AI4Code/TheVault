@@ -9,11 +9,11 @@ from langdetect import detect, detect_langs
 from bs4 import BeautifulSoup
 import Levenshtein as lev
 
-from src.utils.noise_detection import split_identifier_into_parts
+from src.codetext.utils.noise_detection import split_identifier_into_parts
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
 from tree_sitter import Node
-from src.utils.parser.language_parser import tokenize_docstring, traverse_type
+from src.codetext.utils.parser.language_parser import tokenize_docstring, traverse_type
 
 
 REGEX_TEXT = ("(?<=[a-z0-9])(?=[A-Z])|"

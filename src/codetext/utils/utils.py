@@ -7,18 +7,26 @@ from typing import List, Dict, Any, Union
 
 import tree_sitter
 from tree_sitter import Language, Parser
-from docstring_parser.common import *
-from docstring_parser.parser import parse
 
-from src.utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
-from src.utils.noise_removal.noise_removal import check_function, clean_docstring
-from src.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
+from src.codetext.utils.imports import module_available
+from src.codetext.utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
+from src.codetext.utils.noise_removal.noise_removal import check_function, clean_docstring
+from src.codetext.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 
 
-ROOT_PATH = str(Path(__file__).parents[2])
+_DOCSTRING_PARSER_AVAILABLE = module_available("docstring_parser")
+
+ROOT_PATH = str(Path(__file__).parents[3])
 
 logger = logging.getLogger('utils')
 logging.basicConfig(level = logging.INFO)
+
+if _DOCSTRING_PARSER_AVAILABLE:
+    from docstring_parser.common import *
+    from docstring_parser.parser import parse
+else:
+    logger.warning("`docstring_parser` is not available.")
+
 
 SUPPORTED_LANGUAGE = ['python', 'java', 'javascript', 'ruby', 'go', 'c', 'cpp', 'c_sharp', 'php', 'rust']
 STYLE_MAP = {
@@ -392,6 +400,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
     """
     assert isinstance(language, str)
     assert isinstance(docstring, str)
+    assert _DOCSTRING_PARSER_AVAILABLE == True, "`docstring_parser` is not install, try install from https://github.com/nmd-2000/docstring_parser"
     # assert type(parameter_list) in [List, Dict]
     
     # Checking

@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from src.utils import create_logger
+from src.codetext.utils import create_logger
 
 
 ROOT_PATH = str(Path(__file__).parents[1])

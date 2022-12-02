@@ -2,8 +2,8 @@ from typing import List, Dict, Any
 
 import tree_sitter
 
-from src.utils.noise_detection import strip_c_style_comment_delimiters
-from src.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
+from src.codetext.utils.noise_detection import strip_c_style_comment_delimiters
+from src.codetext.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 
 class CppParser(LanguageParser):
     

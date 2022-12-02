@@ -11,18 +11,18 @@ import multiprocessing
 
 from datasets import load_dataset
 from tree_sitter import Parser, Language
-from src.utils.logger import create_logger
+from src.codetext.utils.logger import create_logger
 
-from src.utils.parser.go_parser import GoParser
-from src.utils.parser.cpp_parser import CppParser
-from src.utils.parser.php_parser import PhpParser
-from src.utils.parser.rust_parser import RustParser
-from src.utils.parser.ruby_parser import RubyParser
-from src.utils.parser.java_parser import JavaParser
-from src.utils.parser.python_parser import PythonParser
-from src.utils.parser.c_sharp_parser import CsharpParser
-from src.utils.parser.javascript_parser import JavascriptParser
-from src.utils.utils import build_language, extract_node, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
+from src.codetext.utils.parser.go_parser import GoParser
+from src.codetext.utils.parser.cpp_parser import CppParser
+from src.codetext.utils.parser.php_parser import PhpParser
+from src.codetext.utils.parser.rust_parser import RustParser
+from src.codetext.utils.parser.ruby_parser import RubyParser
+from src.codetext.utils.parser.java_parser import JavaParser
+from src.codetext.utils.parser.python_parser import PythonParser
+from src.codetext.utils.parser.c_sharp_parser import CsharpParser
+from src.codetext.utils.parser.javascript_parser import JavascriptParser
+from src.codetext.utils.utils import build_language, extract_node, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
 
 
 ROOT_PATH = str(Path(__file__).parents[1])

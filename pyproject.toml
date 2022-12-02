@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codetext"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
   { name="Dung Manh Nguyen", email="dungnm.workspace@gmail.com" },
 ]
@@ -15,6 +15,13 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+]
+dependencies = [
+    "tree-sitter>=0.20",
+    "Levenshtein>=0.20",
+    "langdetect>=1.0.0",
+    "bs4>=0.0.1",
+    "cloc>=0.2.5",
 ]
 
 [project.urls]
