@@ -11,7 +11,7 @@ from docstring_parser.common import *
 from docstring_parser.parser import parse
 
 from src.utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
-from src.utils.noise_removal.noise_removal import check_function
+from src.utils.noise_removal.noise_removal import check_function, clean_docstring
 from src.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 
 
@@ -215,16 +215,14 @@ def get_node_definitions(metadata: List, blob: str) -> List:
         if docstring == None:
             continue
         
-        docstring = clean_comment(docstring, code)
+        # change clean_comment -> clean_docstring
+        docstring = clean_docstring(docstring, code)
         if docstring == None:  # Non-literal, Interrogation, UnderDevlop, auto code or no-docstring
             continue
         
-        docstring_tokens = tokenize_docstring(docstring)
-        if len(docstring_tokens) <= 3 or len(docstring_tokens) >= 256:
-            continue
-        
-        # TODO: replace clean_comment with check_docstring
-        # if check_docstring(docstring):
+        # No need this one
+        # docstring_tokens = tokenize_docstring(docstring)
+        # if len(docstring_tokens) <= 3 or len(docstring_tokens) >= 256:
         #     continue
         
         node_metadata['docstring'] = docstring
@@ -316,7 +314,9 @@ def get_line_definitions(tree, blob: str, language_parser):
                 _comment_metadata['end_point'][0] -= fn_line_start
                 
                 _cmt = '\n'.join(comments)
-                comment = clean_comment(_cmt)
+                
+                # change clean_comment -> clean_docstring
+                comment = clean_docstring(_cmt)
                 if comment == None:
                     continue
                 
@@ -451,7 +451,8 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
     if extract_docstring.long_description != None:
         new_docstring += '\n' + extract_docstring.long_description
         
-    new_docstring = clean_comment(new_docstring)
+    # change clean_comment -> clean_docstring
+    new_docstring = clean_docstring(new_docstring)
     metadata['docstring'] = new_docstring
     metadata['docstring_tokens'] = tokenize_docstring(new_docstring)
     
@@ -462,7 +463,8 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
         param_type = param.type_name
         param_default = param.default
         param_is_optional = param.is_optional
-        param_docstring = clean_comment(param.description)
+        # change clean_comment -> clean docstring
+        param_docstring = clean_docstring(param.description)
         param_token = tokenize_docstring(param_docstring)
         
         param_metadata = {
@@ -486,7 +488,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
 
     for retun in extract_docstring.many_returns:
         visited.append(retun)
-        return_docstring = clean_comment(retun.description)
+        return_docstring = clean_docstring(retun.description)
         return_tokens = tokenize_docstring(return_docstring)
         return_type = retun.type_name
         
@@ -501,7 +503,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
     
     for raiser in extract_docstring.raises:
         visited.append(raiser)
-        raise_docstring = clean_comment(raiser.description)
+        raise_docstring = clean_docstring(raiser.description)
         raise_tokens = tokenize_docstring(raise_docstring)
         raise_type = raiser.type_name
         
@@ -516,7 +518,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
     for item in extract_docstring.meta:
         if item not in visited:
             try:
-                item_docs = clean_comment(item.description)
+                item_docs = clean_docstring(item.description)
                 metadata['docstring_params'][item.args[0]] = {
                     'docstring': item_docs,
                     'docstring_token': tokenize_docstring(item_docs),

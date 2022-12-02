@@ -2,7 +2,7 @@ conda create --name code_text_env python=3.10.6
 conda init bash
 conda activate code_text_env
 
-pip install tree-sitter bs4 Levenshtein datasets
+pip install tree-sitter bs4 Levenshtein datasets langdetect
 
 mkdir tree-sitter
 cd tree-sitter

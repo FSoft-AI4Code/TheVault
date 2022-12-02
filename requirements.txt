@@ -6,6 +6,7 @@ tree-sitter
 docstring-parser
 bs4
 Levenshtein
+langdetect
 
 # for post-processing
 cloc
