@@ -75,7 +75,7 @@ def build_language(language: str, save_path: str=ROOT_PATH):
         assert os.path.exists(lang_path)==True
         
     
-def parse_code(raw_code: str, language: str) -> tree_sitter.Tree:
+def parse_code(raw_code: str, language: str='Auto') -> tree_sitter.Tree:
     """
     Auto parse raw code into `tree_sitter.Tree`
     
@@ -84,6 +84,8 @@ def parse_code(raw_code: str, language: str) -> tree_sitter.Tree:
         language (str): Language to load parser
     """
     # TODO: auto detect language
+    if language == 'Auto':
+        raise NotImplemented()
     
     language = str(language).lower()
     if language == 'c#':
@@ -103,7 +105,7 @@ def parse_code(raw_code: str, language: str) -> tree_sitter.Tree:
         tree = parser.parse(bytes(raw_code, 'utf8'))
         return tree
     else:
-        return
+        raise ValueError(f"Expect `str`, got {type(raw_code)}")
 
 
 def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False):

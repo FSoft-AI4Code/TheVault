@@ -95,6 +95,17 @@ class Test_PythonParser(unittest.TestCase):
 
         self.assertEqual(metadata['parameters'], ['ABC'])
         self.assertEqual(metadata['identifier'], 'Sample')
+        
+    def test_get_comment_list(self):
+        tree = self.parser.parse(bytes(self.code_sample, 'utf8'))
+        root = tree.root_node
+        
+        comment_list = PythonParser.get_comment_node(root)
+        comment_list = [node.text.decode() for node in comment_list]
+        
+        assert comment_list[1] == '# choose the rightmost element as pivot'
+        assert comment_list[2] == '# pointer for greater element'
+        assert len(comment_list) == 16
 
     # def test_extract_docstring(self):
     #     # Test epydoc style ===================

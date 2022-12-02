@@ -52,7 +52,10 @@ class PythonParser(LanguageParser):
     @staticmethod
     def get_comment_node(node):
         comment_node = []
-        traverse_type(node, comment_node, kind=['comment'])
+        traverse_type(node, comment_node, kind=['comment', 'expression_statement'])
+        for node in comment_node[:]:
+            if node.type == 'expression_statement' and node.children[0].type != 'string':
+                comment_node.remove(node)
         return comment_node
     
     @staticmethod
