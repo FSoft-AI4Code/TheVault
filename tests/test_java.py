@@ -56,8 +56,7 @@ class Test_JavaParser(unittest.TestCase):
         fn = list(JavaParser.get_function_list(root))[0]
 
         docs = JavaParser.get_docstring(fn, code_sample)
-        
-        self.assertEqual(docs, '\nAdds new user and saves to file.\n\n@param context instance of Context\n@param user instance of User\n@see User\n')
+        self.assertEqual(docs, '/**\n            * Adds new user and saves to file.\n            *\n            * @param context instance of Context\n            * @param user instance of User\n            * @see User\n            */')
         
 
     def test_get_function_metadata(self):

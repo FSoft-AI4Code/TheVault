@@ -72,8 +72,8 @@ class Test_JavascriptParser(unittest.TestCase):
         docs1 = JavascriptParser.get_docstring(fn1, code_sample)
         docs2 = JavascriptParser.get_docstring(fn2, code_sample)
         
-        self.assertEqual(docs1, '\nDispatched when the repositories are loaded by the request saga\n\n@param  {array} repos The repository data\n@param  {string} username The current username\n\n@return {object}      An action object with a type of LOAD_REPOS_SUCCESS passing the repos\n')
-        self.assertEqual(docs2, '\nPresent the object Car\n\n@return {None}\n')
+        self.assertEqual(docs1, '/**\n        * Dispatched when the repositories are loaded by the request saga\n        *\n        * @param  {array} repos The repository data\n        * @param  {string} username The current username\n        *\n        * @return {object}      An action object with a type of LOAD_REPOS_SUCCESS passing the repos\n        */')
+        self.assertEqual(docs2, '/**\n            * Present the object Car\n            *\n            * @return {None}\n            */')
 
     def test_get_function_metadata(self):
         root = self.root_node

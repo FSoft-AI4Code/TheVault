@@ -59,7 +59,7 @@ class Test_PhpParser(unittest.TestCase):
 
         docs = PhpParser.get_docstring(fn, code_sample)
         
-        self.assertEqual(docs, '\nGet all image nodes.\n\n@param \\DOMNode     $node       The \\DOMDocument instance\n@param boolean      $strict     If the document has to be valid\n\n@return \\DOMNode\n')
+        self.assertEqual(docs, '/**\n        * Get all image nodes.\n        *\n        * @param \\DOMNode     $node       The \\DOMDocument instance\n        * @param boolean      $strict     If the document has to be valid\n        *\n        * @return \\DOMNode\n        */')
         
 
     def test_get_function_metadata(self):

@@ -67,7 +67,7 @@ class Test_CppParser_with_C(unittest.TestCase):
 
         docs = CppParser.get_docstring(fn, code_sample)
         
-        self.assertEqual(docs, '\nA brief description. A more elaborate class description\n@param random_seed somearg.\n@see Test()\n@return The test results\n')
+        self.assertEqual(docs, '/**\n        * A brief description. A more elaborate class description\n        * @param random_seed somearg.\n        * @see Test()\n        * @return The test results\n        */')
         
 
     def test_extract_docstring(self):

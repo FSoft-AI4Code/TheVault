@@ -72,8 +72,8 @@ class Test_RubyParser(unittest.TestCase):
         docs1 = RubyParser.get_docstring(fn, code_sample)
         docs2 = RubyParser.get_docstring(clas, code_sample)
         
-        self.assertEqual(docs1, 'Search for links.\n\n@param query [String] The search query.\n@option options [String, RedditKit::Subreddit] subreddit The optional subreddit to search.')
-        self.assertEqual(docs2, 'comment line 1\ncomment line 2')
+        self.assertEqual(docs1, '# Search for links.\n#\n# @param query [String] The search query.\n# @option options [String, RedditKit::Subreddit] subreddit The optional subreddit to search.')
+        self.assertEqual(docs2, '        comment line 1\n        comment line 2')
 
     def test_get_function_metadata(self):
         root = self.root_node

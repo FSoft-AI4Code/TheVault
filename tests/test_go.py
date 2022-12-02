@@ -62,7 +62,7 @@ class Test_GoParser(unittest.TestCase):
         fn = GoParser.get_function_list(root)[0]
 
         docs = GoParser.get_docstring(fn, code_sample)
-        self.assertEqual(docs, 'The path package should only be used for paths separated by forward\nslashes, such as the paths in URLs. This package does not deal with\nWindows paths with drive letters or backslashes; to manipulate\noperating system paths, use the [path/filepath] package.')
+        self.assertEqual(docs, '// The path package should only be used for paths separated by forward\n// slashes, such as the paths in URLs. This package does not deal with\n// Windows paths with drive letters or backslashes; to manipulate\n// operating system paths, use the [path/filepath] package.')
         
 
     def test_extract_docstring(self):

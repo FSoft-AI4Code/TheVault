@@ -101,8 +101,8 @@ class Test_CppParser(unittest.TestCase):
         docs1 = CppParser.get_docstring(fn1, code_sample)
         docs2 = CppParser.get_docstring(fn2, code_sample)
         
-        self.assertEqual(docs1, '\nFind 2 sum\n\n@param nums List number.\n@param target Sum target.\n@return postion of 2 number.\n')
-        self.assertEqual(docs2, 'Comment in\nmultiple line\nof the function sum')
+        self.assertEqual(docs1, '/**\n        * Find 2 sum\n        *\n        * @param nums List number.\n        * @param target Sum target.\n        * @return postion of 2 number.\n        */')
+        self.assertEqual(docs2, '// Comment in\n// multiple line\n// of the function sum')
         
 
     def test_extract_docstring(self):

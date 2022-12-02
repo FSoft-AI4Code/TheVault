@@ -76,9 +76,9 @@ class Test_RustParser(unittest.TestCase):
         docs2 = RustParser.get_docstring(fn2, code_sample)
         docs3 = RustParser.get_docstring(clas, code_sample)
         
-        self.assertEqual(docs1, 'Creates a new rendering surface.\n\n# Arguments\n\nInitialization of surfaces happens through the types provided by\n[`drm-rs`](drm).\n\n- [`crtcs`](drm::control::crtc) represent scanout engines of the device pointing to one framebuffer. \\\nTheir responsibility is to read the data of the framebuffer and export it into an "Encoder". \\\nThe number of crtc\'s represent the number of independent output devices the hardware may handle.')
-        self.assertEqual(docs2, '- Outer block doc (exactly) 2 asterisks')
-        self.assertEqual(docs3, 'Comment something')
+        self.assertEqual(docs1, '/// Creates a new rendering surface.\n///\n/// # Arguments\n///\n/// Initialization of surfaces happens through the types provided by\n/// [`drm-rs`](drm).\n///\n/// - [`crtcs`](drm::control::crtc) represent scanout engines of the device pointing to one framebuffer. \\\n///     Their responsibility is to read the data of the framebuffer and export it into an "Encoder". \\\n///     The number of crtc\'s represent the number of independent output devices the hardware may handle.')
+        self.assertEqual(docs2, '/**  - Outer block doc (exactly) 2 asterisks */')
+        self.assertEqual(docs3, '// Comment something')
 
     def test_get_function_metadata(self):
         root = self.root_node
