@@ -1,19 +1,18 @@
-from collections import Counter
 import re
 import sys
-from typing import Any, Dict, List, Union
 import warnings
+from collections import Counter
 from itertools import permutations
+from typing import Any, Dict, List, Union
 
 from langdetect import detect, detect_langs
 from bs4 import BeautifulSoup
 import Levenshtein as lev
 
-from src.codetext.utils.noise_detection import split_identifier_into_parts
-warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
-
 from tree_sitter import Node
+from src.codetext.utils.noise_detection import split_identifier_into_parts
 from src.codetext.utils.parser.language_parser import tokenize_docstring, traverse_type
+warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
 
 REGEX_TEXT = ("(?<=[a-z0-9])(?=[A-Z])|"
@@ -30,7 +29,16 @@ if sys.version_info >= (3, 7):
 else:
     import regex
     SPLIT_REGEX = regex.compile("(?V1)"+REGEX_TEXT)
-    
+
+
+def split_sentences(docstring):
+    # sentences = re.split("(?<![\.])\.(?![\.\w])", docstring)
+
+    sentences = re.split("(?<=.)[\.\!\?](?=\s+)", docstring)
+    sentences = [sentence.strip() for sentence in sentences if sentence.strip() != ""]
+
+    return sentences
+
 
 def split_identifier_into_parts(identifier: str) -> List[str]:
     """
@@ -85,15 +93,9 @@ def remove_comment_delimiters(docstring: str) -> str:
     :param comment: raw (line or block) comment
     :return: list of comment lines
     """
-    clean_p1 = re.compile('([\s\/*=-]+)$|^([\s\/*!=#-]+)')
-    clean_p2 = re.compile('^([\s*]+)')
+    clean_p1 = re.compile('([\s\/*=-]+)$|^([\s\/*!=#-]+)', re.MULTILINE)
 
-    def func(t):
-        t = t.strip().replace('&nbsp;', ' ')
-        return re.sub(clean_p2, '', t).strip()
-
-    comment_list = []
-    return re.sub(clean_p1, '', docstring)
+    return re.sub(clean_p1, '', docstring, 0)
     # for line in re.sub(clean_p1, '', docstring).split('\n'):
     #     cur_line = func(line)
     #     if cur_line != '':
@@ -114,25 +116,238 @@ def remove_special_character(docstring: str) -> str:
     return re.sub(r'[^a-zA-Z0-9\\\_\.\,]', ' ', docstring)
 
 
-def remove_url(docstring: str, replace: str='') -> str:
+def remove_function_name_at_the_beginning(docstring):
     """
-    Replace URL (e.g. https://google.com) by `replace` word
+    This function is applied at docstring/paragraph-level.
     """
-    return re.sub(r'http\S+', replace, docstring, flags=re.MULTILINE)
+    ending_symbols = [":", "\s-"]
+    for symbol in ending_symbols:
+        pattern = "^[a-zA-Z0-9_]+" + symbol
+        docstring = re.sub(pattern, "", docstring)
+
+    docstring = docstring.strip()
+
+    return docstring
 
 
-def remove_unrelevant(docstring: str) -> str:
+def remove_link_in_brackets(docstring):
+    """
+    Removing patterns, for examples:
+        - (https://www.a.ai)
+        - <see https://www.b.ai>
+        - <eg. a b c>
+    This function is applied to each line of the docstring/paragraph.
+    """
+    # TO-DO: change code to use regular expression and apply on docstring-level
+    lines = docstring.strip().split("\n")
+    for i, line in enumerate(lines):
+        tokens = line.strip().split()
+        for j, token in enumerate(tokens):
+            token = token.lower()
+            if (token[0] == "<" or \
+                    token[0] == "(") \
+                    and \
+                    ("http" in token or \
+                    "see" in token or \
+                    "eg." in token \
+                     ):
+                tokens[j] = ""
+        lines[i] = " ".join(tokens).strip()
+    
+    docstring = "\n".join(lines).strip()
+    return docstring
+
+
+# def remove_curly_brackets(docstring):
+#     """
+#     This function applies at docstring-level
+#     For exampple:
+#         {@link a.b} -> a.b
+#     """
+#     patterns = ["code", "link", "linkplain"]
+#     for pattern in patterns:
+#         # re.findall("(?<=\{\@link\s)[\w\.\#]+(?=\})")
+#         matches = re.findall("\{\@%s\s[\w\.\#\-\_\'\"\(\)\/\\\~\|\s]+\}" % pattern, docstring)
+#         for match in matches:
+#             docstring = docstring.replace(match, match[len(pattern) + 2:-1])
+
+#     docstring = docstring.strip()
+
+#     return docstring
+                
+
+def remove_everything_after_a_pattern(docstring):
+    """
+    Only keep the part appears before the patterns.
+    Ignore everything after the patterns.
+                
+    This function is applied at docstring-level
+    """
+    patterns = [
+                "E.g", "e.g", "eg.", "Eg.", # "See", "Sees", ">>>", # "Example",
+                # "<!doctype html>", 
+                "Example usage:", "Created by", "Example:", # "Example output", "For example"
+                # "TODO", "todo", "TO-DO", "to-do", "\\todo",
+
+                # COMMENT THIS OUT WHEN PROCESSING THE PARAMETER DOCSTRINGS
+                # "@param", "@return", 
+
+                # javascript
+                # "@constructor", "@extends", "@method", "@static", "@api", "@author", 
+                # "@since", "@private", "@throws", "@example", "@export", "@see", "@author",
+                # "@lisence", "@source", "@hidden", "@listens", "@deprecated", "@exception",
+
+                # # ??
+                # "@Route",
+
+                # C
+                "Note:", ". Note", "note::", "note:", ". note"
+                ]
+
+    for pattern in patterns:
+        docstring = docstring.strip().split(pattern)[0]
+
+    docstring = docstring.strip()
+    return docstring
+
+
+def remove_everything_after_an_url(docstring):
+    """
+    This function applies at sentence-level
+    TO-DO: Should apply on docstring-level by regular expression
+    """
+    patterns = ["https:", "http:"]
+    sentences = split_sentences(docstring)
+    sentences_ = []
+    for sentence in sentences:
+        has_pattern = False
+        for pattern in patterns:
+            if pattern in sentence:
+                has_pattern = True
+                break
+        if has_pattern:
+            break
+        sentences_.append(sentence)
+    docstring = ". ".join(sentences_)
+
+    docstring = docstring.strip()
+
+    return docstring
+
+def remove_lines_start_and_end_with_the_same_char(docstring):
+    """
+    Remove noisy lines.
+    This function applies at line-level
+    """
+    lines = docstring.strip().split("\n")
+    patterns = ["*", "-", "_", "=", "/", "+"]
+    lines_ = []
+    for line in lines:
+        line = line.strip()
+        if line == "":
+            lines_.append(line)
+            continue
+        flag = False
+        for pattern in patterns:
+            p = "^\%s.*\%s$" % (pattern, pattern)
+            if re.search(p, line) is not None:
+                flag = True
+                break
+        if flag:
+            continue
+
+        lines_.append(line)
+    docstring = "\n".join(lines_).strip()
+
+    return docstring
+
+def remove_lines_contain_only_a_single_char(docstring):
+    """
+    This function applies at line-level
+    """
+    patterns = ["*", "/", "=", "-", "+"]
+    lines = docstring.strip().split("\n")
+    for i, line in enumerate(lines):
+        if line.strip() in patterns:
+            lines[i] = ""
+            continue
+    
+    docstring = "\n".join(lines).strip()
+
+    return docstring
+
+def remove_patterns_at_any_positions(docstring):
+    """
+    This function applies at docstring-level
+    """
+    patterns = ["/**", "/*", "<code>", "</code>", "*-*"]
+    for pattern in patterns:
+        if pattern in docstring:
+            docstring = docstring.replace(pattern, "").strip()
+
+    return docstring
+
+def remove_patterns_at_the_start_and_end_of_a_line(docstring):
+    """
+    This function applies at line-level
+    """ 
+    patterns = ["* "]
+    lines = docstring.strip().split("\n")
+    for i, line in enumerate(lines):
+        flag = True
+        while flag:
+            flag = False
+            # at the beginning
+            for pattern in patterns:
+                if line.startswith(pattern):
+                    line = line[len(pattern):]
+            for symbol in [".", "*", "-", "_", "@", "#", "$", "!", "\\", "/", "+"]:
+                pattern = r"^\%s{2,}" % (symbol) 
+                line_ = re.sub(pattern, "", line)
+                if line_ != line:
+                    flag = True
+                line = line_
+
+            # at the end
+            for symbol in [".", "*", "-", "_", "@", "#", "$", "!", "\\", "/", "+"]:
+                pattern = r"\%s{2,}$" % (symbol) 
+                line_ = re.sub(pattern, "", line)
+                if line_ != line:
+                    flag = True
+                line = line_
+        lines[i] = line
+
+    docstring = "\n".join(lines).strip()
+
+    return docstring
+
+def remove_patterns_at_the_end_of_a_docstring(docstring):
+    """
+    Remove ending character(s)
+    This function applies at docstring-level
+    """
+    patterns = [":", ";", ",", "...", "@@", "@"]
+    if docstring != "":
+        if docstring[-1] in patterns:
+            docstring = docstring[:-1]
+
+    docstring = docstring.strip()
+
+    return docstring
+
+
+def remove_specific_pattern(docstring: str) -> str:
     """
     pattern 1 will match "(e.g something)"
     pattern 2 will match "e.g something\n" or "e.g something. "
     pattern 3 will match "{@tag content}" and change to "content"
     pattern 4 will match trailing special chars "==============" or "************"
     """
-    pattern1 = re.compile(r'(\(((i\.e)|(e\.g)|(\beg)|(\bie))[\s\S]+?)(\))')
-    pattern2 = re.compile(r'((i\.e)|(e\.g)|(\beg)|(\bie))\..*?(\.\s|\n)')
-    pattern3 = re.compile(r'{@.*}')
+    pattern1 = re.compile(r'(\(((i\.e)|(e\.g)|(\beg)|(\bie))[\s\S]+?)(\))', flags=re.IGNORECASE|re.MULTILINE)
+    pattern2 = re.compile(r'((i\.e)|(e\.g)|(\beg)|(\bie))\.', flags=re.IGNORECASE)
+    pattern3 = re.compile(r'{@.*?}')
     pattern4 = re.compile(r'(-|=|#|\*){5,}')
-    
+
     docstring = re.sub(pattern1, '', docstring)
     docstring = re.sub(pattern2, '', docstring)
     docstring = re.sub(pattern4, '', docstring)
@@ -142,7 +357,38 @@ def remove_unrelevant(docstring: str) -> str:
         new_match = re.sub(r'@\w*', '', new_match)
         docstring = docstring.replace(match, new_match)
     
+    print(docstring)
     return docstring
+
+
+def remove_unrelevant(docstring: str) -> str:
+    flag = True
+    while flag:
+        flag = False
+        docstring_ = docstring
+        
+        removing_functions = [
+            remove_specific_pattern,
+            remove_link_in_brackets,
+            remove_everything_after_an_url,
+            remove_everything_after_a_pattern,
+            remove_patterns_at_any_positions,
+            remove_lines_contain_only_a_single_char,
+            remove_lines_start_and_end_with_the_same_char,
+            remove_patterns_at_the_start_and_end_of_a_line,
+            remove_function_name_at_the_beginning,
+        ]
+        for removing_function in removing_functions:
+            docstring = removing_function(docstring)
+
+        if docstring != docstring_:
+            flag = True
+    
+    print('Removed\n')
+    print(docstring)
+    # docstring = remove_patterns_at_the_end_of_a_docstring(docstring)
+    return docstring
+
 
 # =================== Check code ======================
 
@@ -201,13 +447,17 @@ def check_autogenerated_by_code(raw_code: str, identifier: str):
 
 def check_docstring_length(docstring: str):
     doc_tokens = docstring.strip().split()
-    if len(doc_tokens) < 3 or len(doc_tokens) > 256:
+    if len(doc_tokens) < 3: # or len(doc_tokens) > 256:
     # if len(doc_tokens) >= 256:
         return True
     return False
 
 
 def check_docstring_literal(docstring: str):
+    """
+    Check if docstring is EN
+    TODO: "Ce n'est pas en anglais" -> Fr
+    """
     p = re.compile('[a-zA-Z0-9]')
     if not docstring.isascii():
         return True
@@ -215,10 +465,15 @@ def check_docstring_literal(docstring: str):
         return True
     # TODO: uncomment this
     # try:
-    #     if detect(docstring) != 'en':
+    #     _docstring = re.sub(r'[^a-zA-Z0-9]', ' ', docstring)
+    #     _docstring = ' '.join(split_all_sepcial_case(_docstring))
+            
+    #     print(_docstring)
+    #     if detect(_docstring) != 'en':
+    #         print(detect_langs(_docstring))
     #         return True
     # except:
-        pass
+    #     pass
     return False
 
 
@@ -234,14 +489,10 @@ def check_docstring_contain_question(docstring: str):
 def check_docstring_underdevelopment(docstring: str):
     p1 = re.compile('(?i)^((Description of the Method)|(NOT YET DOCUMENTED)|(Missing[\s\S]+Description)|(not in use)|'
                     '(Insert the method\'s description here)|(No implementation provided)|(\(non\-Javadoc\)))')
-    p2 = re.compile('(?i)^(todo|deprecate|copyright|fixme)')
-    p3 = re.compile('^[A-Za-z]+(\([A-Za-z_]+\))?:')
-    p4 = re.compile('[A-Z ]+')
-    p5 = re.compile('\(.+\)|\[.+\]|\{.+\}')
+    p2 = re.compile('(?i)^(todo|to-do|deprecate|copyright|fixme)', flags=re.IGNORECASE)
+    # p3 = re.compile('^[A-Za-z]+(\([A-Za-z_]+\))?:')
 
-    if p1.search(docstring) or p2.search(docstring) or p3.search(docstring):
-        return True
-    elif re.fullmatch(p4, docstring) or re.fullmatch(p5, docstring):
+    if p1.search(docstring) or p2.search(docstring):
         return True
     else:
         return False
@@ -265,8 +516,21 @@ def check_docstring_autogenerated(docstring: str):
 
 # =================== Check characters ======================
 
-def check_contain_little_single_char(docstring: str):
-    thresholds = [5, 0.7]
+def does_str_containt_math(str):
+    math_indicators = ["equation", "\exp(", "\log(", "\sqrt(", "mathbf", "mathrm"]
+    # TODO: page [number]
+    containt_math = False
+    for math_indicator in math_indicators:
+        if math_indicator in str:
+            containt_math = True
+            break
+
+    return containt_math
+
+
+def check_contain_little_alphabet_char(docstring: str):
+    thresholds = [5, 0.65]
+    contain_math = does_str_containt_math(docstring)
     docstring = "".join(docstring.strip().split())
     if len(docstring) < 1:
         return True
@@ -299,27 +563,36 @@ def convert_special_pattern(docstring):
 
 
 def check_contain_many_special_char(docstring: str):
-    threshold_dict = [0.1, 0.3, 10] #, 0.3]  # percentage of single char,  percentage of all char, min token length
+    threshold_dict = [[4, 6, 10],  # max #bracket schar, max #normal schar, max #math schar
+                      [10, 0.3],   # acceptable #total schar or acceptable ratio
+                      15] #, 0.3]  # max #schar
     docstring = convert_special_pattern(docstring)
-
+    contain_math = does_str_containt_math(docstring)
     num_tokens = len(tokenize_docstring(docstring))
     counter = Counter(docstring)
 
     count = 0
-    signs = [
-             ";", "\\", "/", "\?", # ":",
-             "+", "=", # "-"
-             "\#", "*", "<", ">", "~", "%", "@", "|",
-             ]
-    if num_tokens == 0:
-        return True
-    for sign in signs:
-        if counter[sign] > threshold_dict[0]*num_tokens:
+    math_symbols = ["+", "*", "/", ":", "^", "-"]
+    symbols = ["$", "!", "@", "#", "%", "^", "&", "*", "<", ">", 
+               "~", "|", "\\", "'", '"',"?", "-", "+", "=", "`", 
+               ":", "/", "(", "[", "{"]
+    
+    for symb in symbols:
+        threshold = threshold_dict[0][0]
+        if symb in math_symbols:
+            threshold = threshold_dict[0][2]
+        elif symb in ["(", "[", "{"]:
+            threshold = threshold_dict[0][1]
+            
+        if counter[symb] > threshold:
             return True
-        count += counter[sign]
+        
+        # brackets
+        if symb not in ["(", "[", "{"]:
+            count += counter[symb]
 
-    # return count > threshold_dict[1] and count / num_tokens > threshold_dict[2]
-    return num_tokens > threshold_dict[2] and count / num_tokens > threshold_dict[1]
+    return count > max(threshold_dict[1][0], threshold_dict[1][1]*num_tokens) \
+            and count > threshold_dict[2]
 
 
 def check_contain_little_unique_chars(docstring):
@@ -388,7 +661,7 @@ def check_contain_many_uppercase_word(docstring: str):
 
     docstring = docstring.strip()
 
-    uppercase_words = re.findall("[A-Z0-9_]+", docstring)
+    uppercase_words = re.findall(r"(?<=\s)[A-Z][A-Z0-9_]+", docstring)
     docstring_tokens = docstring.strip().split()
     return len(docstring_tokens) > threshold_dict[0] and len(uppercase_words) / len(docstring_tokens) > threshold_dict[1]
 
@@ -407,14 +680,18 @@ def check_contain_too_many_variables(docstring):
     for identifier in snake_case_identifiers:
         docstring = docstring.replace(identifier, "").strip()
     # CamelCaes variable name
-    camel_case_identifiers = re.findall("[A-Z]([A-Z0-9]*[a-z][a-z0-9]*[A-Z]|[a-z0-9]*[A-Z][A-Z0-9]*[a-z])[A-Za-z0-9]*", docstring)
-    variable_names = snake_case_identifiers + camel_case_identifiers
+    camel_case_identifiers = re.finditer(r"[A-Z]([A-Z0-9]*[a-z][a-z0-9]*[A-Z]|[a-z0-9]*[A-Z][A-Z0-9]*[a-z])[A-Za-z0-9]*", docstring)
+    camel_case_identifiers = [x.group() for x in camel_case_identifiers]
+    # Method call
+    method_call_identifiers = re.finditer(r"[a-zA-Z0-9]+((\.)[a-zA-Z0-9]+)+", docstring)
+    method_call_identifiers = [x.group() for x in method_call_identifiers]
+    variable_names = snake_case_identifiers + camel_case_identifiers + method_call_identifiers
 
     return len(variable_names)/len(total_words) > threshold_dict
 
 
 def camel_case_split(identifier):
-    matches = re.finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)', identifier)
+    matches = re.finditer(r'.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)', identifier)
     return [m.group(0) for m in matches]
 
 
@@ -422,14 +699,19 @@ def snake_case_split(identifier):
     return identifier.strip().split("_")
 
 
-def check_contain_many_long_word(docstring: str):
-    threshold = 30
+def split_all_sepcial_case(docstring: str):
     docstring_tokens = []
     for token in tokenize_docstring(docstring.strip()):
         sub_tokens = snake_case_split(token)
         for sub_token in sub_tokens:
             sub_sub_tokens = camel_case_split(sub_token)
             docstring_tokens.extend(sub_sub_tokens)
+    
+    return docstring_tokens
+
+def check_contain_many_long_word(docstring: str):
+    threshold = 30
+    docstring_tokens = split_all_sepcial_case(docstring)
 
     if len(docstring_tokens) == 0:
         return True
@@ -438,15 +720,13 @@ def check_contain_many_long_word(docstring: str):
 
 
 def check_contain_url(docstring: str):
-    pattern = re.compile(
-        r'(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$])',
-        flags=re.I|re.M
-    )
+    pattern = re.compile(r'(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$])', flags=re.I)
     
-    if re.match(pattern, docstring, flags=re.MULTILINE):
+    if pattern.search(docstring):
         return True
     return False
 
+# =================== End checking ======================
 
 def check_function(node, node_metadata: Dict[str, Any], exclude_list: List = None, is_class=False):
     """
@@ -485,7 +765,7 @@ def check_docstring(docstring: str):
         'check_docstring_contain_question',
         'check_docstring_underdevelopment',
         'check_docstring_autogenerated',
-        'check_contain_little_single_char',
+        'check_contain_little_alphabet_char',
         'check_contain_many_special_char',
         'check_contain_little_unique_chars',
         'check_contain_little_unique_words',
@@ -494,6 +774,7 @@ def check_docstring(docstring: str):
         # 'check_contain_many_repeated_word',
         'check_contain_many_uppercase_word',
         'check_contain_many_long_word',
+        'check_contain_url',
     ]
     
     check_docstring_funcs = [
@@ -501,7 +782,7 @@ def check_docstring(docstring: str):
         check_docstring_contain_question,
         check_docstring_underdevelopment,
         check_docstring_autogenerated,
-        check_contain_little_single_char,
+        check_contain_little_alphabet_char,
         check_contain_many_special_char,
         check_contain_little_unique_chars,
         check_contain_little_unique_words,
@@ -510,6 +791,7 @@ def check_docstring(docstring: str):
         # check_contain_many_repeated_word,
         check_contain_many_uppercase_word,
         check_contain_many_long_word,
+        check_contain_url,
     ]
     
     # docstring_list = docstring.split('.')
@@ -530,12 +812,14 @@ def check_docstring(docstring: str):
     return result, applied_res
 
 
-def clean_docstring(docstring: str):
+def clean_docstring(docstring: str, language: str = None):
     """
     Clean docstring by removing special tag/url, characters, unrelevant information
     """
     cleaned_docstring = []
+    print(docstring)
     _docstring = remove_comment_delimiters(docstring)
+    print(_docstring)
     if check_docstring_literal(_docstring):  # True is not pass
         return None, [f"<check_docstring_literal> {docstring}"]
 
@@ -545,17 +829,13 @@ def clean_docstring(docstring: str):
     for para in docstring_paragraph_list:
         docs = remove_unrelevant(para)
         docstring_list = re.split(r'(?<=.)[.!\?](?=\s+)', docs, flags=re.M)
-        # docstring_list = re.findall(r'.*?[.!\?]\s+', docs, flags=re.DOTALL)  # split . with endline
-        # if not docstring_list:
-        #     docstring_list = [docs]
-        
         clean_line = []
         for line in docstring_list:
-            # print([line])
-            line = remove_special_tag(line)
+            # TODO: ignore remove_special_tag if processing C#
+            if language != 'c_sharp':
+                line = remove_special_tag(line)
             is_pass, res = check_docstring(line)
             if not is_pass:
-                line = remove_url(line)
                 clean_line.append(line)
             else:
                 break
@@ -564,7 +844,7 @@ def clean_docstring(docstring: str):
         
     cleaned_docstring = '\n\n'.join(cleaned_docstring)
     
-    # valid condition
+    
     if check_docstring_length(cleaned_docstring):
         if not res:
             return None, [f"<check_docstring_length> {docstring}"]
@@ -615,10 +895,20 @@ if __name__ == '__main__':
         '/* @func_name_generated',
         '/* Auto-generated by IDE',
         '/ Auto-generated by IDE',
+        '''
+        /// Abc
+        /// Abc
+        /// Abc
+        ''',
+        '''
+        /* Abc
+         * def
+         */
+        '''
     ]
     
     # for item in samples:
-    #     clean_docstring(item)
+    #     print(clean_docstring(item))
         
     samples = [
         '''
@@ -642,27 +932,25 @@ if __name__ == '__main__':
     #     print(clean_docstring(item))
         
     sample = """
-    Return a decorator that enforces API request limit guidelines.
-
-    We are allowed to make a API request every api_request_delay seconds as
-    specified in praw.ini. This value may differ from reddit to reddit. For
-    reddit.com it is 2. Any function decorated with this will be forced to
-    delay _rate_delay seconds from the calling of the last function
-    decorated with this before executing.
-
-    This decorator must be applied to a RateLimitHandler class method or
-    instance method as it assumes `rl_lock` and `last_call` are available.
+    /* Returns the resource's attributes formatted as a JSON-API "attributes object".
+    *
+    * http://jsonapi.org/format/#document-resource-object-attributes
+    *
+    * @method extractAttributes
+    * @param {Object} modelClass
+    * @param {Object} resourceHash
+    * @return {Object}
+    */
     """
-    print(clean_docstring(sample))
+    splited = sample.split('\n')
+    splited = [remove_comment_delimiters(line) for line in splited]
+    print('\n'.join(splited))
     # print(sample)
-    # res = clean_docstring(sample)
     # print('==== Cleaning ====')
+    # print(clean_docstring(sample))
+    # res = clean_docstring(sample)
     # print(res[0])
     # print(res[1])
     
-    sample = '0xfff0\n 0x0001_ffff\n 0xffff_ffff_fff8_4400'
-    print(check_contain_many_uppercase_word(sample))
-    
-    sample = 'Plays a audio file on Nao, it runs the file from the /home/nao/ directory'
-    
-    print(check_docstring_length(sample))
+    # sample = '''Convert java.util.regex.Matcher groups to JavaScript groups'''
+    # print(check_contain_too_many_variables(sample))
