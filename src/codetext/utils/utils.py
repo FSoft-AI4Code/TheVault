@@ -9,8 +9,7 @@ import tree_sitter
 from tree_sitter import Language, Parser
 
 from src.codetext.utils.imports import module_available
-from src.codetext.utils.noise_detection import clean_comment, strip_c_style_comment_delimiters
-from src.codetext.utils.noise_removal.noise_removal import check_function, clean_docstring
+from src.codetext.utils.noise_removal.noise_removal import check_function, clean_docstring, remove_comment_delimiters
 from src.codetext.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
 
 
@@ -38,10 +37,8 @@ STYLE_MAP = {
     'javascript': [DocstringStyle.JSDOC],
     'ruby': [DocstringStyle.RDOC],
     'php': [DocstringStyle.PHPDOC],
-    'c': [DocstringStyle.XML,
-          DocstringStyle.JAVADOC],
-    'cpp': [DocstringStyle.XML,
-            DocstringStyle.JAVADOC],
+    'c': [DocstringStyle.JAVADOC],
+    'cpp': [DocstringStyle.JAVADOC],
     'go': [],
     'c_sharp': [DocstringStyle.XML,
                 DocstringStyle.JAVADOC],
@@ -200,7 +197,7 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
         yield fn_metadata
         
         
-def get_node_definitions(metadata: List, blob: str) -> List:
+def get_node_definitions(metadata: List) -> List:
     """
     Filter non-quality node by docstring 
     Args:
@@ -221,7 +218,7 @@ def get_node_definitions(metadata: List, blob: str) -> List:
         code = node_metadata['code']
         docstring = node_metadata['original_docstring']
         docstring_tokens = node_metadata['docstring_tokens']
-        
+
         if docstring == None:
             continue
         
@@ -377,8 +374,8 @@ def extract_node(metadata_list, language:str):
             'original_docstring': metadata['original_docstring'],
             'comment': metadata['comment']
         })
-        
-        extracted_res = extract_docstring(metadata['original_docstring'], metadata['parameters'], language)
+        docstring = remove_comment_delimiters(metadata['original_docstring'])
+        extracted_res = extract_docstring(docstring, metadata['parameters'], language)
         if not extracted_res:  # extract fail
             continue
         if extracted_res['docstring'] == '':
@@ -420,18 +417,24 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
         'docstring_params': {
             'returns': [],
             'raises': [],
-            'other_params': {},
+            'params': [],
+            'outlier_params': [],
+            'others': []
         },
-        
     }
+    params_dict = {}
+    outlier_params_dict = {}
+    
     type_flag = False
     if isinstance(parameter_list, List):
         for each in parameter_list:
-            metadata['docstring_params'][each] = {'docstring': None, 'docstring_tokens': []}
+            params_dict[each] = {'identifier': each, 'docstring': None, 'docstring_tokens': []}
+            # metadata['docstring_params'][each] = {'docstring': None, 'docstring_tokens': []}
     elif isinstance(parameter_list, Dict):
         type_flag = True
         for key, val in parameter_list.items():
-            metadata['docstring_params'][key] = {'docstring': None, 'type': val, 'docstring_tokens': []}
+            params_dict[key] = {'identifier': key, 'docstring': None, 'type': val, 'docstring_tokens': []}
+            # metadata['docstring_params'][key] = {'docstring': None, 'type': val, 'docstring_tokens': []}
     
     # Extract docstring
     docstring_style_list = STYLE_MAP[language]
@@ -475,10 +478,11 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
         param_default = param.default
         param_is_optional = param.is_optional
         # change clean_comment -> clean docstring
-        param_docstring = clean_docstring(param.description)
+        param_docstring = clean_docstring(param.description, loosen_filter=True)
         param_token = tokenize_docstring(param_docstring)
         
         param_metadata = {
+            'identifier': param_identifier,
             'docstring': param_docstring,
             'docstring_tokens': param_token,
             'default': param_default,
@@ -488,18 +492,28 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
         if not type_flag:
             param_metadata['type'] = param_type
             if param_identifier in parameter_list:
-                metadata['docstring_params'][param_identifier] = param_metadata
+                params_dict[param_identifier].update(param_metadata)
+                # metadata['docstring_params'][param_identifier] = param_metadata
             else:
-                metadata['docstring_params']['other_params'][param_identifier] = param_metadata
+                outlier_params_dict[param_identifier] = param_metadata
+                # metadata['docstring_params']['other_params'][param_identifier] = param_metadata
         else:    
             if param_identifier in parameter_list.keys():
-                metadata['docstring_params'][param_identifier] = param_metadata
+                params_dict[param_identifier].update(param_metadata)
+                # metadata['docstring_params'][param_identifier] = param_metadata
             else:
-                metadata['docstring_params']['other_params'][param_identifier] = param_metadata
+                outlier_params_dict[param_identifier] = param_metadata
+                # metadata['docstring_params']['other_params'][param_identifier] = param_metadata
+    
+    for key, val in params_dict.items():
+        metadata['docstring_params']['params'].append(val)
+    for key, val in outlier_params_dict.items():
+        metadata['docstring_params']['outlier_params'].append(val)
+
 
     for retun in extract_docstring.many_returns:
         visited.append(retun)
-        return_docstring = clean_docstring(retun.description)
+        return_docstring = clean_docstring(retun.description, loosen_filter=True)
         return_tokens = tokenize_docstring(return_docstring)
         return_type = retun.type_name
         
@@ -509,12 +523,11 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
             'type': return_type,
         }
         
-        # TODO: test add multiple return
-        metadata['docstring_params']['returns'].append([return_metadata])
+        metadata['docstring_params']['returns'].append(return_metadata)
     
     for raiser in extract_docstring.raises:
         visited.append(raiser)
-        raise_docstring = clean_docstring(raiser.description)
+        raise_docstring = clean_docstring(raiser.description, loosen_filter=True)
         raise_tokens = tokenize_docstring(raise_docstring)
         raise_type = raiser.type_name
         
@@ -524,16 +537,17 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
             'type': raise_type,
         }
         
-        metadata['docstring_params']['raises'].append([raise_metadata])
+        metadata['docstring_params']['raises'].append(raise_metadata)
         
     for item in extract_docstring.meta:
         if item not in visited:
             try:
-                item_docs = clean_docstring(item.description)
-                metadata['docstring_params'][item.args[0]] = {
+                item_docs = clean_docstring(item.description, loosen_filter=True)
+                metadata['docstring_params']['others'].append({
+                    'identifier': item.args[0],
                     'docstring': item_docs,
                     'docstring_token': tokenize_docstring(item_docs),
-                }
+                })
             except Exception:
                 # Let it go ...
                 pass

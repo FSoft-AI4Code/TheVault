@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Set, Optional
 import tree_sitter
 
 DOCSTRING_REGEX = re.compile(r"(['\"])\1\1(.*?)\1{3}", flags=re.DOTALL)
-DOCSTRING_REGEX_TOKENIZER = re.compile(r"[^\s,'\"`.():\[\]=*;>{\}+-/\\]+|\\+|\.+|\(\)|{\}|\[\]|\(+|\)+|:+|\[+|\]+|{+|\}+|=+|\*+|;+|>+|\++|-+|/+")
+DOCSTRING_REGEX_TOKENIZER = re.compile(r"[^\s,'\"`.():\[\]=*;>{\}+-/\\]+|\\+|\.+|\(\)|{\}|\[\]|\(+|\)+|:+|\[+|\]+|{+|\}+|=+|\*+|;+|>+|\++|-+|/+|\'|\"|`")
 
 
 def remove_words_in_string(words, string):

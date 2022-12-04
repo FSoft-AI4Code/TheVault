@@ -1,7 +1,6 @@
 from typing import List, Dict, Any
 
 from .language_parser import LanguageParser, match_from_span, nodes_are_equal, tokenize_code, tokenize_docstring, traverse_type
-from ..noise_detection import if_comment_generated, clean_comment, strip_c_style_comment_delimiters
 
 
 class JavascriptParser(LanguageParser):

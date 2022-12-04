@@ -2,7 +2,6 @@ import re
 from typing import List, Dict, Iterable, Optional, Iterator, Any
 
 from .language_parser import match_from_span, tokenize_code, tokenize_docstring, LanguageParser, traverse_type
-from ..noise_detection import if_comment_generated, clean_comment
 
 
 class PythonParser(LanguageParser):

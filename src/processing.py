@@ -27,7 +27,21 @@ from src.codetext.utils.utils import build_language, extract_node, get_line_defi
 
 ROOT_PATH = str(Path(__file__).parents[1])
 
+
+def load_json(filepath):
+    with open(filepath, 'r') as json_file:
+        dataset = list(json_file)
+    yield dataset
+
+
 def main(opt):
+    # Start processing
+    start = time.perf_counter()
+    if opt.n_core == -1:
+        n_worker = multiprocessing.cpu_count()
+    else: 
+        n_worker = opt.n_core
+        
     if opt.load_from_file:
         logger.info("============ Load dataset from file %s ... ============" % opt.data_path)
         if not str(opt.data_path).endswith(('json', 'jsonl')):
@@ -39,23 +53,20 @@ def main(opt):
     elif opt.cons_from_raw:
         logger.info("============ Load dataset from dir %s ... ============" % opt.data_path)
         assert os.path.exists(opt.data_path) and os.path.isdir(opt.data_path)
-        dataset = []
-        filelist = os.listdir(opt.data_path)
-        for file in tqdm(filelist):
-            with open(os.path.join(opt.data_path, file), 'r') as json_file:
-                dataset.extend(list(json_file))
+        dataset = [os.path.join(opt.data_path, item) for item in os.listdir(opt.data_path)]
+        # for file in tqdm(filelist):
+        #     with open(os.path.join(opt.data_path, file), 'r') as json_file:
+        #         dataset.extend(json_file)
 
+        # executor = multiprocessing.Pool(n_worker)
+        # for res in executor.starmap(load_json, filelist):
+        #     dataset.extend(res)
+        # dataset = list(dataset)
     else:
         logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
         dataset = load_dataset("codeparrot/github-code", languages=[opt.language], split='train', cache_dir=opt.data_path)
     logger.info("Load dataset done. Number of sample: %i ============" % len(dataset))
 
-    # Start processing
-    start = time.perf_counter()
-    if opt.n_core == -1:
-        n_worker = multiprocessing.cpu_count()
-    else: 
-        n_worker = opt.n_core
     
     # start_executor(dataset, language, save_path, split, is_file)
     logger.info("============ Start multiprocessing using %i worker ============" % n_worker)
@@ -64,6 +75,9 @@ def main(opt):
     dataset_size = len(dataset)
     index_list = range(dataset_size)
     chunk_size = dataset_size//opt.n_split
+    if opt.cons_from_raw:
+        chunk_size = 1
+    
     logger.info("Spliting %i samples into %i sub-dataset with chunk size %i" % (dataset_size, opt.n_split, chunk_size))
     
     jobs_list = [index_list[x:x+chunk_size] for x in range(0, dataset_size, chunk_size)]  # n set
@@ -71,7 +85,7 @@ def main(opt):
     for idx, job_index in enumerate(jobs_list):
         args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
     logger.info("Total %i processes" % len(args))
-
+    
     executor = multiprocessing.Pool(n_worker)
     executor.starmap(processing, args)
 
@@ -149,6 +163,11 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
     filtered_function_set, filtered_class_set = [], []
     extracted_function_set, extracted_class_set = [], []
     
+    if opt.cons_from_raw:
+        with open(dataset[indexs[0]], 'r') as file:
+            dataset = list(file)
+        indexs = range(len(dataset))
+            
     for idx in tqdm(indexs, desc=f'Thread {thread_idx} processing: '):
         data = dataset[idx]
         if opt.load_from_file or opt.cons_from_raw:
@@ -172,37 +191,37 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
+    
+        raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
+
+        # try:
+        # Extract function
+        if opt.cons_from_raw:
+            raw_fn = [data]
         
-        try:
-            # Extract function
-            if opt.cons_from_raw:
-                raw_fn = data
-            else:
-                raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
-            
-            filtered_fn_list = list(get_node_definitions(raw_fn, raw_code))
-            extracted_function_list = list(extract_node(filtered_fn_list, language))
-            
-            # For saving
-            raw_function_set.extend(raw_fn)
-            filtered_function_set.extend(filtered_fn_list)
-            extracted_function_set.extend(extracted_function_list)
-            
-            # # Extract line
-            # raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
-            # raw_line_set.extend(raw_line)
-            
-            # # Extract class
-            # if not (language == 'GO' or language == 'C'):
-            #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
-            #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
-            #     extracted_class_list = list(extract_node(filtered_class_list, language))
-            
-            #     raw_class_set.extend(raw_class)    
-            #     filtered_class_set.extend(filtered_class_list)
-            #     extracted_class_set.extend(extracted_class_list)
-        except Exception:
-            continue
+        filtered_fn_list = list(get_node_definitions(raw_fn))
+        extracted_function_list = list(extract_node(filtered_fn_list, language))
+        
+        # For saving
+        raw_function_set.extend(raw_fn)
+        filtered_function_set.extend(filtered_fn_list)
+        extracted_function_set.extend(extracted_function_list)
+        
+        # # Extract line
+        # raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
+        # raw_line_set.extend(raw_line)
+        
+        # # Extract class
+        # if not (language == 'GO' or language == 'C'):
+        #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
+        #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+        #     extracted_class_list = list(extract_node(filtered_class_list, language))
+        
+        #     raw_class_set.extend(raw_class)    
+        #     filtered_class_set.extend(filtered_class_list)
+        #     extracted_class_set.extend(extracted_class_list)
+        # except Exception:
+        #     continue
         
     
     raw_path = os.path.join(opt.save_path, 'raw')
