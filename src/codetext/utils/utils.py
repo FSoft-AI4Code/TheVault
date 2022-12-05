@@ -190,8 +190,8 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             'code': code,
             'code_tokens': code_tokens,
             'original_docstring': docstring,
+            'comment': comment_list,
             'docstring_tokens': docstring_tokens,
-            'comment': comment_list
         })
         
         yield fn_metadata
@@ -546,7 +546,7 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
                 metadata['docstring_params']['others'].append({
                     'identifier': item.args[0],
                     'docstring': item_docs,
-                    'docstring_token': tokenize_docstring(item_docs),
+                    'docstring_tokens': tokenize_docstring(item_docs),
                 })
             except Exception:
                 # Let it go ...

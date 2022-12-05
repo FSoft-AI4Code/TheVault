@@ -46,6 +46,18 @@ def summary_total(list_file):
     return list_file
 
 
+def count_param(metadata: dict):
+    n_param = 0
+    for key, val in metadata.items():
+        if key in ['params', 'outlier_params', 'returns', 'raises']:
+            for item in val:
+                if item['docstring'] != None:
+                    n_param += 1
+        else:
+            continue
+
+    return n_param
+
 def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=False):
     """
     Count number of repo, number of sample
@@ -55,13 +67,14 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
     TODO: save into .zip file and run cloc
     """
     # For statistic
-    fail_sample = 0
     n_sample = 0
     n_total_sample = 0
+    n_total_attrib = 0
     n_repos = set()
     
     # For analyzer
     repos = []
+    n_attribs = []
     n_samples = []
     sets = []
     zip_output = zipfile.ZipFile(os.path.join(opt.save_path, f'{name}_code.zip'), "w", zipfile.ZIP_DEFLATED)
@@ -79,7 +92,6 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
                 try:
                     data = json.loads(data)
                 except Exception:
-                    fail_sample += 1
                     continue
                 
                 assert 'code' in data.keys()
@@ -102,14 +114,18 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
                 else:
                     continue
                 
+                n_param = count_param(data['docstring_params'])
+                n_total_attrib += n_param
                 if repo not in repos:
                     repos.append(repo)
                     n_samples.append(1)
+                    n_attribs.append(n_param)
                     sets.append(None)
                 
                 else:
                     index = repos.index(repo)
                     n_samples[index] += 1
+                    n_attribs[index] += n_param
                 
                 if opt.analyze:
                     zip_output.writestr(unique_idx, code)
@@ -129,18 +145,23 @@ def merge_embled_file(file_list, opt, name: str='raw_function', split: bool=Fals
         valid_len = min(opt.max_sample, int(valid_ratio*n_sample))
         test_len = min(opt.max_sample, int(test_ratio*n_sample))
         train_len = n_sample - valid_len - test_len
-        logger.info(f"Split data into: Train size: {train_len} ({(100*train_len/n_sample):.2f})% | Valid size: {valid_len} ({(100*valid_len/n_sample):.2f})% | Test ratio: {test_len} ({(100*test_len/n_sample):.2f})%")
+        
+        valid_attrib = int(valid_ratio*n_total_attrib)
+        test_attrib = int(valid_ratio*n_total_attrib)
+        train_attrib = n_total_attrib - valid_attrib - test_attrib
+        logger.info(f"Split data into 3 sets: \nTrain: {train_len} ({(100*train_len/n_sample):.2f})% | Valid: {valid_len} ({(100*valid_len/n_sample):.2f})% | Test: {test_len} ({(100*test_len/n_sample):.2f})%")
+        logger.info(f"Total attributes \nTrain: {train_attrib} ({(100*train_attrib/n_total_attrib):.2f})% | Valid: {valid_attrib} ({(100*valid_attrib/n_total_attrib):.2f})% | Test: {test_attrib} ({(100*test_attrib/n_total_attrib):.2f})%")
 
-        metadata_dict = {'repo': repos, 'n_sample': n_samples, 'set': sets}
-        df = pd.DataFrame(metadata_dict, columns = ['repo', 'n_sample', 'set'])
+        metadata_dict = {'repo': repos, 'n_sample': n_samples, 'n_attrib': n_attribs, 'set': sets}
+        df = pd.DataFrame(metadata_dict, columns = ['repo', 'n_sample', 'n_attrib', 'set'])
 
         for index, row in tqdm(df.iterrows(), total=df.shape[0], desc='Spliting data'):
             if df.at[index, 'set'] is None:
-                if valid_len - row['n_sample'] > 0:
+                if valid_len - row['n_sample'] > 0 and valid_attrib - row['n_attrib'] > 0:
                     valid_len -= row['n_sample']
                     df.at[index, 'set'] = 'valid'
                     
-                elif test_len - row['n_sample'] > 0:
+                elif test_len - row['n_sample'] > 0 and test_attrib - row['n_attrib'] > 0:
                     test_len -= row['n_sample']
                     df.at[index, 'set'] = 'test'
                 
@@ -199,11 +220,11 @@ def merge_file(file_list, opt, name: str='raw', split: bool=False):
         function_list, class_list = file_list[:2]
         
         merge_embled_file(function_list, opt, f'{name}_function', split)
-        merge_embled_file(class_list, opt, f'{name}_class', split)
+        # merge_embled_file(class_list, opt, f'{name}_class', split)
         
-        if len(file_list) == 3:  # inline
-            line_list = file_list[-1]
-            merge_embled_file(line_list, opt, f'{name}_line', split=True)
+        # if len(file_list) == 3:  # inline
+        #     line_list = file_list[-1]
+        #     merge_embled_file(line_list, opt, f'{name}_line', split=True)
 
 
 def main(opt):
@@ -224,13 +245,13 @@ def main(opt):
     filter_list = summary_total(filter_list)
     extract_list = summary_total(extract_list)
     
-    s = f"RAW: #function file {len(raw_list[0])} | #class file {len(raw_list[1])} | #inline file {len(raw_list[2])}" + \
-    f"\nFILTERED: #function file {len(filter_list[0])} | #class file {len(filter_list[1])}" + \
-    f"\nEXTRACTED: #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
+    # s = f"RAW: #function file {len(raw_list[0])} | #class file {len(raw_list[1])} | #inline file {len(raw_list[2])}" + \
+    # f"\nFILTERED: #function file {len(filter_list[0])} | #class file {len(filter_list[1])}" + \
+    s = f"\nEXTRACTED: #function file {len(extract_list[0])} | #class file {len(extract_list[1])}"
     logger.info(s)
     
-    merge_file(raw_list, opt, 'raw')
-    merge_file(filter_list, opt, 'filter')
+    # merge_file(raw_list, opt, 'raw')
+    # merge_file(filter_list, opt, 'filter')
     merge_file(extract_list, opt, 'extract', split=True)
     logger.info('============= Done =============%')
 
