@@ -92,7 +92,7 @@ def remove_comment_delimiters(docstring: str) -> str:
     :param comment: raw (line or block) comment
     :return: list of comment lines
     """
-    clean_p1 = re.compile('([\s\/*=-]+)$|^([\s\/*!=#-]+)', re.MULTILINE)
+    clean_p1 = re.compile('([\s\/*=-]+)$|^([\s\/*!=-]+)', re.MULTILINE)
     
     new_docstring = []
     for line in docstring.split('\n'):
@@ -872,7 +872,12 @@ def clean_docstring(docstring: str, loosen_filter: bool = False):
         docstring_list = re.split(r'(?<=.)[.!\?](?=\s+)', docs, flags=re.M)
         clean_line = []
         for line in docstring_list:
-            line = remove_special_tag(line)
+            try:
+                line = remove_special_tag(line)
+            except:
+                print('Oops')
+                return None
+            
             # not_pass, res = check_docstring(line, loosen_filter)
             not_pass = check_docstring(line, loosen_filter)
             if not not_pass:

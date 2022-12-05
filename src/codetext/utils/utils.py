@@ -42,7 +42,8 @@ STYLE_MAP = {
     'go': [],
     'c_sharp': [DocstringStyle.XML,
                 DocstringStyle.JAVADOC],
-    'rust': [DocstringStyle.RUSTDOC], 
+    'rust': [DocstringStyle.RUSTDOC,
+             DocstringStyle.JAVADOC], 
 }
 
 
