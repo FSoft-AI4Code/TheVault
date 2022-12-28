@@ -1,0 +1,124 @@
+Metadata-Version: 2.1
+Name: codetext
+Version: 0.0.1
+Summary: Multilingual programming language parsers for the extract from raw source code into multiple levels of pair data
+Author-email: Dung Manh Nguyen <dungnm.workspace@gmail.com>
+Project-URL: Homepage, https://github.com/AI4Code-Research/CodeText-data
+Project-URL: Bug Tracker, https://github.com/AI4Code-Research/CodeText-data/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10.6
+Description-Content-Type: text/markdown
+License-File: LICENSES.md
+
+# Code-text data toolkit
+
+This repo contains multilingual programming language parsers for the extract from raw source code into multiple levels of pair data (code-text) (e.g., function-level, class-level, inline-level). 
+
+## Installation
+Install dependencies and setup by using `install_env.sh`
+```bash
+bash -i ./install_env.sh
+```
+then activate conda environment named "code-text-env"
+```bash
+conda activate code-text-env
+```
+
+## Getting started
+
+### Build your language
+Auto build tree-sitter into `<language>.so` located in `/tree-sitter/`
+```python
+from src.utils import build_language
+
+language = 'rust'
+build_language(language)
+
+
+# INFO:utils:Not found tree-sitter-rust, attempt clone from github
+# Cloning into 'tree-sitter-rust'...
+# remote: Enumerating objects: 2835, done. ...
+# INFO:utils:Attempt to build Tree-sitter Language for rust and store in .../tree-sitter/rust.so
+```
+
+### Language Parser
+We supported 8 programming languages, namely `Python`, `Java`, `JavaScript`, `Golang`, `Ruby`, `PHP`, `C#`, `C++` and `C`.
+
+Setup
+```python
+from tree_sitter import Parser, Language
+
+raw_code = """
+/**
+* Sum of 2 number
+* @param a int number
+* @param b int number
+*/
+double sum2num(int a, int b) {
+    return a + b;
+}
+"""
+
+parser = Parser()
+language = Language("/tree-sitter/cpp.so", 'cpp')
+parser.set_language(language)
+root_node = parser.parse(bytes(raw_code, 'utf8'))
+```
+
+Get all function nodes inside a specific node, use:
+```python
+from src.utils.parser import CppParser
+
+function_list = CppParser.get_function_list(root_node)
+print(function_list)
+
+# [<Node type=function_definition, start_point=(6, 0), end_point=(8, 1)>]
+
+```
+
+Get function metadata (e.g. function's name, parameters, (optional) return type)
+```python
+function = function_list[0]
+
+metadata = CppParser.get_function_metadata(function, raw_code)
+
+# {'identifier': 'sum2num', 'parameters': {'a': 'int', 'b': 'int'}, 'type': 'double'}
+```
+Get docstring (documentation) of a function
+```python
+docstring = CppParser.get_docstring(function, code_sample)
+
+# ['Sum of 2 number \n@param a int number \n@param b int number']
+```
+
+We also provide 2 command for extract class object
+```python
+class_list = CppParser.get_class_list(root_node)
+# and
+metadata = CppParser.get_metadata_list(root_node)
+```
+
+## Data collection and Preprocessing
+The dataset we used to extract was collected by codeparrot. They host the raw dataset in here [codeparrot/github-code](https://huggingface.co/datasets/codeparrot/github-code).
+
+*You can create your own dataset using Google Bigquery and the [query here](https://huggingface.co/datasets/codeparrot/github-code/blob/main/query.sql)*
+
+### Getting started
+For start preprocessing data, define a .yaml file to declare raw data format. (More detail: `/data/format/README.md`)
+
+```bash
+python -m src.processing 
+<DATASET_PATH>
+--save_path <SAVE_PATH>  # path to save dir
+
+--load_from_file  # load from file instead load from dataset cache
+--language Python  # or Java, JavaScript, ...
+--data_format './data/format/codeparot-format.yaml'  # load raw data format
+
+--n_split 20  # split original dataset into N subset
+--n_core -1  # number of multiple processor (default to -1 == using all core)
+```
+
+*NOTES:*  <DATASET_PATH> dir must contains raw data store in `.jsonl` extension if you pass argument `--load_from_file` or contains huggingface dataset's 

@@ -1,101 +1,148 @@
-# Preprocessing code description
+<div align="center">
 
-## Install dependencies
-To getting started with preprocessing step, install dependencies:
+<p align="center">
+  <img src="https://avatars.githubusercontent.com/u/115590550?s=200&v=4" width="220px" alt="logo">
+</p>
+
+**Code-Text data toolkit**
+______________________________________________________________________
+
+
+<!-- Badge start -->
+| Branch 	| Build 	| Unittest 	| Linting 	| Release 	| License 	|
+|--------	|-------	|----------	|---------	|---------	|---------	|
+| main   	|       	| [![Unittest](https://github.com/AI4Code-Research/CodeText-data/actions/workflows/unittest.yml/badge.svg)](https://github.com/AI4Code-Research/CodeText-data/actions/workflows/unittest.yml) |       	| [![release](https://img.shields.io/pypi/v/codetext)](https://pypi.org/project/codetext/) [![pyversion](https://img.shields.io/pypi/pyversions/codetext)](https://pypi.org/project/codetext/)| [![license](https://img.shields.io/github/license/AI4Code-Research/CodeText-data)](https://github.com/AI4Code-Research/CodeText-data/LICENSE.txt) |
+<!-- Badge end -->
+</div>
+
+______________________________________________________________________
+
+**Code-Text data toolkit** contains multilingual programming language parsers for the extract from raw source code into multiple levels of pair data (code-text) (e.g., function-level, class-level, inline-level). 
+
+# Installation
+Setup environment and install dependencies and setup by using `install_env.sh`
 ```bash
-pip install -r requirements.txt
+bash -i ./install_env.sh
+```
+then activate conda environment named "code-text-env"
+```bash
+conda activate code-text-env
 ```
 
-## Dataset & Usage
-Preprocessed dataset: [Googledrive](https://drive.google.com/drive/u/0/folders/1FGLK7HwP-W3wbFKefwNgV0IGjUvUxkYN)
-
-This dataset was collected by `codeparrot` from open-source project on Github.
-(More detail: [codeparrot/github-code](https://huggingface.co/datasets/codeparrot/github-code))
-
-Extract dataset by languages into `.jsonl` file (store in `./data/raw`)
+*Setup for using parser*
 ```bash
-python crawl_data --n_samples 100 --languages Python C++ C#
+pip install codetext
 ```
 
-Extract source code into mutilple file (for multiple thread later)
-```bash
-python raw_processing.py -n 10 --data_file './data/raw/python_data.jsonl' --save_path './data/python/
-```
+# Getting started
 
-Extract source code to function-description, class-description (code_line-description) with n threads:
-```bash
-python parser_processing -n 10 --data_path './data/python' --save_path './data/python'
-```
-
-### Parser usage
-Each language has it own parser, located in `utils/parser`
-
-Using parser:
+## Build your language
+Auto build tree-sitter into `<language>.so` located in `/tree-sitter/`
 ```python
-from tree_sitter import Language, Parser
-from utils.parser.java_parser import JavaParser
+from codetext.utils import build_language
 
-parser = Parser()
-build_lang = Language('./path/to/my-languages.so', 'java')
-parser.set_language(build_lang)
+language = 'rust'
+build_language(language)
 
-tree = parser.parse(bytes(raw_code, 'utf8'))
-root = tree.root_node
 
-print(JavaParser.get_definition(tree, raw_code))
+# INFO:utils:Not found tree-sitter-rust, attempt clone from github
+# Cloning into 'tree-sitter-rust'...
+# remote: Enumerating objects: 2835, done. ...
+# INFO:utils:Attempt to build Tree-sitter Language for rust and store in .../tree-sitter/rust.so
 ```
 
-Or use `extract_raw_code()` function:
+## Language Parser
+We supported 10 programming languages, namely `Python`, `Java`, `JavaScript`, `Golang`, `Ruby`, `PHP`, `C#`, `C++`, `C` and `Rust`.
+
+Setup
 ```python
-from utils.parser import extract_raw_code
-raw_code =  '''
-            public class GoogleCloudStorageLocation extends DatasetLocation {
-            /**
-                * Get specify the bucketName of Google Cloud Storage. Type: string (or Expression with resultType string).
-                *
-                * @return the bucketName value
-                */
-            public Object bucketName(String[] args, int arg) {
-                return this.bucketName;
-                }
-            }
-            '''
-        
-print(extract_raw_code(raw_code, language='java')
->>> [{'type': 'method_declaration', 
-    'identifier': 'GoogleCloudStorageLocation.bucketName', 
-    'parameters': '', 
-    'function': 'public Object bucketName() {\n        return this.bucketName;\n    }', 
-    'function_tokens': ['public', 'Object', 'bucketName', '(', ')', '{', 'return', 'this', '.', 'bucketName', ';', '}'], 
-    'docstring': '\nGet specify the bucketName of Google Cloud Storage. Type: string (or Expression with resultType string).\n\n@return the bucketName value\n'
-}]
+from codetext.utils import parse_code
+
+raw_code = """
+/**
+* Sum of 2 number
+* @param a int number
+* @param b int number
+*/
+double sum2num(int a, int b) {
+    return a + b;
+}
+"""
+
+root = parse_code(raw_code, 'cpp')
+root_node = root.root_node
+```
+
+Get all function nodes inside a specific node, use:
+```python
+from codetext.utils.parser import CppParser
+
+function_list = CppParser.get_function_list(root_node)
+print(function_list)
+
+# [<Node type=function_definition, start_point=(6, 0), end_point=(8, 1)>]
 
 ```
 
-## Data format
-- **repo:** the owner/repo
-- **path:** the full path to the original file
-- **func_name/class_name:** the function or method name
-- **license:** repo license
-- **original_string:** the raw string before tokenization or parsing
-- **language:** the programming language
-- **code:** the part of the `original_string` that is code
-- **code_tokens:** tokenized version of `code`
+Get function metadata (e.g. function's name, parameters, (optional) return type)
+```python
+function = function_list[0]
 
-- **docstring:** the top-level comment or docstring, if it exists in the original string, docstring without param’s doc, return, exception, etc
-    - **block_comment:** docstring
-    - **comment:** docstring
-- **docstring_tokens:** tokenized version of `docstring`
-- **docstring_params:**
-    - **param_1_name:**
-        - **docstring:** docstring of params_1
-        - Optional(**type:** type)
-    - **param_2_name:**
-        - **docstring:** docstring of params_2
-        - Optional(**type:** type)
-    - …
-    - **other_params:** other params which don’t list in the function init
-        - List of param string (include param name)
-    - **@return:** comment
-    - **@exception:** comment
-    - **@….:** comment
+metadata = CppParser.get_function_metadata(function, raw_code)
+
+# {'identifier': 'sum2num', 'parameters': {'a': 'int', 'b': 'int'}, 'type': 'double'}
+```
+Get docstring (documentation) of a function
+```python
+docstring = CppParser.get_docstring(function, code_sample)
+
+# ['Sum of 2 number \n@param a int number \n@param b int number']
+```
+
+We also provide 2 command for extract class object
+```python
+class_list = CppParser.get_class_list(root_node)
+# and
+metadata = CppParser.get_metadata_list(root_node)
+```
+
+# Data collection and Preprocessing
+The dataset we used to extract was collected by codeparrot. They host the raw dataset in here [codeparrot/github-code](https://huggingface.co/datasets/codeparrot/github-code).
+
+*You can create your own dataset using Google Bigquery and the [query here](https://huggingface.co/datasets/codeparrot/github-code/blob/main/query.sql)*
+
+## Getting started
+### Process custom dataset
+For start preprocessing data, define a .yaml file to declare raw data format. (More detail: `/data/format/README.md`)
+
+```bash
+python -m codetext.processing 
+<DATASET_PATH>
+--save_path <SAVE_PATH>  # path to save dir
+
+--load_from_file  # load from file instead load from dataset cache
+--language Python  # or Java, JavaScript, ...
+--data_format './data/format/codeparot-format.yaml'  # load raw data format
+
+--n_split 20  # split original dataset into N subset
+--n_core -1  # number of multiple processor (default to 1) (-1 == using all core)
+```
+
+*NOTES:*  <DATASET_PATH> dir must contains raw data store in `.jsonl` extension if you pass argument `--load_from_file` or contains huggingface dataset's 
+
+### Analyse and split dataset
+The code process is going to save cleaned sample by batch, you can merge it using `postprocess.py`. We also provide analyse tool for get total number of sample, blank_line(\*), comment(\*) and code(\*). You can also split your dataset into `train`, `valid`, `test`.
+
+```bash
+python -m codetext.postprocessing 
+<DATASET_PATH>  # path to dir contains /extracted, /filered, /raw
+--save_path <SAVE_PATH>  # path to save final output
+
+--n_core 10  # number of core for multiprocessing analyzer
+--analyze  # Analyze trigger
+--split  # Split train/test/valid trigger
+--ratio 0.05  # Test and valid ratio (defaul to equal)
+--max_sample 20000  # Max size of test set and valid set
+```
+
+*NOTES:* (\*) We run `cloc` underneath the program to count blank, comment and code. See more [github.com/AlDanial/cloc](github.com/AlDanial/cloc)

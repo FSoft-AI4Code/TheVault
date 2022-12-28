@@ -1,0 +1,15 @@
+# CodeSearchNet jsonline format 
+# https://github.com/github/CodeSearchNet#data-details
+
+# Main content
+code: code
+repo: repo
+path: path
+language: language
+
+# Additional content
+identifier: identifier
+parameters: parameters
+code_tokens: code_tokens
+original_docstring: original_docstring
+comment: comment
