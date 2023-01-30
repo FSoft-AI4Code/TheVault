@@ -125,6 +125,7 @@ def remove_function_name_at_the_beginning(docstring):
 
     return docstring
 
+
 def remove_link_in_brackets(docstring):
     """
     Removing patterns, for examples:
@@ -158,7 +159,7 @@ def remove_link_in_brackets(docstring):
 #     docstring = docstring.strip()
 
 #     return docstring
-                
+
 
 def remove_everything_after_a_pattern(docstring):
     """
@@ -218,6 +219,7 @@ def remove_everything_after_an_url(docstring):
 
     return docstring
 
+
 def remove_lines_start_and_end_with_the_same_char(docstring):
     """
     Remove noisy lines.
@@ -245,6 +247,7 @@ def remove_lines_start_and_end_with_the_same_char(docstring):
 
     return docstring
 
+
 def remove_lines_contain_only_a_single_char(docstring):
     """
     This function applies at line-level
@@ -260,6 +263,7 @@ def remove_lines_contain_only_a_single_char(docstring):
 
     return docstring
 
+
 def remove_patterns_at_any_positions(docstring):
     """
     This function applies at docstring-level
@@ -270,6 +274,7 @@ def remove_patterns_at_any_positions(docstring):
             docstring = docstring.replace(pattern, "").strip()
 
     return docstring
+
 
 def remove_patterns_at_the_start_and_end_of_a_line(docstring):
     """
@@ -304,6 +309,7 @@ def remove_patterns_at_the_start_and_end_of_a_line(docstring):
     docstring = "\n".join(lines).strip()
 
     return docstring
+
 
 def remove_patterns_at_the_end_of_a_docstring(docstring):
     """
@@ -535,6 +541,7 @@ def check_contain_little_alphabet_char(docstring: str):
     num_alphabet_chars = len(re.findall("[a-zA-Z]", docstring))
 
     return len(docstring) > thresholds[0 + 2*int(contain_math)] and num_alphabet_chars / len(docstring) < thresholds[1 + 2*int(contain_math)]
+
 
 def convert_special_pattern(docstring):
     patterns = [

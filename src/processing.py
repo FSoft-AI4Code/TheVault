@@ -54,14 +54,7 @@ def main(opt):
         logger.info("============ Load dataset from dir %s ... ============" % opt.data_path)
         assert os.path.exists(opt.data_path) and os.path.isdir(opt.data_path)
         dataset = [os.path.join(opt.data_path, item) for item in os.listdir(opt.data_path)]
-        # for file in tqdm(filelist):
-        #     with open(os.path.join(opt.data_path, file), 'r') as json_file:
-        #         dataset.extend(json_file)
 
-        # executor = multiprocessing.Pool(n_worker)
-        # for res in executor.starmap(load_json, filelist):
-        #     dataset.extend(res)
-        # dataset = list(dataset)
     else:
         logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
         dataset = load_dataset("codeparrot/github-code", languages=[opt.language], split='train', cache_dir=opt.data_path)
@@ -270,6 +263,12 @@ if __name__ == '__main__':
     )
     
     # Data settings
+    parser.add_argument(
+        '--level', 
+        type=str, 
+        default='function',
+        help='Extract function/class/inline level or all'
+    )
     parser.add_argument(
         '--language', 
         type=str, 

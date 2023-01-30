@@ -23,28 +23,28 @@ logging.basicConfig(level = logging.INFO)
 if _DOCSTRING_PARSER_AVAILABLE:
     from docstring_parser.common import *
     from docstring_parser.parser import parse
+    STYLE_MAP = {
+        'python': [DocstringStyle.REST,
+                DocstringStyle.GOOGLE,
+                DocstringStyle.NUMPYDOC,
+                DocstringStyle.EPYDOC,],
+        'java': [DocstringStyle.JAVADOC],
+        'javascript': [DocstringStyle.JSDOC],
+        'ruby': [DocstringStyle.RDOC],
+        'php': [DocstringStyle.PHPDOC],
+        'c': [DocstringStyle.JAVADOC],
+        'cpp': [DocstringStyle.JAVADOC],
+        'go': [],
+        'c_sharp': [DocstringStyle.XML,
+                    DocstringStyle.JAVADOC],
+        'rust': [DocstringStyle.RUSTDOC,
+                DocstringStyle.JAVADOC], 
+    }
 else:
     logger.warning("`docstring_parser` is not available.")
 
 
 SUPPORTED_LANGUAGE = ['python', 'java', 'javascript', 'ruby', 'go', 'c', 'cpp', 'c_sharp', 'php', 'rust']
-STYLE_MAP = {
-    'python': [DocstringStyle.REST,
-               DocstringStyle.GOOGLE,
-               DocstringStyle.NUMPYDOC,
-               DocstringStyle.EPYDOC,],
-    'java': [DocstringStyle.JAVADOC],
-    'javascript': [DocstringStyle.JSDOC],
-    'ruby': [DocstringStyle.RDOC],
-    'php': [DocstringStyle.PHPDOC],
-    'c': [DocstringStyle.JAVADOC],
-    'cpp': [DocstringStyle.JAVADOC],
-    'go': [],
-    'c_sharp': [DocstringStyle.XML,
-                DocstringStyle.JAVADOC],
-    'rust': [DocstringStyle.RUSTDOC,
-             DocstringStyle.JAVADOC], 
-}
 
 
 def build_language(language: str, save_path: str=ROOT_PATH):
@@ -375,7 +375,7 @@ def extract_node(metadata_list, language:str):
             'original_docstring': metadata['original_docstring'],
             'comment': metadata['comment']
         })
-        docstring = remove_comment_delimiters(metadata['original_docstring'])
+        docstring = remove_comment_delimiters(metadata['original_docstring'], False)
         extracted_res = extract_docstring(docstring, metadata['parameters'], language)
         if not extracted_res:  # extract fail
             continue
@@ -564,10 +564,10 @@ def write_jsonl(data, save_path: str):
 
 
 if __name__ == '__main__':
-    lang_list = ['python', 'cpp', 'java', 'c-sharp', 'ruby', 'rust', 'javascript', 'php', 'go']
+    # lang_list = ['python', 'cpp', 'java', 'c-sharp', 'ruby', 'rust', 'javascript', 'php', 'go']
     
-    for lang in lang_list:
-        build_language(lang)
-
+    # for lang in lang_list:
+    #     build_language(lang)
+    build_language('rust')
 
     
