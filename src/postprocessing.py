@@ -4,10 +4,10 @@ import logging
 
 import multiprocessing
 
-from src.codetext.utils import create_logger
+from src.utils import create_logger
 from src.analysis.analyser import Analyser
 
-def analysis(args):
+def analysis(args) -> str:
     create_logger(filepath=None, rank=0)
     logger = logging.getLogger()
     
@@ -27,7 +27,6 @@ def analysis(args):
         analyser.split()
         
     analyser.analysing()
-    
 
 
 if __name__ == '__main__':
@@ -84,7 +83,7 @@ if __name__ == '__main__':
         "--deduplicate",
         action='store_true',
         help="Deduplicate",
-    )
+    ) 
     parser.add_argument(
         "--is_file",
         type=bool,

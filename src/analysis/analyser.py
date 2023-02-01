@@ -51,11 +51,12 @@ class Analyser(AnalyserWarpper):
         self.is_file = args.is_file
         self.load_metadata = args.load_metadata
         list_file = []
-        for i in os.listdir(self.data_path):
-            if i.endswith('.jsonl'): 
-                list_file.append(os.path.join(self.data_path, i))
-        self.list_file = list_file
-        
+        if not self.is_file:
+            for i in os.listdir(self.data_path):
+                if i.endswith('.jsonl'): 
+                    list_file.append(os.path.join(self.data_path, i))
+            self.list_file = list_file
+
         # TODO: add 'folk', 'star' and 'issue' as analysis factor 
         self.keys = [ 'repo', 'code', 'docstring']
                     # 'attribute'] # folk, star, issue
@@ -111,11 +112,15 @@ class Analyser(AnalyserWarpper):
                 with open(self.data_path, 'r') as json_file:
                     dataset = list(json_file)
 
-                logger.info(f"Analyzing{Path(self.data_path).name}")
                 index_list = range(len(dataset))
-                jobs_list = [
-                    index_list[x:x+self.core] for x in range(0, len(dataset), self.core)]
-
+                chunk_size = len(dataset)//self.core
+                jobs = [
+                    index_list[x:x+chunk_size] for x in range(0, len(dataset), chunk_size)]
+                jobs_list = []
+                logger.info(f"Analyzing {Path(self.data_path).name} in total {len(jobs)} processes")
+                for job_index in jobs:
+                    jobs_list.append([dataset, job_index])
+                    
             else:
                 # load into multiple process to read
                 dataset = []
@@ -141,24 +146,29 @@ class Analyser(AnalyserWarpper):
         self.export_hist(numberic_col, os.path.join(self.save_path, 'B.png'))
     
     def read_json(self, dataset, task):
-        s = 'Analyzing file '
+        s = 'Analyzing '
         if not dataset:  # then read from path and processing
             assert type(task) == str
             assert os.path.isfile(task) == True
-            s += Path(task).name
+            s += str('file: ' + Path(task).name)
             with open(task, 'r') as json_file:
                 dataset = list(json_file)
-            task = range(10000) #len(dataset))
+            task = range(len(dataset))
+        else:
+            s += f'from main file: {task}'
         
         result = []
-        for idx in tqdm(task, desc=s):
+        for idx in task:
             data = dataset[idx]
             data = json.loads(data)
             
             meta = []
             for key in self.keys:
                 assert key in data.keys(), f'Missing `{key}` field'
-                meta.append(data[key])
+                if not data[key] or data[key] == '':
+                    meta.append(None)
+                else:
+                    meta.append(str(data[key]).replace('|',''))
             
             code = data['code']
             docstring = data['docstring']
@@ -173,6 +183,8 @@ class Analyser(AnalyserWarpper):
             len_comment = 0
             len_code = len(data['code_tokens'])
             len_docstring = len(data['docstring_tokens'])
+            
+            # TODO: count number of special token, alphabet %, plot outlier 
             
             # count number of code, blank, comment number of line
             for line in str(code).splitlines():

@@ -8,9 +8,10 @@ from typing import List, Dict, Any, Union
 import tree_sitter
 from tree_sitter import Language, Parser
 
-from src.codetext.utils.imports import module_available
-from src.codetext.utils.noise_removal.noise_removal import check_function, clean_docstring, remove_comment_delimiters
-from src.codetext.utils.parser.language_parser import LanguageParser, match_from_span, tokenize_code, tokenize_docstring, traverse_type
+from codetext.utils import module_available
+from codetext.clean import remove_comment_delimiters
+from codetext.parser.language_parser import match_from_span, tokenize_code, tokenize_docstring
+from src.utils.noise_removal.noise_removal import check_function, clean_docstring
 
 
 _DOCSTRING_PARSER_AVAILABLE = module_available("docstring_parser")
@@ -294,7 +295,9 @@ def get_line_definitions(tree, blob: str, language_parser):
                             break
                         prev_node = prev_node.prev_sibling
 
+                    # if not meet the open bracket
                     if not prev_node.type == ":":
+                    # while prev_node is not None:
                         _comment_metadata['prev_context'] = {
                             'code': prev_node.text.decode(),
                             'start_point': list(prev_node.start_point), #[0] - fn_line_start, prev_node.start_point[1]],
@@ -311,7 +314,9 @@ def get_line_definitions(tree, blob: str, language_parser):
                         
                     if next_node.type == "block":
                         next_node = next_node.children[0] if len(next_node.children) > 0 else None
-                        
+                    
+                    # while not meet the other comment or not reach the end node
+                    # keep appending
                     _comment_metadata['next_context'] = {
                         'code': next_node.text.decode(),
                         'start_point': [next_node.start_point[0] - fn_line_start, next_node.start_point[1]],
@@ -360,6 +365,7 @@ def extract_node(metadata_list, language:str):
     elif language == 'c++':
         language = 'cpp'
     
+    fail_count = 0
     for metadata in metadata_list:
         assert isinstance(metadata, Dict), f'Expect `Dict`, get {type(metadata)}'
         assert language in SUPPORTED_LANGUAGE, f'{language} not supported!'
@@ -382,8 +388,25 @@ def extract_node(metadata_list, language:str):
         if extracted_res['docstring'] == '':
             continue
         output_metadata.update(extracted_res)
+        
+        if not check_output(output_metadata):
+            fail_count += 1
+            continue
+            
         yield output_metadata
+        
+    if fail_count > 0:
+        logger.info('Failed to extract {} sample'.format(fail_count))
 
+
+def check_output(output):
+    """Output assertion
+    
+    Check if:
+        - 'identifier' is not null
+        - 'type' is not null (with C/C++, Java, C# only)
+        - 'docstring_param' not contain null docstring
+    """
 
 def extract_docstring(docstring: str, parameter_list: Union[List, Dict], language: str) -> Dict[str, Any]:
     """Extract docstring into parameter docstring
