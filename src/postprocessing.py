@@ -1,11 +1,15 @@
 import os
 import argparse
 import logging
+from pathlib import Path
 
 import multiprocessing
 
 from src.utils import create_logger
 from src.analysis.analyser import Analyser
+
+import neptune.new as neptune
+
 
 def analysis(args) -> str:
     create_logger(filepath=None, rank=0)
@@ -17,15 +21,20 @@ def analysis(args) -> str:
         logger.info(f"Analysis data from file: {args.data_path}")
     else:
         logger.info(f"Analysis data from directory: {args.data_path}")
-    analyser = Analyser(args)
     
+    if not args.save_path and not args.is_file:
+        args.save_path = args.data_path
+    else:
+        args.save_path = Path(args.data_path).parent
+    
+    analyser = Analyser(args)
     if args.merge:
         assert args.is_file != True, "Can not merge single file, error `data_path`"
         analyser.merge()
     
     if args.split:
         analyser.split()
-        
+    
     analyser.analysing()
 
 
@@ -69,6 +78,12 @@ if __name__ == '__main__':
 
     # data config
     parser.add_argument(
+        "--language",
+        type=str,
+        default="python",
+        help="",
+    )
+    parser.add_argument(
         "--load_metadata",
         type=str,
         default=None,
@@ -86,8 +101,7 @@ if __name__ == '__main__':
     ) 
     parser.add_argument(
         "--is_file",
-        type=bool,
-        default=False,
+        action='store_true',
         help="Source data path is file or dir",
     )
     
@@ -95,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--core",
         type=int,
-        default=1,
+        default=0,
         help="How many processor to use (-1 if for all)",
     )
     
@@ -104,5 +118,12 @@ if __name__ == '__main__':
     if args.core == -1:
         args.core = multiprocessing.cpu_count()
     multiprocessing.set_start_method("fork")
-    analysis(args)
     
+    # run = neptune.init_run(project='nmd2000/AI4Code-Dataset')
+    # run["Languages"] = args.language
+    # run["Data path"] = args.data_path
+    # run["Core"] = args.core
+    
+    # args.tracker = run
+    analysis(args)
+    # run.stop()

@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import Levenshtein as lev
 
 from tree_sitter import Node
-from src.codetext.utils.parser.language_parser import tokenize_docstring, traverse_type
+from codetext.parser.language_parser import tokenize_docstring, traverse_type
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
 

@@ -48,25 +48,31 @@ class Analyser(AnalyserWarpper):
     
     def __init__(self, args) -> None:
         super().__init__(args)
+        # self.tracker = args.tracker
+        self.language = args.language
         self.is_file = args.is_file
         self.load_metadata = args.load_metadata
         list_file = []
         if not self.is_file:
             for i in os.listdir(self.data_path):
-                if i.endswith('.jsonl'): 
+                if i.endswith('.jsonl'):
                     list_file.append(os.path.join(self.data_path, i))
             self.list_file = list_file
 
         # TODO: add 'folk', 'star' and 'issue' as analysis factor 
-        self.keys = [ 'repo', 'code', 'docstring']
+        # self.keys = [ 'repo', 'code', 'docstring']
                     # 'attribute'] # folk, star, issue
 
         # 'repo_path', 'code' and 'docstring' is used for prevent data leak
         # 'code_length', 'description_length' and 'attribute' is used for
         # balanced spliting as splitting factor
-        self.columns = ['repo_path', 'code', 'docstring', \
-            '#code', '#docstring', '#comment', '#blank', \
-            '#len_code', '#len_docstring', '#len_comment', '#attribute']
+        #  'code', 'docstring', \
+            
+        # TODO: add id for sample
+        self.columns = ['repo_path', '#code_line', \
+            '#docstring_line', '#comment_line', '#blank_line', \
+            '#code_token', '#docstring_token', '#comment_token', '#attribute', \
+            '#alpha_char', '#digit_char', '#special_char']
         
     def merge(self) -> None:
         assert self.is_file != True
@@ -112,68 +118,81 @@ class Analyser(AnalyserWarpper):
                 with open(self.data_path, 'r') as json_file:
                     dataset = list(json_file)
 
-                index_list = range(len(dataset))
-                chunk_size = len(dataset)//self.core
-                jobs = [
-                    index_list[x:x+chunk_size] for x in range(0, len(dataset), chunk_size)]
-                jobs_list = []
-                logger.info(f"Analyzing {Path(self.data_path).name} in total {len(jobs)} processes")
-                for job_index in jobs:
-                    jobs_list.append([dataset, job_index])
-                    
             else:
                 # load into multiple process to read
                 dataset = []
-                jobs_list = self.list_file
-                logger.info(f"Found {len(jobs_list)} jsonl file to analysis")
-            
+                jobs = self.list_file
+                logger.info(f"Found {len(jobs)} jsonl file to analysis")
+
             # while reading, append sample's metadata to self.metadata
-            pool = multiprocessing.Pool(processes=self.core)
-            results = []
-            for result in pool.starmap(self.read_json, zip(repeat(dataset), jobs_list)):
-                results.extend(result)
+            if self.core != 0: # multiprocessing
+                index_list = range(len(dataset))
+                chunk_size = len(dataset)//self.core
+                jobs = [index_list[x:x+chunk_size] for x in range(0, len(dataset), chunk_size)]
+                logger.info(f"Analyzing {Path(self.data_path).name} in total {len(jobs)} processes")
+                
+                pool = multiprocessing.Pool(processes=self.core)
+                results = []
+                logger.info("Start processing with {} cores".format(self.core))
+                jobs_list = zip(repeat(dataset), jobs)
+                for result in pool.starmap(self.read_json, jobs_list):
+                    results.extend(result)
+                pool.close()
+                pool.join()
+                
+            # TODO: fix multiprocessing not parallel
+            else:
+                results = self.read_json(dataset, range(len(dataset)))
 
             logger.info(f"Export result to {self.save_path}")
             self.metadata = pd.DataFrame(results, columns=self.columns)
             
             # export summary to .csv
-            self.metadata.describe().to_csv(os.path.join(self.save_path, 'summary.csv'))
-            self.metadata.to_csv(os.path.join(self.save_path, 'analysis_results.csv'))
+            self.metadata.to_csv(os.path.join(self.save_path, 'analysis_results.csv'), index=False)
         
-        numberic_col = self.metadata.iloc[:, 3:].columns
+        # numberic_col = self.metadata.iloc[:, 3:].columns
         
-        self.export_boxplot(numberic_col, os.path.join(self.save_path, 'A.png'))
-        self.export_hist(numberic_col, os.path.join(self.save_path, 'B.png'))
+        # self.export_boxplot(numberic_col, os.path.join(self.save_path, 'A.png'))
+        # self.export_hist(numberic_col, os.path.join(self.save_path, 'B.png'))
+    
+    def summary(self):
+        save_path = os.path.join(self.save_path, 'summary.csv')
+        self.metadata.describe().to_csv(save_path)
+        # self.tracker[f'data_summary/{self.language}'].upload(save_path)
+        
     
     def read_json(self, dataset, task):
+        # from IPython import embed; embed()
         s = 'Analyzing '
         if not dataset:  # then read from path and processing
             assert type(task) == str
             assert os.path.isfile(task) == True
-            s += str('file: ' + Path(task).name)
+            s += str('file ' + Path(task).name)
             with open(task, 'r') as json_file:
                 dataset = list(json_file)
             task = range(len(dataset))
         else:
-            s += f'from main file: {task}'
+            s += f'from {task}'
         
         result = []
-        for idx in task:
+        for idx in tqdm(task, desc=s):
             data = dataset[idx]
             data = json.loads(data)
             
             meta = []
-            for key in self.keys:
+            code = str(data['code']).replace('|', '')
+            docstring = str(data['docstring']).replace('|', '')
+            
+            docstring_param = data['docstring_params']
+            comment_node = data['comment']
+            
+            for key in ['repo',]:
                 assert key in data.keys(), f'Missing `{key}` field'
                 if not data[key] or data[key] == '':
                     meta.append(None)
                 else:
-                    meta.append(str(data[key]).replace('|',''))
+                    meta.append(str(data[key]))
             
-            code = data['code']
-            docstring = data['docstring']
-            docstring_param = data['docstring_params']
-            comment_node = data['comment']
             
             # file's statistic
             code_line = 0
@@ -212,18 +231,35 @@ class Analyser(AnalyserWarpper):
             attribute = 0
             for key, val in docstring_param.items():
                 for item in val:
-                    if item['docstring'] != None:
+                    desc = item['docstring']
+                    if desc != None or desc == '':
                         attribute += 1
                         
-            # custom filter
-            if code_line > 500: continue
-            elif len_code > 1000: continue
+            alpha_char, digit_char, special_char = 0, 0, 0
+            for i in range(len(docstring)):
+                if docstring[i] == ' ': continue
+                if (docstring[i].isalpha()):  
+                    alpha_char += 1
+                elif (docstring[i].isdigit()):
+                    digit_char += 1
+                else: 
+                    special_char += 1
             
+            # if attribute >= 3:
+            #     with open('./docstring_log.txt', 'w') as file:
+            #         file.write('\n\n============\n')
+            #         file.write(docstring + '\n')
+            #         file.write(json.dumps(docstring_param))
             
-            # columns: '#code', '#docstring', '#comment', '#blank',
-            # '#len_code', '#len_docstring', '#len_comment', '#attribute'
-            meta.extend([code_line, docstring_line, comment_line, blank_line, \
-                        len_code, len_docstring, len_comment, attribute])
+            temp_meta = []
+            for item in [code_line, docstring_line, comment_line, blank_line, \
+                        len_code, len_docstring, len_comment, attribute, \
+                        alpha_char, digit_char, special_char]:
+                if item == 0:
+                    item = None
+                temp_meta.append(item)
+                    
+            meta.extend(temp_meta)
             result.append(meta)
         
         return result
@@ -256,3 +292,6 @@ class Analyser(AnalyserWarpper):
         plt.tight_layout()
             
         plt.savefig(save_path)
+
+if __name__ == '__main__':
+    pass

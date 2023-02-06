@@ -12,3 +12,4 @@ src/codetext.egg-info/*
 *.so
 *.whl
 
+/models
