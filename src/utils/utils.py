@@ -10,7 +10,7 @@ from tree_sitter import Language, Parser
 
 from codetext.utils import module_available
 from codetext.clean import remove_comment_delimiters
-from codetext.parser.language_parser import match_from_span, tokenize_code, tokenize_docstring
+from codetext.parser.language_parser import match_from_span, match_from_spans, tokenize_code, tokenize_docstring
 from src.utils.noise_removal.noise_removal import check_function, clean_docstring
 
 
@@ -267,7 +267,7 @@ def get_line_definitions(tree, blob: str, language_parser):
             if not comment_nodes:
                 continue
             
-            comment_metadata = {
+            general_metadata = {
                 'identifier': language_parser.get_function_metadata(function_node, blob)['identifier'],
                 'code': match_from_span(function_node, blob),
                 'code_tokens': tokenize_code(function_node, blob, comment_nodes),
@@ -276,55 +276,68 @@ def get_line_definitions(tree, blob: str, language_parser):
             fn_line_start = function_node.start_point[0]
                 
             for comment_node in comment_nodes:
-                _comment_metadata = comment_metadata.copy()
+                comment_metadata = general_metadata.copy()
                 
                 comments = [match_from_span(comment_node, blob)]
                 prev_node = comment_node.prev_sibling
                 next_node = comment_node.next_sibling
                 
-                _comment_metadata['prev_context'] = None
-                _comment_metadata['next_context'] = None
-                _comment_metadata['start_point'] = list(comment_node.start_point) #[0] - fn_line_start, comment_node.start_point[1]]
-                _comment_metadata['end_point'] = list(comment_node.end_point) #[0] - fn_line_start, comment_node.end_point[1]]
+                comment_metadata['prev_context'] = {}
+                comment_metadata['next_context'] = {}
+                comment_metadata['start_point'] = list(comment_node.start_point) #[0] - fn_line_start, comment_node.start_point[1]]
+                comment_metadata['end_point'] = list(comment_node.end_point) #[0] - fn_line_start, comment_node.end_point[1]]
                 
+                prev_context = []
                 if prev_node is not None:
                     while prev_node.type == 'comment':
                         comments.insert(0, match_from_span(prev_node, blob))
-                        _comment_metadata['start_point'] = list(prev_node.start_point)
-                        if prev_node.prev_sibling is None: 
-                            break
+                        comment_metadata['start_point'] = list(prev_node.start_point)
                         prev_node = prev_node.prev_sibling
 
                     # if not meet the open bracket
-                    if not prev_node.type == ":":
-                    # while prev_node is not None:
-                        _comment_metadata['prev_context'] = {
-                            'code': prev_node.text.decode(),
-                            'start_point': list(prev_node.start_point), #[0] - fn_line_start, prev_node.start_point[1]],
-                            'end_point': list(prev_node.end_point) # - fn_line_start, prev_node.end_point[1]]
-                        }
+                    while prev_node.type is not None:
+                        prev_context.insert(0, prev_node)
+                        prev_node = prev_node.prev_sibling
+                        if prev_node.type == 'comment':
+                            break
                 
+                if prev_context:
+                    code, start_point, end_point = match_from_spans(prev_context, blob)
+                    comment_metadata['next_context'] = {
+                        'code': code,
+                        'start_point': [start_point[0] - fn_line_start, start_point[1]],
+                        'end_point': [end_point[0] - fn_line_start, end_point[1]],
+                    }
+                
+                next_context = []
                 if next_node is not None:
                     while next_node.type == 'comment':
                         comments.append(match_from_span(next_node, blob))
-                        _comment_metadata['end_point'] = list(next_node.start_point)
-                        if next_node.next_sibling is None:
-                            break
+                        comment_metadata['end_point'] = list(next_node.start_point)
                         next_node = next_node.next_sibling    
                         
-                    if next_node.type == "block":
-                        next_node = next_node.children[0] if len(next_node.children) > 0 else None
+                    while next_node.type is not None:
+                        next_context.append(next_node)
+                        next_node = next_node.next_sibling    
+                        if next_node.type == 'comment':
+                            break
+
+                    # if next_node.type == "block":
+                    #     next_node = next_node.children[0] if len(next_node.children) > 0 else None
                     
                     # while not meet the other comment or not reach the end node
                     # keep appending
-                    _comment_metadata['next_context'] = {
-                        'code': next_node.text.decode(),
-                        'start_point': [next_node.start_point[0] - fn_line_start, next_node.start_point[1]],
-                        'end_point': [next_node.end_point[0] - fn_line_start, next_node.end_point[1]],
+                
+                if next_context:
+                    code, start_point, end_point = match_from_spans(next_context, blob)
+                    comment_metadata['next_context'] = {
+                        'code': code,
+                        'start_point': [start_point[0] - fn_line_start, start_point[1]],
+                        'end_point': [end_point[0] - fn_line_start, end_point[1]],
                     }
                 
-                _comment_metadata['start_point'][0] -= fn_line_start
-                _comment_metadata['end_point'][0] -= fn_line_start
+                comment_metadata['start_point'][0] -= fn_line_start
+                comment_metadata['end_point'][0] -= fn_line_start
                 
                 _cmt = '\n'.join(comments)
                 
@@ -333,11 +346,11 @@ def get_line_definitions(tree, blob: str, language_parser):
                 if comment == None:
                     continue
                 
-                _comment_metadata['original_comment'] = _cmt
-                _comment_metadata['comment'] = comment
-                _comment_metadata['comment_tokens'] = tokenize_docstring(comment)
+                comment_metadata['original_comment'] = _cmt
+                comment_metadata['comment'] = comment
+                comment_metadata['comment_tokens'] = tokenize_docstring(comment)
                 
-                yield _comment_metadata
+                yield comment_metadata
 
 
 def extract_node(metadata_list, language:str):

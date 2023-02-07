@@ -13,3 +13,4 @@ src/codetext.egg-info/*
 *.whl
 
 /models
+/.neptune/

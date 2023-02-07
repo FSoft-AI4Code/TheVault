@@ -51,10 +51,7 @@ build_language(language)
 # INFO:utils:Attempt to build Tree-sitter Language for rust and store in .../tree-sitter/rust.so
 ```
 
-## Language Parser
-We supported 10 programming languages, namely `Python`, `Java`, `JavaScript`, `Golang`, `Ruby`, `PHP`, `C#`, `C++`, `C` and `Rust`.
-
-Setup
+Parse code to `tree-sitter.Tree`
 ```python
 from codetext.utils import parse_code
 
@@ -71,39 +68,6 @@ double sum2num(int a, int b) {
 
 root = parse_code(raw_code, 'cpp')
 root_node = root.root_node
-```
-
-Get all function nodes inside a specific node, use:
-```python
-from codetext.utils.parser import CppParser
-
-function_list = CppParser.get_function_list(root_node)
-print(function_list)
-
-# [<Node type=function_definition, start_point=(6, 0), end_point=(8, 1)>]
-
-```
-
-Get function metadata (e.g. function's name, parameters, (optional) return type)
-```python
-function = function_list[0]
-
-metadata = CppParser.get_function_metadata(function, raw_code)
-
-# {'identifier': 'sum2num', 'parameters': {'a': 'int', 'b': 'int'}, 'type': 'double'}
-```
-Get docstring (documentation) of a function
-```python
-docstring = CppParser.get_docstring(function, code_sample)
-
-# ['Sum of 2 number \n@param a int number \n@param b int number']
-```
-
-We also provide 2 command for extract class object
-```python
-class_list = CppParser.get_class_list(root_node)
-# and
-metadata = CppParser.get_metadata_list(root_node)
 ```
 
 # Data collection and Preprocessing
@@ -128,7 +92,28 @@ python -m codetext.processing
 --n_core -1  # number of multiple processor (default to 1) (-1 == using all core)
 ```
 
-*NOTES:*  <DATASET_PATH> dir must contains raw data store in `.jsonl` extension if you pass argument `--load_from_file` or contains huggingface dataset's 
+Arguments list:
+```
+positional arguments:
+  data_path             data folder contain file.jsonl or huggingface dataset cache
+
+options:
+  -h, --help            show this help message and exit
+  --save_path SAVE_PATH
+                        Processed data save path
+  --level LEVEL         Extract function/class/inline level or all
+  --language LANGUAGE   Declare processing language (e.g: Python, Java)
+  --data_format DATA_FORMAT
+                        Path to file .yaml contains data format
+  --load_from_file      Load from .json or .jsonl
+  --cons_from_raw       Continues from raw .jsonl (pass folder path to data)
+  --raw_only
+  --filtered_only
+  --extracted_only
+  --n_split N_SPLIT     Split all the raw data into N file and feed into process pool
+  --n_core N_CORE       Number of maximum process to create
+  --debug
+```
 
 ### Analyse and split dataset
 The code process is going to save cleaned sample by batch, you can merge it using `postprocess.py`. We also provide analyse tool for get total number of sample, blank_line(\*), comment(\*) and code(\*). You can also split your dataset into `train`, `valid`, `test`.
@@ -145,4 +130,26 @@ python -m codetext.postprocessing
 --max_sample 20000  # Max size of test set and valid set
 ```
 
-*NOTES:* (\*) We run `cloc` underneath the program to count blank, comment and code. See more [github.com/AlDanial/cloc](github.com/AlDanial/cloc)
+Arguments list:
+```
+positional arguments:
+  data_path             root folder contains .jsonl or file .jsonl itself
+
+options:
+  -h, --help            show this help message and exit
+  --save_path SAVE_PATH
+                        Save path
+  --raw                 Analysis raw parallel set
+  --summary
+  --split_factor SPLIT_FACTOR
+                        Consider factor when splitting, e.g. 'attribute,comment_length'
+  --merge               Merge all .jsonl to 1 individual .jsonl
+  --deduplicate_factor DEDUPLICATE_FACTOR
+                        Consider factor when splitting, e.g. 'attribute,code_length'
+  --language LANGUAGE
+  --load_metadata LOAD_METADATA
+  --split
+  --deduplicate         Deduplicate
+  --is_file             Source data path is file or dir
+  --core CORE           How many processor to use (-1 if for all)
+```
