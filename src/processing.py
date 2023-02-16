@@ -73,13 +73,12 @@ def main(opt):
         args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
     logger.info("Total %i processes" % len(args))
     
-    if opt.debug:
-    # # for debuging
+    res = []
+    if opt.debug: # for debuging
         processing(dataset, jobs_list[0], opt)
     else:
         executor = multiprocessing.Pool(n_worker)
         # executor.starmap(processing, args)
-        res = []
         for result in tqdm(executor.starmap(processing, args), total=len(args)):
             res.append(result)
     
