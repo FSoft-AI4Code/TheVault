@@ -51,15 +51,15 @@ def main(opt):
 
     else:
         logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
-        dataset = load_dataset("codeparrot/github-code", languages=[opt.language], split='train', cache_dir=opt.data_path)
+        dataset = load_dataset("bigcode/the-stack-dedup", data_dir=f"data/{opt.language}", split='train', cache_dir=opt.data_path)
     logger.info("Load dataset done. Number of sample: %i ============" % len(dataset))
 
-    
+
     # start_executor(dataset, language, save_path, split, is_file)
     logger.info("============ Start multiprocessing using %i worker ============" % n_worker)
     
     # split dataset
-    dataset_size = len(dataset)
+    dataset_size = opt.n_sample if opt.n_sample else len(dataset)
     index_list = range(dataset_size)
     chunk_size = dataset_size//opt.n_split
     if opt.cons_from_raw:
@@ -85,7 +85,7 @@ def main(opt):
     
     res = [sum(x) for x in zip(*res)]
     finish = time.perf_counter()
-    logger.info("============ Processing done, finished in %.3f seconds ============" % (finish - start))
+    logger.info("\n\n============ Processing done, finished in %.3f seconds ============" % (finish - start))
     logger.info("Level {}: Total Raw {} | Filterable {} | Extractable {} \n".format(opt.level, *res))
 
 
@@ -135,9 +135,10 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
         raise ValueError(f'Language {language} not supported')
     
     t_start = time.perf_counter()
-    raw_path = os.path.join(opt.save_path, 'raw')
-    filtered_path = os.path.join(opt.save_path, 'filtered')
-    extracted_path = os.path.join(opt.save_path, 'extracted')
+    save_path = os.path.join(opt.save_path, opt.level)
+    raw_path = os.path.join(save_path, 'raw')
+    filtered_path = os.path.join(save_path, 'filtered')
+    extracted_path = os.path.join(save_path, 'extracted')
     
     for path in [raw_path, filtered_path, extracted_path]:
         os.makedirs(path, exist_ok = True)
@@ -146,13 +147,14 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
     
     t_finish = time.perf_counter()
     
-    logger.info("Saved batch %i | Processing took %.3f s" % (idx, t_finish - t_start))
+    logger.info("Saved batch %i | Processing took %.3f s\n" % (idx, t_finish - t_start))
     
     return list_res
 
 
 def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):    
-    raw_set, filtered_set, extracted_set = [], [], []
+    raw_set, filtered_set, extracted_set = [], [], [] 
+    logger.info('====== Start batch {} ======'.format(thread_idx))
     
     if opt.cons_from_raw:
         with open(dataset[indexs[0]], 'r') as file:
@@ -178,7 +180,7 @@ def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):
         # Additional content
         for key in data_format.keys():
             if key not in ['code', 'repo', 'path', 'language']:
-                metadata_data[key] = data[key]
+                metadata_data[key] = data[data_format[key]]
         
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
@@ -216,7 +218,6 @@ def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):
         
     # Saving
     save_path = os.path.join(opt.save_path, opt.level)
-    os.makedirs(save_path, exist_ok=True)
     raw_path = os.path.join(save_path, 'raw')
     filtered_path = os.path.join(save_path, 'filtered')
     extracted_path = os.path.join(save_path, 'extracted')
@@ -227,7 +228,7 @@ def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):
     
     res = [len(raw_set), len(filtered_set), len(extracted_set)]
     msg = '====== End of batch {} ====== \n'.format(thread_idx) + \
-        'Level {}: Total Raw {} | Filterable {} | Extractable {} \n'.format(opt.level, *res)
+        'Level {}: Total Raw {} | Filterable {} | Extractable {}'.format(opt.level, *res)
     
     logger.info(msg)
     return res
@@ -269,6 +270,12 @@ if __name__ == '__main__':
         '--load_from_file', 
         action='store_true',
         help='Load from .json or .jsonl'
+    )
+    parser.add_argument(
+        '--n_sample', 
+        type=int,
+        default=None,
+        help='Total number of extracting'
     )
     parser.add_argument(
         '--cons_from_raw', 

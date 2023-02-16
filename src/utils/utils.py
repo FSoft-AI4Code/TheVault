@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Union
 
+import nltk
 import tree_sitter
 from tree_sitter import Language, Parser
 
@@ -115,6 +116,26 @@ def parse_code(raw_code: str, language: str='Auto') -> tree_sitter.Tree:
         raise ValueError(f"Expect `str`, got {type(raw_code)}")
 
 
+def get_first_sentence(paragraph):
+    """
+    Returns the first sentence of a given paragraph of text.
+    """
+    nltk.download('punkt')
+    # Tokenize the paragraph into sentences
+    paragraph = remove_comment_delimiters(paragraph)
+    first_para = paragraph.split('\n\n')[0]
+    
+    sentences = nltk.sent_tokenize(first_para)
+    
+    # Iterate over the sentences to find the first one that is not empty
+    for sentence in sentences:
+        if len(sentence.strip()) > 0:
+            return sentence.strip()
+    
+    # If all sentences are empty, return an empty string
+    return ''
+
+
 def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False):
     """
     Process all extractable functions or class
@@ -161,7 +182,6 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             continue
     
     for function, fn_metadata in outputs:
-        # TODO: get class name to compare if function is class's constructor
         try:
             comment_nodes = language_parser.get_comment_node(function)
             docstring_node = language_parser.get_docstring_node(function)
@@ -177,6 +197,21 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             code_tokens = tokenize_code(function, blob, exclude_node)
             
             comment_list = [match_from_span(cmt, blob) for cmt in comment_nodes]
+            
+            # Check length after remove all comment node inside
+            code_remove_comment = ''
+            for line in str(code).splitlines():
+                include = False
+                for cline in comment_list:
+                    if cline in line:
+                        include = True
+                if not include:
+                    code_remove_comment += f'\n{line}'
+
+            code_remove_comment_line = sum([1 if line != '' else 0 \
+                for line in str(code_remove_comment).splitlines()])
+            if code_remove_comment_line < 3:
+                continue
 
         except Exception:
             continue
@@ -240,7 +275,7 @@ def get_node_definitions(metadata: List) -> List:
         yield node_metadata
         
 
-def get_line_definitions(tree, blob: str, language_parser):
+def get_line_definitions(tree, blob: str, language_parser, source_metadata):
         """
         Process all extractable functions or class
         Args:
@@ -267,14 +302,17 @@ def get_line_definitions(tree, blob: str, language_parser):
             if not comment_nodes:
                 continue
             
-            general_metadata = {
+            
+            general_metadata = source_metadata
+            general_metadata.update({
                 'identifier': language_parser.get_function_metadata(function_node, blob)['identifier'],
                 'code': match_from_span(function_node, blob),
                 'code_tokens': tokenize_code(function_node, blob, comment_nodes),
-            }
+            })
             
             fn_line_start = function_node.start_point[0]
-                
+            
+            # remove duplicate sample then extract
             for comment_node in comment_nodes:
                 comment_metadata = general_metadata.copy()
                 
@@ -288,52 +326,59 @@ def get_line_definitions(tree, blob: str, language_parser):
                 comment_metadata['end_point'] = list(comment_node.end_point) #[0] - fn_line_start, comment_node.end_point[1]]
                 
                 prev_context = []
-                if prev_node is not None:
-                    while prev_node.type == 'comment':
-                        comments.insert(0, match_from_span(prev_node, blob))
-                        comment_metadata['start_point'] = list(prev_node.start_point)
-                        prev_node = prev_node.prev_sibling
+                if prev_node:
+                    # check if prev_node is comment to append comment list
+                    # while prev_node.type == 'comment':
+                    #     comments.insert(0, match_from_span(prev_node, blob))
+                    #     comment_metadata['start_point'] = list(prev_node.start_point)
+                    #     prev_node = prev_node.prev_sibling
+                    #     if not prev_node:
+                    #         break
+                    if prev_node.type == 'comment':
+                        continue
 
                     # if not meet the open bracket
-                    while prev_node.type is not None:
+                    while prev_node:
                         prev_context.insert(0, prev_node)
                         prev_node = prev_node.prev_sibling
-                        if prev_node.type == 'comment':
+                        if not prev_node:
+                            break
+                        elif prev_node.type == 'comment':
                             break
                 
                 if prev_context:
-                    code, start_point, end_point = match_from_spans(prev_context, blob)
-                    comment_metadata['next_context'] = {
+                    code, top, bottom = match_from_spans(prev_context, blob)
+                    comment_metadata['prev_context'] = {
                         'code': code,
-                        'start_point': [start_point[0] - fn_line_start, start_point[1]],
-                        'end_point': [end_point[0] - fn_line_start, end_point[1]],
+                        'start_point': [top.start_point[0] - fn_line_start, top.start_point[1]],
+                        'end_point': [bottom.end_point[0] - fn_line_start, bottom.end_point[1]],
                     }
                 
                 next_context = []
-                if next_node is not None:
+                if next_node:
                     while next_node.type == 'comment':
                         comments.append(match_from_span(next_node, blob))
                         comment_metadata['end_point'] = list(next_node.start_point)
                         next_node = next_node.next_sibling    
-                        
-                    while next_node.type is not None:
-                        next_context.append(next_node)
-                        next_node = next_node.next_sibling    
-                        if next_node.type == 'comment':
+                        if not next_node:
                             break
-
-                    # if next_node.type == "block":
-                    #     next_node = next_node.children[0] if len(next_node.children) > 0 else None
-                    
+                        
                     # while not meet the other comment or not reach the end node
                     # keep appending
-                
+                    while next_node:
+                        next_context.append(next_node)
+                        next_node = next_node.next_sibling
+                        if not next_node:
+                            break 
+                        elif next_node.type == 'comment':
+                            break
+                    
                 if next_context:
-                    code, start_point, end_point = match_from_spans(next_context, blob)
+                    code, top, bottom = match_from_spans(next_context, blob)
                     comment_metadata['next_context'] = {
                         'code': code,
-                        'start_point': [start_point[0] - fn_line_start, start_point[1]],
-                        'end_point': [end_point[0] - fn_line_start, end_point[1]],
+                        'start_point': [top.start_point[0] - fn_line_start, top.start_point[1]],
+                        'end_point': [bottom.end_point[0] - fn_line_start, bottom.end_point[1]],
                     }
                 
                 comment_metadata['start_point'][0] -= fn_line_start
@@ -398,11 +443,11 @@ def extract_node(metadata_list, language:str):
         extracted_res = extract_docstring(docstring, metadata['parameters'], language)
         if not extracted_res:  # extract fail
             continue
-        if extracted_res['docstring'] == '':
+        if extracted_res['docstring'] == '' or not extracted_res['docstring']:
             continue
         output_metadata.update(extracted_res)
         
-        if not check_output(output_metadata):
+        if not check_fn_cls_output(output_metadata):
             fail_count += 1
             continue
             
@@ -412,7 +457,7 @@ def extract_node(metadata_list, language:str):
         logger.info('Failed to extract {} sample'.format(fail_count))
 
 
-def check_output(output):
+def check_fn_cls_output(output):
     """Output assertion
     
     Check if:
@@ -420,6 +465,50 @@ def check_output(output):
         - 'type' is not null (with C/C++, Java, C# only)
         - 'docstring_param' not contain null docstring
     """
+    importance_keys = ['repo', 'path', 'license', 'identifier', 'language', 'code', \
+                        'code_tokens', 'comment', 'docstring', 'docstring_tokens', \
+                        'docstring_params', 'parameters', 'short_docstring']
+    for key in importance_keys:
+        assert key in output.keys(), f'Missing {key}'
+    assert type(output['repo']) == str, f"Expect str but got {type(output['repo'])}"
+    assert type(output['path']) == str, f"Expect str but got {type(output['path'])}"
+    assert type(output['language']) == str, f"Expect str but got {type(output['language'])}"
+    assert type(output['parameters']) == dict, f"Expect Dict but got {type(output['parameters'])}"
+    assert type(output['code']) == str, f"Expect str but got {type(output['code'])}"
+    assert type(output['code_tokens']) == list, f"Expect List but got {type(output['code_tokens'])}"
+    assert type(output['docstring']) == str, f"Expect str but got {type(output['docstring'])}"
+    assert type(output['short_docstring']) == str, f"Expect str but got {type(output['short_docstring'])}"
+    assert type(output['short_docstring_tokens']) == list, f"Expect List but got {type(output['short_docstring_tokens'])}"
+    assert type(output['docstring_tokens']) == list, f"Expect List but got {type(output['docstring_tokens'])}"
+    assert type(output['docstring_params']) == dict, f"Expect Dict but got {type    (output['docstring_params'])}"
+    assert output['docstring'] != ''
+    assert output['code'] != ''
+    
+    
+    # TODO: add this filter to the post-processing
+    
+    # code_line = 0
+    # code = output['code']
+    # docstring = output['docstring']
+    # comment_node = output['comment']
+    # for line in str(code).splitlines():
+    #     line = remove_comment_delimiters(line.strip())
+    #     if line != '':
+    #         if not line in comment_node:
+    #             code_line += 1
+    
+    # non_blank_docline = [1 if line != '' else 0 \
+    #     for line in str(docstring).splitlines()]
+    # docstring_line = sum(non_blank_docline)
+    
+    # if code_line > 150: return False
+    # if docstring_line > 50: return False
+    # if len(output['code_tokens']) > 1000: return False
+    # if len(output['code_tokens']) < 5: return False
+    # if len(output['docstring_tokens']) < 5: return False
+    # if len(output['docstring_tokens']) > 500: return False
+    return True
+
 
 def extract_docstring(docstring: str, parameter_list: Union[List, Dict], language: str) -> Dict[str, Any]:
     """Extract docstring into parameter docstring
@@ -503,8 +592,11 @@ def extract_docstring(docstring: str, parameter_list: Union[List, Dict], languag
         new_docstring += '\n' + extract_docstring.long_description
         
     # change clean_comment -> clean_docstring
+    short_docstring = get_first_sentence(new_docstring)
     new_docstring = clean_docstring(new_docstring)
+    metadata['short_docstring'] = short_docstring
     metadata['docstring'] = new_docstring
+    metadata['short_docstring_tokens'] = tokenize_docstring(short_docstring)
     metadata['docstring_tokens'] = tokenize_docstring(new_docstring)
     
     visited = []

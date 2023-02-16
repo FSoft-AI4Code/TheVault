@@ -11,6 +11,7 @@ import Levenshtein as lev
 
 from tree_sitter import Node
 from codetext.parser.language_parser import tokenize_docstring, traverse_type
+from codetext.clean import remove_comment_delimiters
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
 
@@ -85,20 +86,6 @@ def get_node_length(node: Node) -> int:
     line_start = node.start_point[0]
     line_end = node.end_point[0]
     return int(line_end - line_start)
-    
-    
-def remove_comment_delimiters(docstring: str) -> str:
-    """
-    :param comment: raw (line or block) comment
-    :return: list of comment lines
-    """
-    clean_p1 = re.compile('([\s\/*=-]+)$|^([\s\/*!=-]+)', re.MULTILINE)
-    
-    new_docstring = []
-    for line in docstring.split('\n'):
-        new_docstring.append(re.sub(clean_p1, '', line, 0))
-
-    return '\n'.join(new_docstring)
 
 
 def remove_special_tag(docstring: str) -> str:
@@ -404,6 +391,7 @@ def check_black_node(node_name: str, exclude_list: List = None):
 
 
 def check_function_empty(node):
+    #TODO: iterate all children of the code and check if != comment
     if get_node_length(node) <= 3:
         return True
     return False

@@ -68,10 +68,10 @@ class Analyser(AnalyserWarpper):
         # balanced spliting as splitting factor
         #  'code', 'docstring', \
             
-        # TODO: add id for sample
+        # TODO: add id for sample '#attribute',
         self.columns = ['repo_path', '#code_line', \
             '#docstring_line', '#comment_line', '#blank_line', \
-            '#code_token', '#docstring_token', '#comment_token', '#attribute', \
+            '#code_token', '#docstring_token', '#comment_token',  \
             '#alpha_char', '#digit_char', '#special_char']
         
     def merge(self) -> None:
@@ -183,7 +183,8 @@ class Analyser(AnalyserWarpper):
             code = str(data['code']).replace('|', '')
             docstring = str(data['docstring']).replace('|', '')
             
-            docstring_param = data['docstring_params']
+            # docstring_param = data['docstring_params']
+            docstring_param = {}
             comment_node = data['comment']
             
             for key in ['repo',]:
@@ -211,8 +212,8 @@ class Analyser(AnalyserWarpper):
                 if line == '':
                     blank_line += 1
                 else:
+                    line = remove_comment_delimiters(line)
                     if line in comment_node:
-                        line = remove_comment_delimiters(line)
                         if line != '': 
                             comment_line += 1
                             len_comment += len(tokenize_docstring(line))
@@ -252,8 +253,9 @@ class Analyser(AnalyserWarpper):
             #         file.write(json.dumps(docstring_param))
             
             temp_meta = []
+            # attribute,
             for item in [code_line, docstring_line, comment_line, blank_line, \
-                        len_code, len_docstring, len_comment, attribute, \
+                        len_code, len_docstring, len_comment,  \
                         alpha_char, digit_char, special_char]:
                 if item == 0:
                     item = None

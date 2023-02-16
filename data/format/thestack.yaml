@@ -1,0 +1,18 @@
+# The Stack's format
+# https://huggingface.co/datasets/bigcode/the-stack
+
+# Main content
+code: content
+repo: max_stars_repo_name
+path: max_stars_repo_path
+language: lang
+
+# Additional content
+stars_count: max_stars_count
+issues_count: max_issues_count
+forks_count: max_forks_count
+license: max_stars_repo_licenses
+hexsha: hexsha
+ext: ext
+size: size
+
