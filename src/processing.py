@@ -51,7 +51,7 @@ def main(opt):
 
     else:
         logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
-        dataset = load_dataset("bigcode/the-stack-dedup", data_dir=f"data/{opt.language}", split='train', cache_dir=opt.data_path)
+        dataset = load_dataset("bigcode/the-stack-dedup", data_dir=f"data/{opt.language.replace('_', '-')}", split='train', cache_dir=opt.data_path)
     logger.info("Load dataset done. Number of sample: %i ============" % len(dataset))
 
 
@@ -153,7 +153,7 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
 
 def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):    
     raw_set, filtered_set, extracted_set = [], [], [] 
-    logger.info('====== Start batch {} ======'.format(thread_idx))
+    # logger.info('====== Start batch {} ======'.format(thread_idx))
     
     if opt.cons_from_raw:
         with open(dataset[indexs[0]], 'r') as file:
@@ -191,13 +191,15 @@ def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):
 
         if opt.level == 'function':
             raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
+            raw_set.extend(raw_fn)
+            if opt.raw_only:
+                continue
             filtered_fn_list = list(get_node_definitions(raw_fn))
             if str(language).lower() == 'go':
                 extracted_function_list = filtered_fn_list
             else:
                 extracted_function_list = list(extract_node(filtered_fn_list, language))
             
-            raw_set.extend(raw_fn)
             filtered_set.extend(filtered_fn_list)
             extracted_set.extend(extracted_function_list)
 

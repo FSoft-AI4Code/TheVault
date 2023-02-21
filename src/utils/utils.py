@@ -120,7 +120,6 @@ def get_first_sentence(paragraph):
     """
     Returns the first sentence of a given paragraph of text.
     """
-    nltk.download('punkt')
     # Tokenize the paragraph into sentences
     paragraph = remove_comment_delimiters(paragraph)
     first_para = paragraph.split('\n\n')[0]
@@ -169,9 +168,9 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
     for function in node_list:
         try:
             if is_class:
-                fn_metadata = language_parser.get_class_metadata(function, blob)
+                fn_metadata = language_parser.get_class_metadata(function)
             else:
-                fn_metadata = language_parser.get_function_metadata(function, blob)
+                fn_metadata = language_parser.get_function_metadata(function)
 
             if check_function(function, fn_metadata, language_parser.BLACKLISTED_FUNCTION_NAMES, is_class=is_class):
                 outputs.append([function, fn_metadata])
@@ -192,7 +191,7 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             if comment_nodes:
                 exclude_node.extend(comment_nodes)
             
-            docstring = language_parser.get_docstring(function, blob)
+            docstring = language_parser.get_docstring(function)
             code = match_from_span(function, blob)
             code_tokens = tokenize_code(function, blob, exclude_node)
             
@@ -305,7 +304,7 @@ def get_line_definitions(tree, blob: str, language_parser, source_metadata):
             
             general_metadata = source_metadata
             general_metadata.update({
-                'identifier': language_parser.get_function_metadata(function_node, blob)['identifier'],
+                'identifier': language_parser.get_function_metadata(function_node)['identifier'],
                 'code': match_from_span(function_node, blob),
                 'code_tokens': tokenize_code(function_node, blob, comment_nodes),
             })

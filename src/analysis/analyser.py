@@ -58,6 +58,7 @@ class Analyser(AnalyserWarpper):
                 if i.endswith('.jsonl'):
                     list_file.append(os.path.join(self.data_path, i))
             self.list_file = list_file
+            logger.info(f'List file have {len(list_file)} files')
 
         # TODO: add 'folk', 'star' and 'issue' as analysis factor 
         # self.keys = [ 'repo', 'code', 'docstring']
@@ -94,7 +95,7 @@ class Analyser(AnalyserWarpper):
         with open(file, 'r') as json_file:
             dataset = list(json_file)
 
-        with open(save_path, 'a') as output_file:
+        with open(os.path.join(save_path, 'python_merged_data.jsonl'), 'a') as output_file:
             for idx, data in enumerate(dataset):
                 try:
                     data = json.loads(data)

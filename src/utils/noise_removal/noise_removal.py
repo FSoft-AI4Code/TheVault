@@ -12,7 +12,7 @@ import Levenshtein as lev
 from tree_sitter import Node
 from codetext.parser.language_parser import tokenize_docstring, traverse_type
 from codetext.clean import remove_comment_delimiters
-warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
+warnings.filterwarnings("ignore", module='BeautifulSoup')
 
 
 REGEX_TEXT = ("(?<=[a-z0-9])(?=[A-Z])|"
