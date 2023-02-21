@@ -10,3 +10,6 @@ bs4
 
 # for post-processing
 cloc
+
+# parser
+codetext

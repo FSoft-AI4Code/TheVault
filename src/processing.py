@@ -11,18 +11,12 @@ import multiprocessing
 
 from datasets import load_dataset
 from tree_sitter import Parser, Language
-from src.codetext.utils.logger import create_logger
 
-from src.codetext.utils.parser.go_parser import GoParser
-from src.codetext.utils.parser.cpp_parser import CppParser
-from src.codetext.utils.parser.php_parser import PhpParser
-from src.codetext.utils.parser.rust_parser import RustParser
-from src.codetext.utils.parser.ruby_parser import RubyParser
-from src.codetext.utils.parser.java_parser import JavaParser
-from src.codetext.utils.parser.python_parser import PythonParser
-from src.codetext.utils.parser.c_sharp_parser import CsharpParser
-from src.codetext.utils.parser.javascript_parser import JavascriptParser
-from src.codetext.utils.utils import build_language, extract_node, get_line_definitions, get_node_definitions, process_raw_node, write_jsonl
+from codetext.parser import *
+from codetext.utils import build_language
+from src.utils.logger import create_logger
+from src.utils import extract_node, get_line_definitions,\
+    get_node_definitions, process_raw_node, write_jsonl
 
 
 ROOT_PATH = str(Path(__file__).parents[1])
@@ -54,25 +48,18 @@ def main(opt):
         logger.info("============ Load dataset from dir %s ... ============" % opt.data_path)
         assert os.path.exists(opt.data_path) and os.path.isdir(opt.data_path)
         dataset = [os.path.join(opt.data_path, item) for item in os.listdir(opt.data_path)]
-        # for file in tqdm(filelist):
-        #     with open(os.path.join(opt.data_path, file), 'r') as json_file:
-        #         dataset.extend(json_file)
 
-        # executor = multiprocessing.Pool(n_worker)
-        # for res in executor.starmap(load_json, filelist):
-        #     dataset.extend(res)
-        # dataset = list(dataset)
     else:
         logger.info("============ Load dataset from HuggingFace %s ... ============" % opt.data_path)
-        dataset = load_dataset("codeparrot/github-code", languages=[opt.language], split='train', cache_dir=opt.data_path)
+        dataset = load_dataset("bigcode/the-stack-dedup", data_dir=f"data/{opt.language.replace('_', '-')}", split='train', cache_dir=opt.data_path)
     logger.info("Load dataset done. Number of sample: %i ============" % len(dataset))
 
-    
+
     # start_executor(dataset, language, save_path, split, is_file)
     logger.info("============ Start multiprocessing using %i worker ============" % n_worker)
     
     # split dataset
-    dataset_size = len(dataset)
+    dataset_size = opt.n_sample if opt.n_sample else len(dataset)
     index_list = range(dataset_size)
     chunk_size = dataset_size//opt.n_split
     if opt.cons_from_raw:
@@ -86,15 +73,20 @@ def main(opt):
         args.append([dataset, job_index, opt, idx]) # opt.language, opt.save_path, idx, is_file])
     logger.info("Total %i processes" % len(args))
     
-    executor = multiprocessing.Pool(n_worker)
-    executor.starmap(processing, args)
-
-    # # for debuging
-    # processing(dataset, jobs_list[0], opt)
+    res = []
+    if opt.debug: # for debuging
+        processing(dataset, jobs_list[0], opt)
+    else:
+        executor = multiprocessing.Pool(n_worker)
+        # executor.starmap(processing, args)
+        for result in tqdm(executor.starmap(processing, args), total=len(args)):
+            res.append(result)
     
+    res = [sum(x) for x in zip(*res)]
     finish = time.perf_counter()
-    logger.info("============ Processing done, finished in %.3f seconds ============" % (finish - start))
-    
+    logger.info("\n\n============ Processing done, finished in %.3f seconds ============" % (finish - start))
+    logger.info("Level {}: Total Raw {} | Filterable {} | Extractable {} \n".format(opt.level, *res))
+
 
 def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, is_file=None):
     # setup language parser
@@ -142,26 +134,26 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
         raise ValueError(f'Language {language} not supported')
     
     t_start = time.perf_counter()
-    raw_path = os.path.join(opt.save_path, 'raw')
-    filtered_path = os.path.join(opt.save_path, 'filtered')
-    extracted_path = os.path.join(opt.save_path, 'extracted')
+    save_path = os.path.join(opt.save_path, opt.level)
+    raw_path = os.path.join(save_path, 'raw')
+    filtered_path = os.path.join(save_path, 'filtered')
+    extracted_path = os.path.join(save_path, 'extracted')
     
     for path in [raw_path, filtered_path, extracted_path]:
         os.makedirs(path, exist_ok = True)
 
-    list_res = _processing(dataset, job_index, ast_parser, language_parser, idx, opt)
+    list_res = extracting(dataset, job_index, ast_parser, language_parser, idx, opt)
     
     t_finish = time.perf_counter()
     
-    logger.info("Saved batch %i | Processing took %.3f s" % (idx, t_finish - t_start))
+    logger.info("Saved batch %i | Processing took %.3f s\n" % (idx, t_finish - t_start))
     
     return list_res
 
 
-def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=None):
-    raw_function_set, raw_class_set, raw_line_set = [], [], []
-    filtered_function_set, filtered_class_set = [], []
-    extracted_function_set, extracted_class_set = [], []
+def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):    
+    raw_set, filtered_set, extracted_set = [], [], [] 
+    # logger.info('====== Start batch {} ======'.format(thread_idx))
     
     if opt.cons_from_raw:
         with open(dataset[indexs[0]], 'r') as file:
@@ -187,72 +179,59 @@ def _processing(dataset, indexs, ast, lang_parser, thread_idx, opt): # is_file=N
         # Additional content
         for key in data_format.keys():
             if key not in ['code', 'repo', 'path', 'language']:
-                metadata_data[key] = data[key]
+                metadata_data[key] = data[data_format[key]]
         
         raw_code = data[data_format["code"]]
         tree = ast.parse(bytes(raw_code, "utf8"))
-    
-        raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
 
         # try:
         # Extract function
         if opt.cons_from_raw:
             raw_fn = [data]
+
+        if opt.level == 'function':
+            raw_fn = list(process_raw_node(tree, raw_code, lang_parser, metadata_data))
+            raw_set.extend(raw_fn)
+            if opt.raw_only:
+                continue
+            filtered_fn_list = list(get_node_definitions(raw_fn))
+            if str(language).lower() == 'go':
+                extracted_function_list = filtered_fn_list
+            else:
+                extracted_function_list = list(extract_node(filtered_fn_list, language))
+            
+            filtered_set.extend(filtered_fn_list)
+            extracted_set.extend(extracted_function_list)
+
+        elif opt.level == 'class':
+            if not str(language).lower() in ['go', 'c']:
+                raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
+                filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+                extracted_class_list = list(extract_node(filtered_class_list, language))
+            
+                raw_set.extend(raw_class)    
+                filtered_set.extend(filtered_class_list)
+                extracted_set.extend(extracted_class_list)
         
-        filtered_fn_list = list(get_node_definitions(raw_fn))
-        extracted_function_list = list(extract_node(filtered_fn_list, language))
+        elif opt.level == 'inline':
+            raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
+            extracted_set.extend(raw_line)
         
-        # For saving
-        raw_function_set.extend(raw_fn)
-        filtered_function_set.extend(filtered_fn_list)
-        extracted_function_set.extend(extracted_function_list)
-        
-        # # Extract line
-        # raw_line = list(get_line_definitions(tree, raw_code, lang_parser, metadata_data))
-        # raw_line_set.extend(raw_line)
-        
-        # # Extract class
-        # if not (language == 'GO' or language == 'C'):
-        #     raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
-        #     filtered_class_list = list(get_node_definitions(raw_class, raw_code))
-        #     extracted_class_list = list(extract_node(filtered_class_list, language))
-        
-        #     raw_class_set.extend(raw_class)    
-        #     filtered_class_set.extend(filtered_class_list)
-        #     extracted_class_set.extend(extracted_class_list)
-        # except Exception:
-        #     continue
-        
+    # Saving
+    save_path = os.path.join(opt.save_path, opt.level)
+    raw_path = os.path.join(save_path, 'raw')
+    filtered_path = os.path.join(save_path, 'filtered')
+    extracted_path = os.path.join(save_path, 'extracted')
     
-    raw_path = os.path.join(opt.save_path, 'raw')
-    filtered_path = os.path.join(opt.save_path, 'filtered')
-    extracted_path = os.path.join(opt.save_path, 'extracted')
+    write_jsonl(raw_set, os.path.join(raw_path, f'batch_{thread_idx}_{opt.level}.jsonl'))
+    write_jsonl(filtered_set, os.path.join(filtered_path, f'batch_{thread_idx}_{opt.level}.jsonl'))
+    write_jsonl(extracted_set, os.path.join(extracted_path, f'batch_{thread_idx}_{opt.level}.jsonl'))
     
-    # write_jsonl(raw_function_set, os.path.join(raw_path, f'batch_{thread_idx}_function_data.jsonl'))
-    # write_jsonl(raw_class_set, os.path.join(raw_path, f'batch_{thread_idx}_class_data.jsonl'))
-    # write_jsonl(raw_line_set, os.path.join(raw_path, f'batch_{thread_idx}_line_data.jsonl'))
+    res = [len(raw_set), len(filtered_set), len(extracted_set)]
+    msg = '====== End of batch {} ====== \n'.format(thread_idx) + \
+        'Level {}: Total Raw {} | Filterable {} | Extractable {}'.format(opt.level, *res)
     
-    write_jsonl(filtered_function_set, os.path.join(filtered_path, f'batch_{thread_idx}_function_data.jsonl'))
-    # write_jsonl(filtered_class_set, os.path.join(filtered_path, f'batch_{thread_idx}_class_data.jsonl'))
-    
-    write_jsonl(extracted_function_set, os.path.join(extracted_path, f'batch_{thread_idx}_function_data.jsonl'))
-    # write_jsonl(extracted_class_set, os.path.join(extracted_path, f'batch_{thread_idx}_class_data.jsonl'))
-    
-    res = []
-    for item in [raw_function_set, raw_class_set, raw_line_set, \
-        filtered_function_set, filtered_class_set, \
-        extracted_function_set, extracted_class_set]:
-        
-        length = int(len(item))
-        res.append(length)
-    
-    logger.info(
-        f'End of batch {thread_idx} \n'
-        f'Total raw function {res[0]} | Total raw class {res[1]} | Total inline {res[2]} \n'
-        f'Total filterable function {res[3]} | Total filterable class {res[4]} \n'
-        f'Total extractable function {res[5]} | Total extractable class {res[6]} \n'
-    )
-    
+    logger.info(msg)
     return res
 
 
@@ -271,6 +250,12 @@ if __name__ == '__main__':
     
     # Data settings
     parser.add_argument(
+        '--level', 
+        type=str, 
+        default='function',
+        help='Extract function/class/inline level or all'
+    )
+    parser.add_argument(
         '--language', 
         type=str, 
         default='Python',
@@ -286,6 +271,12 @@ if __name__ == '__main__':
         '--load_from_file', 
         action='store_true',
         help='Load from .json or .jsonl'
+    )
+    parser.add_argument(
+        '--n_sample', 
+        type=int,
+        default=None,
+        help='Total number of extracting'
     )
     parser.add_argument(
         '--cons_from_raw', 
@@ -321,6 +312,10 @@ if __name__ == '__main__':
         default=1,
         help='Number of maximum process to create'
     )
+    parser.add_argument(
+        '--debug',
+        action='store_true'
+    )
 
     opt = parser.parse_args()
     
@@ -333,5 +328,5 @@ if __name__ == '__main__':
     create_logger(filepath=os.path.join(log_path, 'log.txt'), rank=0)
     logger = logging.getLogger()
     logger.info(f'Execute Arguments: {opt}')
-
+    multiprocessing.set_start_method("fork")
     main(opt)
