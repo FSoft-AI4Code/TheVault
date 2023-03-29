@@ -58,7 +58,7 @@ class Analyser(AnalyserWarpper):
                 if i.endswith('.jsonl'):
                     list_file.append(os.path.join(self.data_path, i))
             self.list_file = list_file
-            logger.info(f'List file have {len(list_file)} files')
+            logger.info(f'List file have {len(list_file)} {self.language} files')
 
         # TODO: add 'folk', 'star' and 'issue' as analysis factor 
         # self.keys = [ 'repo', 'code', 'docstring']
@@ -91,6 +91,7 @@ class Analyser(AnalyserWarpper):
         
     @staticmethod
     def merge_file(save_path: str, file: str) -> float:
+        print(save_path)
         start = time.time()
         with open(file, 'r') as json_file:
             dataset = list(json_file)
@@ -117,8 +118,8 @@ class Analyser(AnalyserWarpper):
             logger.info(f"Preparing metadata")
             if self.is_file:
                 with open(self.data_path, 'r') as json_file:
-                    dataset = list(json_file)
-
+                    # dataset = list(json_file)
+                    dataset = json_file.readlines()
             else:
                 # load into multiple process to read
                 dataset = []

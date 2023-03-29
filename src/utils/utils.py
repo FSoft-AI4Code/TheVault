@@ -12,7 +12,7 @@ from tree_sitter import Language, Parser
 from codetext.utils import module_available
 from codetext.clean import remove_comment_delimiters
 from codetext.parser.language_parser import match_from_span, match_from_spans, tokenize_code, tokenize_docstring
-from src.utils.noise_removal.noise_removal import check_function, clean_docstring
+from utils.noise_removal.noise_removal import check_function, clean_docstring
 
 
 _DOCSTRING_PARSER_AVAILABLE = module_available("docstring_parser")
