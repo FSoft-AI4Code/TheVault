@@ -23,9 +23,16 @@ root_dir = Path(f"/datadrive/dungnm31/data-ai4code/thestack/{lang}")
 
 from tqdm import tqdm
 
-from multiprocessing import Pool
 
 from utils.decorators import timing_decorator
+
+from multiprocessing import Queue, Pool, Process
+from typing import List
+import os
+import json
+from pathlib import Path
+from tqdm import tqdm
+
 
 class LicenseFilter(Analyser):
     def __init__(self, args) -> None:
@@ -47,30 +54,24 @@ class LicenseFilter(Analyser):
         self.root_dir = Path(self.data_path)
         self.num_original: int = 0
         self.num_filtered: int = 0
-        self.non_valid_detected = []
         self.parallel = args.parallel
+        self.queue = Queue()
+        self.non_valid_detected = []
 
-    # @timing_decorator
     def load_dataset(self, file_name: str):
-        """Read the contents of a file and return a list of its lines"""
-        # filename = Path(self.data_path) / "python_merged_data.jsonl"
         filename = self.root_dir/file_name
         with open(filename, 'r', encoding="utf-8") as f:
-            lines = []
             lines = f.readlines()
         self.num_original += len(lines)
         return lines
 
-
     def not_valid_license(self, line):
         try:
-            # print(line)
             data = json.loads(line)
             try:
-                # print(data["license"])
                 non_valid = [x for x in data["license"] if x not in self.valid_licenses]
-                self.non_valid_detected.extend(non_valid)
                 if non_valid:
+                    self.queue.put(non_valid)
                     return True
                 else:
                     return False
@@ -81,31 +82,26 @@ class LicenseFilter(Analyser):
             print(e)
             return True
 
-    def filter_nonvalid_license(self, lines: list)->list:
+    def filter_nonvalid_license(self, lines: List[str])->List[str]:
         return list(filter(self.not_valid_license, lines))
     
-    # @timing_decorator
-    def analysing(self, lines) -> None:
+    def analysing(self, lines: List[str]) -> List[str]:
         filtered_list = self.filter_nonvalid_license(lines)
         self.num_filtered += len(filtered_list)
-        # print("Length of filtered list", len(filtered_list))
         return filtered_list
 
-    # @timing_decorator
-    def write_data(self, lines, file_name):
+    def write_data(self, lines: List[str], file_name: str):
         if not os.path.exists(self.save_path):
             os.mkdir(self.save_path)
 
         filename = Path(self.save_path) / f"{file_name}"
         with open(filename, "w") as f:
-            # for line in lines:
             f.writelines(lines)
 
-    # @timing_decorator
     def process_single_file(self, file_name: str):
-        original_lines = l_filter.load_dataset(file_name=file_name)
-        non_valid_lines = l_filter.analysing(lines=original_lines)
-        l_filter.write_data(non_valid_lines, file_name=file_name)
+        original_lines = self.load_dataset(file_name=file_name)
+        non_valid_lines = self.analysing(lines=original_lines)
+        self.write_data(non_valid_lines, file_name=file_name)
 
     def process_multi(self, filenames):
         for filename in tqdm(filenames):
@@ -114,20 +110,31 @@ class LicenseFilter(Analyser):
             self.non_valid_detected = list(dict.fromkeys(self.non_valid_detected))
         else:
             return
+
+    def process_single_file_with_queue(self, filenames: str, position: int):
+        for file_name in tqdm(filenames, position=position, total=len(filenames)):
+            original_lines = self.load_dataset(file_name=file_name)
+            non_valid_lines = self.analysing(lines=original_lines)
+            self.write_data(non_valid_lines, file_name=file_name)
+        while not self.queue.empty():
+            non_valid_detected = self.queue.get()
+            self.non_valid_detected.extend(non_valid_detected)
+
     def process_multi_parallel(self, filenames):
         indices = list(range(len(filenames)))
-        
         chunk_size = len(filenames)//self.core
         jobs = [filenames[x:x+chunk_size] for x in range(0, len(filenames), chunk_size)]
         logger.info(f"Analyzing {Path(self.data_path).name} in total {len(jobs)} processes")
         
-        pool  = Pool(processes=self.core)
-                
-        for result in pool.map(self.process_multi, jobs):
-            result = result
-        
-        pool.close()
-        pool.join()
+        processes = []
+        for (i, job) in enumerate(jobs):
+            p = Process(target=self.process_single_file_with_queue, args=(job,i))
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join()
+            
         self.non_valid_detected = list(dict.fromkeys(self.non_valid_detected))
 
 if __name__=="__main__":
