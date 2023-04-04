@@ -27,12 +27,31 @@ from tqdm import tqdm
 from utils.decorators import timing_decorator
 
 from multiprocessing import Queue, Pool, Process
+import multiprocessing
+# from multiprocessing.queues import Empty
 from typing import List
 import os
 import json
 from pathlib import Path
 from tqdm import tqdm
 
+process_colors = ["#117a59",
+    "#96928a",
+    "#a367b2",
+    "#78c98a",
+        "#51684c",
+    "#24c948",
+    "#4b5b52",
+    "#55b2a3",
+    "#8e3bd6",
+    "#fcdbba",
+    "#2b603c",
+    "#c66592",
+    "#ba7891",
+    "#2cc159",
+    "#181916",
+    "#0a0a08"
+]
 
 class LicenseFilter(Analyser):
     def __init__(self, args) -> None:
@@ -55,14 +74,22 @@ class LicenseFilter(Analyser):
         self.num_original: int = 0
         self.num_filtered: int = 0
         self.parallel = args.parallel
-        self.queue = Queue()
+        
+        if self.parallel:
+            self.queue = Queue()
+            self.NUM_ORIGINAL = multiprocessing.Value("i", 0)
+            self.NUM_FILTERED = multiprocessing.Value("i", 0)
+            # self.metrics_queue = Queue()
+            
         self.non_valid_detected = []
+
+        
 
     def load_dataset(self, file_name: str):
         filename = self.root_dir/file_name
         with open(filename, 'r', encoding="utf-8") as f:
             lines = f.readlines()
-        self.num_original += len(lines)
+        # self.num_original += len(lines)
         return lines
 
     def not_valid_license(self, line):
@@ -71,7 +98,10 @@ class LicenseFilter(Analyser):
             try:
                 non_valid = [x for x in data["license"] if x not in self.valid_licenses]
                 if non_valid:
-                    self.queue.put(non_valid)
+                    if self.parallel:
+                        self.queue.put(non_valid)
+                    else:
+                        self.non_valid_detected.extend(non_valid)
                     return True
                 else:
                     return False
@@ -87,7 +117,7 @@ class LicenseFilter(Analyser):
     
     def analysing(self, lines: List[str]) -> List[str]:
         filtered_list = self.filter_nonvalid_license(lines)
-        self.num_filtered += len(filtered_list)
+        # self.num_filtered += len(filtered_list)
         return filtered_list
 
     def write_data(self, lines: List[str], file_name: str):
@@ -101,25 +131,33 @@ class LicenseFilter(Analyser):
     def process_single_file(self, file_name: str):
         original_lines = self.load_dataset(file_name=file_name)
         non_valid_lines = self.analysing(lines=original_lines)
+        self.num_original += len(original_lines)
+        self.num_filtered += len(non_valid_lines)
         self.write_data(non_valid_lines, file_name=file_name)
 
+    @timing_decorator
     def process_multi(self, filenames):
         for filename in tqdm(filenames):
             self.process_single_file(filename)
         if not self.parallel:
             self.non_valid_detected = list(dict.fromkeys(self.non_valid_detected))
-        else:
-            return
-
-    def process_single_file_with_queue(self, filenames: str, position: int):
-        for file_name in tqdm(filenames, position=position, total=len(filenames)):
+        
+    # num_original = multiprocessing.Value("i", 0)
+    def process_single_file_with_queue(self, filenames: str, position: int, 
+                                       num_original: multiprocessing.Value, 
+                                       num_filtered: multiprocessing.Value):
+        for file_name in tqdm(filenames, position=position, total=len(filenames), colour=process_colors[position]):
             original_lines = self.load_dataset(file_name=file_name)
             non_valid_lines = self.analysing(lines=original_lines)
             self.write_data(non_valid_lines, file_name=file_name)
-        while not self.queue.empty():
-            non_valid_detected = self.queue.get()
-            self.non_valid_detected.extend(non_valid_detected)
+            num_original.value += len(original_lines)
+            num_filtered.value += len(non_valid_lines)
+            while not self.queue.empty():
+                # print("Extracting non valid licenses from queue")
+                non_valid_detected = self.queue.get(timeout=5)
+                self.non_valid_detected.extend(non_valid_detected)
 
+    @timing_decorator
     def process_multi_parallel(self, filenames):
         indices = list(range(len(filenames)))
         chunk_size = len(filenames)//self.core
@@ -128,14 +166,16 @@ class LicenseFilter(Analyser):
         
         processes = []
         for (i, job) in enumerate(jobs):
-            p = Process(target=self.process_single_file_with_queue, args=(job,i))
+            p = Process(target=self.process_single_file_with_queue, args=(job,i, self.NUM_ORIGINAL, self.NUM_FILTERED))
             p.start()
             processes.append(p)
 
         for p in processes:
-            p.join()
-            
+           p.join()
+
         self.non_valid_detected = list(dict.fromkeys(self.non_valid_detected))
+        self.num_original = self.NUM_ORIGINAL.value
+        self.num_filtered = self.NUM_FILTERED.value
 
 if __name__=="__main__":
     import multiprocessing
