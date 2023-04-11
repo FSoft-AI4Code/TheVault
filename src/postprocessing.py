@@ -8,8 +8,6 @@ import multiprocessing
 from src.utils import create_logger
 from src.analysis.analyser import Analyser
 
-import neptune.new as neptune
-
 
 def analysis(args) -> str:
     create_logger(filepath=None, rank=0)

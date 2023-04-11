@@ -212,7 +212,8 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             if code_remove_comment_line < 3:
                 continue
 
-        except Exception:
+        except Exception as e:
+            print(e)
             continue
         
         if docstring == '' or docstring is None:
