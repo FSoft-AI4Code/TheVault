@@ -17,7 +17,7 @@ root/
 
 To merge data
 ```bash
-python -m src.analysis.split.merge --data_path "<path/to/dir>" --multiprocess --gen_id
+python -m src.analysis.split.merge --data_path "<path/to/dir>" --save_path "<path/to/save/dir>" --multiprocess --gen_id
 ```
 
 Optional arguments:
