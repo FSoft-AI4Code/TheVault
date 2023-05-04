@@ -17,7 +17,11 @@ __________________
 - [The Vault Dataset](#the-vault-dataset)
   - [Data Summary](#data-summary)
   - [Data Structure](#data-structure)
-  - [Data Splitting and Deduplication](#data-splitting-and-deduplication)
+    - [Data Instance](#data-instances)
+    - [Data Fields](#data-fields)
+    - [Data Near Deduplication](#data-near-deduplication)
+    - [Splitting Train/Eval/Test](#splitting-trainevaltest)
+    - [Splitting Train set](#splitting-trainset-into-multiple-subsets)
   - [Load Dataset](#load-dataset)
 - [The Vault toolkit](#the-vault-toolkit)
   - [Getting Started](#getting-started)
@@ -38,8 +42,12 @@ We design The Vault to extract code snippets from 10 popular programming languag
 
 ![Something something](./assets/Poster_The%20Vault.jpg)
 ## Data Structure
+### Data Instances
+Every sample of The Vault are stored in form of a json object and compressed into a large json line file. Each sample corresponds to one raw code file. The content of the file are used to extracting function, class and inline set, other information (repository name, licenses, etc) are collected from source dataset (The Stack).
 
-## Data Splitting and Deduplication
+### Data Fields
+See detail of data fields and example for each type of set [Here](./data/README.md)
+
 ### Data Near-Deduplication
 We applied near-deduplication internal and  external with other dataset.
 
@@ -448,11 +456,10 @@ pip install -e .
 ```
 
 ## Processing Pipeline
-
 ### Extracting raw code
-
+Updating
 ### Filtering extracted code snippet
-
+Updating
 ### Processing Custom Dataset
 We create a `.yaml` to define which field to load when processing data. Usually, only source code are needed, but in case there are other additional information about the raw code might be added using the `.yaml`.
 
