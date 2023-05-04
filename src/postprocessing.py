@@ -5,10 +5,10 @@ from pathlib import Path
 
 import multiprocessing
 
-from src.utils import create_logger
-from src.analysis.analyser import Analyser
+from utils import create_logger
+from analysis.analyser import Analyser
 
-import neptune.new as neptune
+
 
 
 def analysis(args) -> str:
@@ -24,8 +24,9 @@ def analysis(args) -> str:
     
     if not args.save_path and not args.is_file:
         args.save_path = args.data_path
-    else:
-        args.save_path = Path(args.data_path).parent
+    # else:
+        
+    #     args.save_path = Path(args.data_path).parent
     
     analyser = Analyser(args)
     if args.merge:
@@ -34,6 +35,7 @@ def analysis(args) -> str:
     
     if args.split:
         analyser.split()
+    
     
     analyser.analysing()
 
@@ -46,7 +48,7 @@ if __name__ == '__main__':
         help="root folder contains .jsonl or file .jsonl itself"
     )
     parser.add_argument(
-        "--save_path",
+        "--save_path",  
         type=str,
         help="Save path",
     )
