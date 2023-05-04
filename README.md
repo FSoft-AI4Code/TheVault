@@ -474,7 +474,7 @@ repo: repo # additional infor
 path: path # additional infor
 language: language # additional infor
 ```
-
+Inside `processing.py` we merged extracting raw code and filtering docstring sample into 1 simple pipeline for quickly extracting dataset from raw source data. You can use `processing.py` by:
 ```bash
 python -m codetext.processing 
 <DATASET_PATH>
