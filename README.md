@@ -38,7 +38,7 @@ ___________
 ## Data Summary
 The Vault dataset is a comprehensive, large-scale, multilingual parallel dataset that features high-quality code-text pairs derived from The Stack, the largest permissively-licensed source code dataset.
 
-We design The Vault to extract code snippets from 10 popular programming languages such as Java, JavaScript, Python, Ruby, Rust, Golang, C#, C++, C, and PHP. This dataset provides multiple code-snippet levels, metadata, and 11 docstring styles for enhanced usability and versatility.
+We provide The Vault which contains code snippets from 10 popular programming languages such as Java, JavaScript, Python, Ruby, Rust, Golang, C#, C++, C, and PHP. This dataset provides multiple code-snippet levels, metadata, and 11 docstring styles for enhanced usability and versatility.
 
 ![Something something](./assets/Poster_The%20Vault.jpg)
 ## Data Structure
@@ -61,7 +61,6 @@ Due to the large amount of samples in each language, we first decided to split e
 
 Therefore, we decided to split 20k sample for each evaluation set. *These set are splitting to mimics the distribution (of code and docstring) in the full dataset.* 
 
-Click toggle button to see more detail:
 <details>
   <summary>Function set</summary>
   <table>
@@ -456,6 +455,7 @@ pip install -e .
 ```
 
 ## Processing Pipeline
+
 ### Extracting raw code
 Updating
 ### Filtering extracted code snippet
