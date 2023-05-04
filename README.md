@@ -4,81 +4,477 @@
   <img src="https://avatars.githubusercontent.com/u/115590550?s=200&v=4" width="220px" alt="logo">
 </p>
 
-**Code-Text data toolkit**
-______________________________________________________________________
+**The Vault: Open source parallel data extractor**
+__________________________
 
-
-<!-- Badge start -->
-| Branch 	| Build 	| Unittest 	| Linting 	| Release 	| License 	|
-|--------	|-------	|----------	|---------	|---------	|---------	|
-| main   	|       	| [![Unittest](https://github.com/AI4Code-Research/CodeText-data/actions/workflows/unittest.yml/badge.svg)](https://github.com/AI4Code-Research/CodeText-data/actions/workflows/unittest.yml) |       	| [![release](https://img.shields.io/pypi/v/codetext)](https://pypi.org/project/codetext/) [![pyversion](https://img.shields.io/pypi/pyversions/codetext)](https://pypi.org/project/codetext/)| [![license](https://img.shields.io/github/license/AI4Code-Research/CodeText-data)](https://github.com/AI4Code-Research/CodeText-data/LICENSE.txt) |
-<!-- Badge end -->
 </div>
 
-______________________________________________________________________
+## Relevant Links
+[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets?search) <img alt="Hugging Face Datasets" src="https://img.shields.io/badge/-%F0%9F%A4%97%20datasets-blue"> </a >
 
-**Code-Text data toolkit** contains multilingual programming language parsers for the extract from raw source code into multiple levels of pair data (code-text) (e.g., function-level, class-level, inline-level). 
+__________________
+## Table of content
+- [The Vault Dataset](#the-vault-dataset)
+  - [Data Summary](#data-summary)
+  - [Data Structure](#data-structure)
+    - [Data Instance](#data-instances)
+    - [Data Fields](#data-fields)
+    - [Data Near Deduplication](#data-near-deduplication)
+    - [Splitting Train/Eval/Test](#splitting-trainevaltest)
+    - [Splitting Train set](#splitting-trainset-into-multiple-subsets)
+  - [Load Dataset](#load-dataset)
+- [The Vault toolkit](#the-vault-toolkit)
+  - [Getting Started](#getting-started)
+  - [Processing Pipeline](#processing-pipeline)
+    - [Extracting raw code](#extracting-raw-code)
+    - [Filtering extracted code snippet](#filtering-extracted-code-snippet)
+    - [Processing Custom Dataset](#processing-custom-dataset)
+- [Citing The Vault](#citing-the-vault)
+- [Contact Us](#contact-us)
+- [License](#license)
 
-# Installation
-Setup environment and install dependencies and setup by using `install_env.sh`
-```bash
-bash -i ./install_env.sh
+___________
+# The Vault Dataset
+## Data Summary
+The Vault dataset is a comprehensive, large-scale, multilingual parallel dataset that features high-quality code-text pairs derived from The Stack, the largest permissively-licensed source code dataset.
+
+We design The Vault to extract code snippets from 10 popular programming languages such as Java, JavaScript, Python, Ruby, Rust, Golang, C#, C++, C, and PHP. This dataset provides multiple code-snippet levels, metadata, and 11 docstring styles for enhanced usability and versatility.
+
+![Something something](./assets/Poster_The%20Vault.jpg)
+## Data Structure
+### Data Instances
+Every sample of The Vault are stored in form of a json object and compressed into a large json line file. Each sample corresponds to one raw code file. The content of the file are used to extracting function, class and inline set, other information (repository name, licenses, etc) are collected from source dataset (The Stack).
+
+### Data Fields
+See detail of data fields and example for each type of set [Here](./data/README.md)
+
+### Data Near-Deduplication
+We applied near-deduplication internal and  external with other dataset.
+
+- Internal: Deduplicate similar sample in full dataset
+- External: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
+
+Near-deduplication use MinHash to clustering sample based on their code. Those sample are close to each other (even little modified forked version) can be detected. (The hash depend a lot on tokenizer, in our experiment, we use a simple tokenizer which seperate every character).
+
+### Splitting train/eval/test
+Due to the large amount of samples in each language, we first decided to split eval and test set by 5% each, but this lead to huge amount of test set in some language (it will be 1M sample for Python test set and eval set).
+
+Therefore, we decided to split 20k sample for each evaluation set. *These set are splitting to mimics the distribution (of code and docstring) in the full dataset.* 
+
+Click toggle button to see more detail:
+<details>
+  <summary>Function set</summary>
+  <table>
+    <thead>
+      <tr>
+        <th>Language</th>
+        <th>Train set  (w/ docstring)</th>
+        <th>Eval set (w/ docstring)</th>
+        <th>Test set (w/ docstring)</th>
+        <th>Train set (w/o docstring)</th>
+        <th>Eval set (w/o docstring)</th>
+        <th>Test set (w/o docstring)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Python</td>
+        <td>10,015,689</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>29,125,850</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>PHP</td>
+        <td>5,512,811</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>24,730,767</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>JavaScript</td>
+        <td>2,610,895</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>30,324,762</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>Java</td>
+        <td>7,990,528</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>61,673,653</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>C#</td>
+        <td>4,052,737</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>31,604,009</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>C++</td>
+        <td>1,941,459</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>26,662,941</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>C</td>
+        <td>1,976,979</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>11,706,009</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>Go</td>
+        <td>5,643,975</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>18,108,788</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>Rust</td>
+        <td>1,053,679</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>7,096,896</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>Ruby</td>
+        <td>544,038</td>
+        <td>20,000</td>
+        <td>20,000</td>
+        <td>3,718,153</td>
+        <td>20,000</td>
+        <td>20,000</td>
+      </tr>
+      <tr>
+        <td>Total</td>
+        <td>41,342,790</td>
+        <td>200,000</td>
+        <td>200,000</td>
+        <td>244,751,828</td>
+        <td>200,000</td>
+        <td>200,000</td>
+      </tr>
+    </tbody>
+    </table>
+</details>
+
+### Splitting trainset into multiple subsets
+For convenience when experimenting, we continue split training dataset into 3 smaller subsets:
+
+- Small set (contains 5%)
+- Medium set (contains 25%)
+- Large set (contains 75%)
+
+<details>
+    <summary>Function set:</summary>
+    <table class="tg">
+    <thead>
+      <tr>
+        <th class="tg-7btt">Subset</th>
+        <th class="tg-7btt">Language</th>
+        <th class="tg-7btt">With docstring</th>
+        <th class="tg-7btt">Without docstring</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tg-4erg">Small (5%)</td>
+        <td class="tg-0pky">Python</td>
+        <td class="tg-0pky">500,784</td>
+        <td class="tg-0pky">1,456,293</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">PHP</td>
+        <td class="tg-0pky">275,641</td>
+        <td class="tg-0pky">1,236,538</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">JavaScript</td>
+        <td class="tg-0pky">130,545</td>
+        <td class="tg-0pky">1,516,238</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Java</td>
+        <td class="tg-0pky">399,526</td>
+        <td class="tg-0pky">3,083,683</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C#</td>
+        <td class="tg-0pky">202,637</td>
+        <td class="tg-0pky">1,580,200</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C++</td>
+        <td class="tg-0pky">97,073</td>
+        <td class="tg-0pky">1,333,147</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C</td>
+        <td class="tg-0pky">98,849</td>
+        <td class="tg-0pky">585,300</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Go</td>
+        <td class="tg-0pky">282,199</td>
+        <td class="tg-0pky">905,439</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Rust</td>
+        <td class="tg-0pky">52,684</td>
+        <td class="tg-0pky">354,845</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Ruby</td>
+        <td class="tg-0pky">27,202</td>
+        <td class="tg-0pky">185,908</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Total</td>
+        <td class="tg-0pky">2,067,140</td>
+        <td class="tg-0pky">12,237,591</td>
+      </tr>
+      <tr>
+        <td class="tg-4erg">Medium(25%)</td>
+        <td class="tg-0pky">Python</td>
+        <td class="tg-0pky">2,503,922</td>
+        <td class="tg-0pky">7,281,463</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">PHP</td>
+        <td class="tg-0pky">1,378,203</td>
+        <td class="tg-0pky">6,182,692</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">JavaScript</td>
+        <td class="tg-0pky">652,724</td>
+        <td class="tg-0pky">7,581,191</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Java</td>
+        <td class="tg-0pky">1,997,632</td>
+        <td class="tg-0pky">15,418,413</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C#</td>
+        <td class="tg-0pky">1,013,184</td>
+        <td class="tg-0pky">7,901,002</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C++</td>
+        <td class="tg-0pky">485,365</td>
+        <td class="tg-0pky">6,665,735</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C</td>
+        <td class="tg-0pky">494,245</td>
+        <td class="tg-0pky">2,926,502</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Go</td>
+        <td class="tg-0pky">1,410,994</td>
+        <td class="tg-0pky">4,527,197</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Rust</td>
+        <td class="tg-0pky">263,420</td>
+        <td class="tg-0pky">1,774,224</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Ruby</td>
+        <td class="tg-0pky">136,010</td>
+        <td class="tg-0pky">929,538</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Total</td>
+        <td class="tg-0pky">10,335,698</td>
+        <td class="tg-0pky">61,187,957</td>
+      </tr>
+      <tr>
+        <td class="tg-4erg">Large(70%)</td>
+        <td class="tg-0pky">Python</td>
+        <td class="tg-0pky">7,010,982</td>
+        <td class="tg-0pky">20,388,095</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">PHP</td>
+        <td class="tg-0pky">3,858,968</td>
+        <td class="tg-0pky">17,311,537</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">JavaScript</td>
+        <td class="tg-0pky">1,827,627</td>
+        <td class="tg-0pky">21,227,333</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Java</td>
+        <td class="tg-0pky">5,593,370</td>
+        <td class="tg-0pky">43,171,557</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C#</td>
+        <td class="tg-0pky">2,836,916</td>
+        <td class="tg-0pky">22,122,806</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C++</td>
+        <td class="tg-0pky">1,359,021</td>
+        <td class="tg-0pky">18,664,059</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">C</td>
+        <td class="tg-0pky">1,383,885</td>
+        <td class="tg-0pky">8,194,206</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Go</td>
+        <td class="tg-0pky">3,950,783</td>
+        <td class="tg-0pky">12,676,152</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Rust</td>
+        <td class="tg-0pky">737,575</td>
+        <td class="tg-0pky">4,967,827</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Ruby</td>
+        <td class="tg-0pky">380,827</td>
+        <td class="tg-0pky">2,602,707</td>
+      </tr>
+      <tr>
+        <td class="tg-0pky"></td>
+        <td class="tg-0pky">Total</td>
+        <td class="tg-0pky">28,939,953</td>
+        <td class="tg-0pky">171,326,280</td>
+      </tr>
+    </tbody>
+    </table>
+</details>
+
+<details>
+  <summary>Class set:</summary>
+  Updating
+</details>
+
+<details>
+  <summary>Inline set</summary>
+  Updating
+</details>
+
+## Load dataset
+We support load our dataset via Huggingface datasets hub:
+
+```python
+!pip install datasets
+
+from datasets import load_dataset
+
+# Load full function dataset (40M samples)
+ds = load_dataset("NamCyan/thevault", split="function")
+
+# Load function "small" trainset (or "medium", "large") 
+ds = load_dataset("NamCyan/thevault", split="function/train_small")
+
+# Load only function testset
+ds = load_dataset("NamCyan/thevault", split="function/test")
+
+# specific language (e.g. Golang) 
+ds = load_dataset("NamCyan/thevault", split="function/train", languages=['Go'])
+
+# streaming load (that will only download the data as needed)
+ds = load_dataset("NamCyan/thevault", split="function/train", streaming=True)
+
 ```
-then activate conda environment named "code-text-env"
+# The Vault Toolkit
+## Getting Started
+
+To setup environment and install dependencies via `pip`:
 ```bash
-conda activate code-text-env
+pip -r install requirements.txt
 ```
 
-*Setup for using parser*
+Install `codetext` parser to extract code using [tree-sitter](https://tree-sitter.github.io/tree-sitter/), via `pip`:
 ```bash
 pip install codetext
 ```
 
-# Getting started
-
-## Build your language
-Auto build tree-sitter into `<language>.so` located in `/tree-sitter/`
-```python
-from codetext.utils import build_language
-
-language = 'rust'
-build_language(language)
-
-
-# INFO:utils:Not found tree-sitter-rust, attempt clone from github
-# Cloning into 'tree-sitter-rust'...
-# remote: Enumerating objects: 2835, done. ...
-# INFO:utils:Attempt to build Tree-sitter Language for rust and store in .../tree-sitter/rust.so
+Or manually build `codetext` form source, see more at [`Codetext` repo](https://github.com/FSoft-AI4Code/CodeText-parser)
+```bash
+git clone https://github.com/FSoft-AI4Code/CodeText-parser.git
+cd CodeText-parser
+pip install -e .
 ```
 
-Parse code to `tree-sitter.Tree`
-```python
-from codetext.utils import parse_code
+## Processing Pipeline
+### Extracting raw code
+Updating
+### Filtering extracted code snippet
+Updating
+### Processing Custom Dataset
+We create a `.yaml` to define which field to load when processing data. Usually, only source code are needed, but in case there are other additional information about the raw code might be added using the `.yaml`.
 
-raw_code = """
-/**
-* Sum of 2 number
-* @param a int number
-* @param b int number
-*/
-double sum2num(int a, int b) {
-    return a + b;
-}
-"""
+For example, `CodeSearchNet` stores their data in structure:
 
-root = parse_code(raw_code, 'cpp')
-root_node = root.root_node
+```yaml
+# CodeSearchNet jsonline format 
+# https://github.com/github/CodeSearchNet#data-details
+
+code: original_string # raw code
+repo: repo # additional infor
+path: path # additional infor
+language: language # additional infor
 ```
-
-# Data collection and Preprocessing
-The dataset we used to extract was collected by codeparrot. They host the raw dataset in here [codeparrot/github-code](https://huggingface.co/datasets/codeparrot/github-code).
-
-*You can create your own dataset using Google Bigquery and the [query here](https://huggingface.co/datasets/codeparrot/github-code/blob/main/query.sql)*
-
-## Getting started
-### Process custom dataset
-For start preprocessing data, define a .yaml file to declare raw data format. (More detail: `/data/format/README.md`)
-
+Inside `processing.py` we merged extracting raw code and filtering docstring sample into 1 simple pipeline for quickly extracting dataset from raw source data. You can use `processing.py` by:
 ```bash
 python -m codetext.processing 
 <DATASET_PATH>
@@ -115,41 +511,23 @@ options:
   --debug
 ```
 
-### Analyse and split dataset
-The code process is going to save cleaned sample by batch, you can merge it using `postprocess.py`. We also provide analyse tool for get total number of sample, blank_line(\*), comment(\*) and code(\*). You can also split your dataset into `train`, `valid`, `test`.
+# Citing the Vault
+More details can be found in our [technical report](https://arxiv.org/abs/). 
 
-```bash
-python -m codetext.postprocessing 
-<DATASET_PATH>  # path to dir contains /extracted, /filered, /raw
---save_path <SAVE_PATH>  # path to save final output
-
---n_core 10  # number of core for multiprocessing analyzer
---analyze  # Analyze trigger
---split  # Split train/test/valid trigger
---ratio 0.05  # Test and valid ratio (defaul to equal)
---max_sample 20000  # Max size of test set and valid set
+If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
+```bibtex
+@misc{,
+      title={thevault}, 
+      author={},
+      year={2022},
+      eprint={},
+      archivePrefix={},
+      primaryClass={}
+}
 ```
 
-Arguments list:
-```
-positional arguments:
-  data_path             root folder contains .jsonl or file .jsonl itself
+# Contact us
+If you have any questions, comments or suggestions, please do not hesitate to contact us at [email].
 
-options:
-  -h, --help            show this help message and exit
-  --save_path SAVE_PATH
-                        Save path
-  --raw                 Analysis raw parallel set
-  --summary
-  --split_factor SPLIT_FACTOR
-                        Consider factor when splitting, e.g. 'attribute,comment_length'
-  --merge               Merge all .jsonl to 1 individual .jsonl
-  --deduplicate_factor DEDUPLICATE_FACTOR
-                        Consider factor when splitting, e.g. 'attribute,code_length'
-  --language LANGUAGE
-  --load_metadata LOAD_METADATA
-  --split
-  --deduplicate         Deduplicate
-  --is_file             Source data path is file or dir
-  --core CORE           How many processor to use (-1 if for all)
-```
+# License
+[MIT License](LICENSE.txt)

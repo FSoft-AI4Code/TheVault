@@ -142,3 +142,61 @@ Extract results:
 - **end_point** (position of last line, position of last character)
 - **comment** the cleaned comment
 - **comment_tokens** tokenized version of comment
+
+See the example below:
+```python
+def fix_init_kwarg(self, sender, args, kwargs, **signal_kwargs):
+  # Anything passed in as self.name is assumed to come from a serializer and
+  # will be treated as a json string.
+  if self.name in kwargs:
+    value = kwargs.pop(self.name)
+    # Hack to handle the xml serializer's handling of "null"
+    if value is None:
+      value = 'null'
+      kwargs[self.attname] = value
+```
+
+After extracting, we result:
+```json
+{
+  "repo": "ithinksw/philo",
+  "path": "philo/models/fields/__init__.py",
+  "language": "Python",
+  "code": "def fix_init_kwarg(self, sender, args, kwargs, **signal_kwargs):\n\t\t# Anything passed in as self.name is assumed to come from a serializer and\n\t\t# will be treated as a json string.\n\t\tif self.name in kwargs:\n\t\t\tvalue = kwargs.pop(self.name)\n\t\t\t\n\t\t\t# Hack to handle the xml serializer's handling of \"null\"\n\t\t\tif value is None:\n\t\t\t\tvalue = 'null'\n\t\t\t\n\t\t\tkwargs[self.attname] = value",
+  "prev_context": null,
+  "next_context": {
+    "code": "if self.name in kwargs:\n\t\t\tvalue = kwargs.pop(self.name)\n\t\t\t\n\t\t\t# Hack to handle the xml serializer's handling of \"null\"\n\t\t\tif value is None:\n\t\t\t\tvalue = 'null'\n\t\t\t\n\t\t\tkwargs[self.attname] = value",
+    "start_point": [3, 2],
+    "end_point": [10, 31]
+  },
+  "original_comment": "# Anything passed in as self.name is assumed to come from a serializer and\n# will be treated as a json string.",
+  "start_point": [1, 2],
+  "end_point": [2, 2],
+  "comment": "  Anything passed in as self.name is assumed to come from a serializer and \n  will be treated as a json string.",
+  "comment_tokens": [
+    "Anything",
+    "passed",
+    "in",
+    "as",
+    "self",
+    ".",
+    "name",
+    "is",
+    "assumed",
+    "to",
+    "come",
+    "from",
+    "a",
+    "serializer",
+    "and",
+    "will",
+    "be",
+    "treated",
+    "as",
+    "a",
+    "json",
+    "string",
+    "."
+  ]
+}
+```

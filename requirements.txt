@@ -1,5 +1,5 @@
 # for data crawl
-# datasets
+datasets
 
 # for preprocessing
 tree-sitter
@@ -9,7 +9,7 @@ langdetect
 bs4
 
 # for post-processing
-cloc
-
-# parser
-codetext
+# cloc
+yaml
+tqdm
+nltk

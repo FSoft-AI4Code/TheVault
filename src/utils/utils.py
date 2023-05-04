@@ -212,7 +212,8 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             if code_remove_comment_line < 3:
                 continue
 
-        except Exception:
+        except Exception as e:
+            print(e)
             continue
         
         if docstring == '' or docstring is None:
@@ -222,6 +223,7 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             docstring_tokens = tokenize_docstring(docstring)
         
         fn_metadata.update(metadata)
+        # TODO: replace `code` to `code_remove_comment_line`
         fn_metadata.update({
             'code': code,
             'code_tokens': code_tokens,
