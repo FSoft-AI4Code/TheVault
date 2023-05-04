@@ -71,23 +71,6 @@ def main():
         executor.submit(processing, languages)
         
         executor.map(processing, languages)
-        
-        # for language in languages:
-        #     print(f"Processing {language} files...")
-        #     sets = load_ids(language, csv_files)
-        #     name = os.path.basename(os.path.normpath(language))
-        #     jsonl_file = f"{language}/{name}_merged.jsonl"
-        #     samples = process_jsonl_file(jsonl_file, sets)
-
-        #     # Group samples by set
-        #     grouped_samples = {}
-        #     for set_name, sample in samples:
-        #         if set_name not in grouped_samples:
-        #             grouped_samples[set_name] = []
-        #         grouped_samples[set_name].append(sample)
-
-        #     write_samples_to_jsonl(grouped_samples, language)
-        #     print(f"Finished processing {language} files.")
 
 
 if __name__ == "__main__":

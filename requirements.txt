@@ -13,6 +13,3 @@ bs4
 yaml
 tqdm
 nltk
-
-# parser
-codetext
