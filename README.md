@@ -51,8 +51,8 @@ See detail of data fields and example for each type of set [Here](./data/README.
 ### Data Near-Deduplication
 We applied near-deduplication internal and  external with other dataset.
 
-- Internal: Deduplicate similar sample in full dataset
-- External: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
+- **Internal**: Deduplicate similar sample in full dataset
+- **External**: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
 
 Near-deduplication use MinHash to clustering sample based on their code. Those sample are close to each other (even little modified forked version) can be detected. (The hash depend a lot on tokenizer, in our experiment, we use a simple tokenizer which seperate every character).
 
@@ -478,6 +478,39 @@ def sum2num(a: int, b: int):
   :param a: first number
   :param b: second number
   '''
+  return a + b # result
+"""
+code_tree = parse_code(code_snippet, 'cpp')
+
+res = process_raw_node(
+    tree=code_tree, 
+    blob=code_snippet,
+    language_parser=PythonParser(),
+    metadata={'repo': 'test'}  # Optional
+)
+
+# or extrating line
+
+res = get_line_definitions(
+    tree=code_tree, 
+    blob=code_snippet,
+    language_parser=PythonParser(),
+    source_metadata={'repo': 'test'}  # Optional
+)
+```
+
+For extracting raw inline comment, the function [`get_line_definitions()`](./src/utils/utils.py#L279) can help to extract line comment and return the parent code block, previous and next context (i.e. code block).
+
+```python
+from codetext.utils import parse_code
+from codetext.parser import PythonParser
+
+code_snippet = """
+def sum2num(a: int, b: int):
+  '''
+  :param a: first number
+  :param b: second number
+  '''
   return a + b
 """
 code_tree = parse_code(code_snippet, 'cpp')
@@ -490,12 +523,16 @@ res = process_raw_node(
 )
 ```
 
-For extracting raw inline comment, the function [`get_line_definitions()`](./src/utils/utils.py#L279) can help to extract line comment and return the parent code block, previous and next context (i.e. code block).
-
 ![Raw node structure](./assets/raw-node.png)
 
 ### Filtering Extracted code snippet
-Updating
+With the result function or class node and their metadata extracted from previous process, execute [`get_node_definitions()`](./src/utils/utils.py#L238) to filtering sample based on their docstring. Heuristic rules will remove sample that not meet the minimum requirement (We detailedly describe it inside our technical report).
+
+![](./assets/docstring-style.png)
+
+Lastly, to extracting docstring style we implement a function call [`extract_docstring()`](./src/utils/utils.py#L514) that take docstring (in form of string) as input and result metadata of the docstring style as demonstrate in the figure above (e.g. param's docstring, type, return's docstring, etc.)
+
+
 ### Processing Custom Dataset
 We create a `.yaml` to define which field to load when processing data. Usually, only source code are needed, but in case there are other additional information about the raw code might be added using the `.yaml`.
 
