@@ -1,16 +1,16 @@
 <div align="center">
 
 <p align="center">
-  <img src="https://avatars.githubusercontent.com/u/115590550?s=200&v=4" width="220px" alt="logo">
+  <img src="./assets/the-vault.png" width="220px" alt="logo">
 </p>
 
-**The Vault: Open source parallel data extractor**
+**The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation**
 __________________________
 
 </div>
 
 ## Relevant Links
-[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets?search) <img alt="Hugging Face Datasets" src="https://img.shields.io/badge/-%F0%9F%A4%97%20datasets-blue"> </a >
+[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets/Fsoft-AIC/thevault-function-language) <img alt="Hugging Face Datasets" src="https://img.shields.io/badge/-%F0%9F%A4%97%20datasets-blue"> </a >
 
 __________________
 ## Table of content
@@ -38,9 +38,9 @@ ___________
 ## Data Summary
 The Vault dataset is a comprehensive, large-scale, multilingual parallel dataset that features high-quality code-text pairs derived from The Stack, the largest permissively-licensed source code dataset.
 
-We design The Vault to extract code snippets from 10 popular programming languages such as Java, JavaScript, Python, Ruby, Rust, Golang, C#, C++, C, and PHP. This dataset provides multiple code-snippet levels, metadata, and 11 docstring styles for enhanced usability and versatility.
+We provide The Vault which contains code snippets from 10 popular programming languages such as Java, JavaScript, Python, Ruby, Rust, Golang, C#, C++, C, and PHP. This dataset provides multiple code-snippet levels, metadata, and 11 docstring styles for enhanced usability and versatility.
 
-![Something something](./assets/Poster_The%20Vault.jpg)
+![Something something](./assets/poster.jpg)
 ## Data Structure
 ### Data Instances
 Every sample of The Vault are stored in form of a json object and compressed into a large json line file. Each sample corresponds to one raw code file. The content of the file are used to extracting function, class and inline set, other information (repository name, licenses, etc) are collected from source dataset (The Stack).
@@ -51,8 +51,8 @@ See detail of data fields and example for each type of set [Here](./data/README.
 ### Data Near-Deduplication
 We applied near-deduplication internal and  external with other dataset.
 
-- Internal: Deduplicate similar sample in full dataset
-- External: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
+- **Internal**: Deduplicate similar sample in full dataset
+- **External**: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
 
 Near-deduplication use MinHash to clustering sample based on their code. Those sample are close to each other (even little modified forked version) can be detected. (The hash depend a lot on tokenizer, in our experiment, we use a simple tokenizer which seperate every character).
 
@@ -61,7 +61,6 @@ Due to the large amount of samples in each language, we first decided to split e
 
 Therefore, we decided to split 20k sample for each evaluation set. *These set are splitting to mimics the distribution (of code and docstring) in the full dataset.* 
 
-Click toggle button to see more detail:
 <details>
   <summary>Function set</summary>
   <table>
@@ -419,20 +418,20 @@ We support load our dataset via Huggingface datasets hub:
 
 from datasets import load_dataset
 
-# Load full function dataset (40M samples)
-dataset = load_dataset("Fsoft-AIC/the-vault-function-language")
+# Load full train function dataset (40M samples)
+ds = load_dataset("Fsoft-AIC/thevault-function", split="train")
 
 # Load function "small" trainset (or "medium", "large") 
-ds = load_dataset("Fsoft-AIC/thevault", split="function/train_small")
+ds = load_dataset("Fsoft-AIC/thevault-function", split="train-small")
 
 # Load only function testset
-ds = load_dataset("Fsoft-AIC/thevault", split="function/test")
+ds = load_dataset("Fsoft-AIC/thevault-function", split="test")
 
 # specific language (e.g. Golang) 
-ds = load_dataset("Fsoft-AIC/thevault", split="function/train", languages=['Go'])
+ds = load_dataset("Fsoft-AIC/thevault-function", split="train", languages=['Go'])
 
 # streaming load (that will only download the data as needed)
-ds = load_dataset("Fsoft-AIC/thevault", split="function/train", streaming=True)
+ds = load_dataset("Fsoft-AIC/thevault-function", split="train", streaming=True)
 
 ```
 # The Vault Toolkit
@@ -456,10 +455,84 @@ pip install -e .
 ```
 
 ## Processing Pipeline
-### Extracting raw code
-Updating
-### Filtering extracted code snippet
-Updating
+Our toolkit takes raw source code files as input and streamlines the extraction and generation of
+code-text pairs, as illustrated in Figure above.
+There are 3 seperate process:
+1. **Extracting Raw code:** By using Tree-sitter extractor to identify function/class/line node inside raw file and obtain their metadata
+2. **Filtering Docstring:** From the docstring gathered from previous process, we use it as main factor to filter quality sample (remove empty docstring, uninformative docstring, etc). See more about cleaning rules at  our [technical report](https://arxiv.org)
+3. **Extracting Docstring Style:** We implement a docstring style parser to capture all the informative section or param's description inside a docstring
+
+We seperated the source code into multiple steps (coresponde for each process). Or you can run the full pipeline follow [this tutorial](#processing-custom-dataset).
+
+![Extracting pipeline](./assets/pipeline.png)
+### Extracting Raw code
+From raw code, you can extract function, class using [`process_raw_node()`](./src/utils/utils.py#L138). An example structure of a raw code snippet show in the figure below. Inside a node are identifier, parameter or argument list, code and comment (docstring). 
+
+```python
+from codetext.utils import parse_code
+from codetext.parser import PythonParser
+
+code_snippet = """
+def sum2num(a: int, b: int):
+  '''
+  :param a: first number
+  :param b: second number
+  '''
+  return a + b # result
+"""
+code_tree = parse_code(code_snippet, 'cpp')
+
+res = process_raw_node(
+    tree=code_tree, 
+    blob=code_snippet,
+    language_parser=PythonParser(),
+    metadata={'repo': 'test'}  # Optional
+)
+
+# or extrating line
+
+res = get_line_definitions(
+    tree=code_tree, 
+    blob=code_snippet,
+    language_parser=PythonParser(),
+    source_metadata={'repo': 'test'}  # Optional
+)
+```
+
+For extracting raw inline comment, the function [`get_line_definitions()`](./src/utils/utils.py#L279) can help to extract line comment and return the parent code block, previous and next context (i.e. code block).
+
+```python
+from codetext.utils import parse_code
+from codetext.parser import PythonParser
+
+code_snippet = """
+def sum2num(a: int, b: int):
+  '''
+  :param a: first number
+  :param b: second number
+  '''
+  return a + b
+"""
+code_tree = parse_code(code_snippet, 'cpp')
+
+res = process_raw_node(
+    tree=code_tree, 
+    blob=code_snippet,
+    language_parser=PythonParser(),
+    metadata={'repo': 'test'}  # Optional
+)
+```
+
+![Raw node structure](./assets/raw-node.png)
+
+### Filtering Extracted code snippet
+With the result function or class node and their metadata extracted from previous process, execute [`get_node_definitions()`](./src/utils/utils.py#L238) to filtering sample based on their docstring. Heuristic rules will remove sample that not meet the minimum requirement (We detailedly describe it inside our technical report).
+
+![](./assets/docstring-style.png)
+
+Lastly, to extracting docstring style we implement a function call [`extract_docstring()`](./src/utils/utils.py#L514) that take docstring (in form of string) as input and result metadata of the docstring style as demonstrate in the figure above (e.g. param's docstring, type, return's docstring, etc.)
+
+
 ### Processing Custom Dataset
 We create a `.yaml` to define which field to load when processing data. Usually, only source code are needed, but in case there are other additional information about the raw code might be added using the `.yaml`.
 
@@ -474,7 +547,7 @@ repo: repo # additional infor
 path: path # additional infor
 language: language # additional infor
 ```
-Inside `processing.py` we merged extracting raw code and filtering docstring sample into 1 simple pipeline for quickly extracting dataset from raw source data. You can use `processing.py` by:
+Inside `processing.py` we merged extracting raw code, filtering docstring and extracting docstring style function into 1 simple pipeline for quickly extracting dataset from raw source data. You can use `processing.py` by:
 ```bash
 python -m codetext.processing 
 <DATASET_PATH>
@@ -516,13 +589,12 @@ More details can be found in our [technical report](https://arxiv.org/abs/).
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
 ```bibtex
-@misc{,
-      title={thevault}, 
-      author={},
-      year={2022},
-      eprint={},
-      archivePrefix={},
-      primaryClass={}
+@article{thevault,
+  title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation},
+  author={},
+  journal={},
+  pages={},
+  year={2023}
 }
 ```
 
