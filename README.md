@@ -4,7 +4,7 @@
   <img src="./assets/the-vault.png" width="220px" alt="logo">
 </p>
 
-**The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation**
+# The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation
 __________________________
 
 </div>
