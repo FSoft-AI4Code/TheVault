@@ -420,19 +420,19 @@ We support load our dataset via Huggingface datasets hub:
 from datasets import load_dataset
 
 # Load full function dataset (40M samples)
-ds = load_dataset("NamCyan/thevault", split="function")
+dataset = load_dataset("Fsoft-AIC/the-vault-function-language")
 
 # Load function "small" trainset (or "medium", "large") 
-ds = load_dataset("NamCyan/thevault", split="function/train_small")
+ds = load_dataset("Fsoft-AIC/thevault", split="function/train_small")
 
 # Load only function testset
-ds = load_dataset("NamCyan/thevault", split="function/test")
+ds = load_dataset("Fsoft-AIC/thevault", split="function/test")
 
 # specific language (e.g. Golang) 
-ds = load_dataset("NamCyan/thevault", split="function/train", languages=['Go'])
+ds = load_dataset("Fsoft-AIC/thevault", split="function/train", languages=['Go'])
 
 # streaming load (that will only download the data as needed)
-ds = load_dataset("NamCyan/thevault", split="function/train", streaming=True)
+ds = load_dataset("Fsoft-AIC/thevault", split="function/train", streaming=True)
 
 ```
 # The Vault Toolkit
