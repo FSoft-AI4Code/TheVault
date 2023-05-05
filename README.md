@@ -552,13 +552,12 @@ More details can be found in our [technical report](https://arxiv.org/abs/).
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
 ```bibtex
-@misc{,
-      title={thevault}, 
-      author={},
-      year={2022},
-      eprint={},
-      archivePrefix={},
-      primaryClass={}
+@article{thevault,
+  title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation},
+  author={},
+  journal={},
+  pages={},
+  year={2023}
 }
 ```
 
