@@ -11,6 +11,7 @@ src/codetext.egg-info/*
 *.pyc
 *.so
 *.whl
+*.jsonl
 
 /models
 /.neptune/

@@ -9,18 +9,13 @@ from datasets import Dataset
 from tqdm import tqdm
 
 from datasketch import MinHash, MinHashLSH
-from dpu_utils.utils.iterators import ThreadedIterator
+# from dpu_utils.utils.iterators import ThreadedIterator
 
 
 NON_ALPHA = re.compile("[^A-Za-z_0-9]")
 # parameters used in DuplicationIndex
 MIN_NUM_TOKENS = 10
 NUM_PERM = 256
-
-# column name of file paths, we add as file identifiers
-PATH_COLUMN = "original_path"
-# name of the "text" column used in deduplication
-CONTENT = "content"
 
 def get_min_hash(tokens: List[str]) -> Optional[MinHash]:
     """Compute the MinHash of a code snippet."""
@@ -100,9 +95,9 @@ class DuplicationIndex:
 
 def _compute_min_hash(element):
     index, data = element
-    min_hash = get_min_hash([t for t in NON_ALPHA.split(data[CONTENT]) if len(t.strip()) > 0])
+    min_hash = get_min_hash(data)
     if min_hash is not None:
-        return (index, data[PATH_COLUMN]), min_hash
+        return (index, data), min_hash
 
 
 def minhash_iter(dataset_iterator: Type[Dataset]):
