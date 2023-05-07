@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import json
 import multiprocessing as mp
 import re
@@ -56,8 +57,9 @@ class DuplicationIndex:
             min_hash: MinHash of the code_key.
         """
         close_duplicates = self._index.query(min_hash)
+        # print(self._index.keys)
+        # print(code_key)
         if code_key in self._index.keys:
-            print(f"Duplicate key {code_key}")
             return
 
         self._index.insert(code_key, min_hash)
@@ -83,7 +85,7 @@ class DuplicationIndex:
         for base, duplicates in self._duplicate_clusters.items():
             cluster = [base] + list(duplicates)
             # reformat the cluster to be a list of dict
-            cluster = [{"base_index": el[0], "original_path": el[1]} for el in cluster]
+            cluster = {"cluster_index": cluster[0], "original_index": cluster[1:]}
             duplicate_clusters.append(cluster)
         return duplicate_clusters
 
@@ -132,79 +134,6 @@ def jaccard_similarity(code1: str, code2: str) -> float:
     tokens1 = get_tokens(code1)
     tokens2 = get_tokens(code2)
     return len(tokens1 & tokens2) / len(tokens1 | tokens2)
-
-
-_shared_dataset = None
-
-
-def _find_cluster_extremes_shared(cluster, jaccard_threshold):
-    """Find a reduced cluster such that each code in the origin cluster is similar to at least one code in the reduced cluster.
-    Two codes are similar if their Jaccard similarity is above the threshold.
-
-    Args:
-        cluster (List[dict]):
-           cluster is a list of dict, each dict contains the following keys:
-                - base_index
-                - repo_name
-                - path
-            This is a typical output of DuplicationIndex.get_duplicate_clusters()
-        jaccard_threshold (float):
-            threshold for Jaccard similarity.
-            Two codes are similar if their Jaccard similarity is above the threshold.
-
-    Returns:
-        extremes (List[dict]):
-            A reduced representation of the cluster. The field copies is added to each dict.
-            The copies field indicates the number of similar codes in the cluster for a extreme.
-    """
-    extremes = []
-    for element1 in cluster:
-        code1 = _shared_dataset[element1["base_index"]][CONTENT]
-        for element2 in extremes:
-            code2 = _shared_dataset[element2["base_index"]][CONTENT]
-            if jaccard_similarity(code1, code2) >= jaccard_threshold:
-                element2["copies"] += 1
-                break
-        else:
-            element1["copies"] = 1
-            extremes.append(element1)
-    return extremes
-
-
-def find_extremes(cluster_list, dataset, jaccard_threshold):
-    """Call the _find_cluster_extremes_shared function in a parallel fashion.
-
-    Args:
-        cluster_list (List[List[Dict]]):
-            each cluster is a list of dicts with the key base_index,
-            referring to the index of the base code in the dataset.
-        dataset (Type[Dataset]):
-            dataset is used to access the content of the code snippets,
-            using the base_index from the cluster_list.
-            dataset is shared between all the processes using a glabal variable (any other way to share the dataset?),
-            otherwise the multi processing is not speeded up.
-        jaccard_threshold (float):
-            the threshold for the jaccard similarity. The default value is 0.85
-
-    Returns:
-        extremes_list (List[Dict]):
-            Each cluster is reduced to extremes.
-            See _find_cluster_extremes_shared for the definition of extremes.
-    """
-    global _shared_dataset
-    _shared_dataset = dataset
-    extremes_list = []
-    f = partial(_find_cluster_extremes_shared, jaccard_threshold=jaccard_threshold)
-    with mp.Pool() as pool:
-        for extremes in tqdm(
-            pool.imap_unordered(
-                f,
-                cluster_list,
-            ),
-            total=len(cluster_list),
-        ):
-            extremes_list.append(extremes)
-    return extremes_list
 
 
 def deduplicate_dataset(
@@ -267,3 +196,60 @@ def deduplicate_dataset(
     print(f"Filtered dataset size: {len(ds_filter)}")
 
     return ds_filter, duplicate_clusters
+
+
+def parse_args():
+    parser = ArgumentParser(description='merge dataset')
+    parser.add_argument(
+        "--path1",
+        "-P1",
+        type=str,
+        help="path to dataset #1",
+    )
+    parser.add_argument(
+        "--path2",
+        "-P2",
+        type=str,
+        help="path to dataset #2",
+    )
+    parser.add_argument(
+        "--threshold",
+        "-t",
+        type=float,
+        default=0.85,
+        help="Jaccard Threshold",
+    )
+    # parser.add_argument(
+    #     "--multiprocess",
+    #     action='store_true',
+    #     help="multiprocessing",
+    # )
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    opt = parse_args()
+    
+    di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
+    idx_mapping = {}
+    with open(opt.path1, 'r') as file:
+        data = list(file)
+        
+        for idx, item in enumerate(data):
+            item = json.loads(item)
+        
+            # idx = item['id']
+            code = item['code_tokens']
+            idx_mapping[idx] = item['id']
+            element, _hash = _compute_min_hash((idx, code))
+            di.add(idx, _hash)
+
+    # Returns a List[Cluster] where Cluster is List[str] with the filenames.
+    res = di.get_duplicate_clusters()
+    with open('./deduplicate.jsonl', "w") as f:
+        for item in res:
+            for idx, val in enumerate(item["original_index"]):
+                item["original_index"][idx] = idx_mapping[val]
+            json.dump(item, f)
+            f.write('\n')
+    

@@ -68,6 +68,7 @@ if __name__ == '__main__':
     opt = parse_args()
     
     di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
+    idx_mapping = {}
     with open(opt.path1, 'r') as file:
         data = list(file)
         
@@ -76,11 +77,18 @@ if __name__ == '__main__':
         
             # idx = item['id']
             code = item['code_tokens']
-            
+            idx_mapping[idx] = item['id']
             element, _hash = _compute_min_hash((idx, code))
-            di.add(element, _hash)
+            di.add(idx, _hash)
 
     # Returns a List[Cluster] where Cluster is List[str] with the filenames.
-    # print(di.get_duplicate_clusters())
+    res = di.get_duplicate_clusters()
+    with open('./deduplicate.jsonl', "w") as f:
+        for item in res:
+            for idx, val in enumerate(item["original_index"]):
+                item["original_index"][idx] = idx_mapping[val]
+            json.dump(item, f)
+            f.write('\n')
+    
 
     
