@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <img src="./assets/the-vault.png" width="220px" alt="logo">
+  <img src="./assets/the-vault-4-logo.png" width="220px" alt="logo">
 </p>
 
 # The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation
