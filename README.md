@@ -599,7 +599,9 @@ If you're using The Vault or the toolkit in your research or applications, pleas
 ```
 
 # Contact us
-If you have any questions, comments or suggestions, please do not hesitate to contact us at [email].
+If you have any questions, comments or suggestions, please do not hesitate to contact us.
+- Website: [fpt-aicenter](https://www.fpt-aicenter.com/ai-residency/)
+- Email: support.ailab@fpt.com
 
 # License
 [MIT License](LICENSE.txt)
