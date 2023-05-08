@@ -10,7 +10,7 @@ __________________________
 </div>
 
 ## Relevant Links
-[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets/Fsoft-AIC/thevault-function-language) <img alt="Hugging Face Datasets" src="https://img.shields.io/badge/-%F0%9F%A4%97%20datasets-blue"> </a >
+[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets/Fsoft-AIC/thevault-function-language) 🤗
 
 __________________
 ## Table of content
