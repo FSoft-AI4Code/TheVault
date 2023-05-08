@@ -95,22 +95,22 @@ class DuplicationIndex:
             json.dump(duplicate_clusters, f)
 
 
-def _compute_min_hash(element):
-    index, data = element
-    min_hash = get_min_hash(data)
-    if min_hash is not None:
-        return (index, data), min_hash
+# def _compute_min_hash(element):
+#     index, data = element
+#     min_hash = get_min_hash(data)
+#     if min_hash is not None:
+#         return (index, data), min_hash
 
 
-def minhash_iter(dataset_iterator: Type[Dataset]):
-    with mp.Pool() as pool:
-        for data in pool.imap_unordered(
-            _compute_min_hash,
-            ThreadedIterator(dataset_iterator, max_queue_size=10000),
-            chunksize=100,
-        ):
-            if data is not None:
-                yield data
+# def minhash_iter(dataset_iterator: Type[Dataset]):
+#     with mp.Pool() as pool:
+#         for data in pool.imap_unordered(
+#             _compute_min_hash,
+#             ThreadedIterator(dataset_iterator, max_queue_size=10000),
+#             chunksize=100,
+#         ):
+#             if data is not None:
+#                 yield data
 
 
 def make_duplicate_clusters(dataset_iterator: Type[Dataset], jaccard_threshold: float):
@@ -198,17 +198,41 @@ def deduplicate_dataset(
     return ds_filter, duplicate_clusters
 
 
+def _compute_min_hash(element):
+    index, value = element
+    value = json.loads(value)
+    code = value['code_tokens']
+    
+    sample_id = None
+    if 'id' in value:
+        sample_id = value['id']
+    
+    min_hash = get_min_hash(code)
+    if min_hash is not None:
+        return (index, sample_id, code), min_hash
+
+
+def minhash_iter(dataset_iterator):
+    with mp.Pool() as pool:
+        for data in pool.imap_unordered(
+            _compute_min_hash,
+            dataset_iterator
+        ):
+            if data is not None:
+                yield data
+
+
 def parse_args():
     parser = ArgumentParser(description='merge dataset')
     parser.add_argument(
-        "--path1",
-        "-P1",
+        "--data_path",
+        "-D",
         type=str,
         help="path to dataset #1",
     )
     parser.add_argument(
-        "--path2",
-        "-P2",
+        "--target_path",
+        "-T",
         type=str,
         help="path to dataset #2",
     )
@@ -219,30 +243,28 @@ def parse_args():
         default=0.85,
         help="Jaccard Threshold",
     )
-    # parser.add_argument(
-    #     "--multiprocess",
-    #     action='store_true',
-    #     help="multiprocessing",
-    # )
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     opt = parse_args()
     
-    di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
     idx_mapping = {}
-    with open(opt.path1, 'r') as file:
-        data = list(file)
-        
-        for idx, item in enumerate(data):
-            item = json.loads(item)
-        
-            # idx = item['id']
-            code = item['code_tokens']
-            idx_mapping[idx] = item['id']
-            element, _hash = _compute_min_hash((idx, code))
-            di.add(idx, _hash)
+    di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
+    
+    # First load all data in target path into 
+    with open(opt.target_path, 'r') as file:
+        dataset = list(file)
+        for meta, min_hash in tqdm(minhash_iter(enumerate(dataset)), total=len(dataset)):
+            idx, _, code =  meta
+            di.add(idx, min_hash)
+            
+    with open(opt.data_path, 'r') as file:
+        dataset = list(file)
+        for meta, min_hash in tqdm(minhash_iter(enumerate(dataset)), total=len(dataset)):
+            idx, sample_index, code =  meta
+            di.add(idx, min_hash)
+            idx_mapping[idx] = sample_index
 
     # Returns a List[Cluster] where Cluster is List[str] with the filenames.
     res = di.get_duplicate_clusters()
