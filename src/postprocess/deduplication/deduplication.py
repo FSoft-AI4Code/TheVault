@@ -1,51 +1,84 @@
-import os
-import re
-from argparse import ArgumentParser
+import random
+import hashlib
 import json
 from tqdm import tqdm
-from typing import List, Optional, Set
 
-from .minhash_deduplication import DuplicationIndex
-from datasketch import MinHash, MinHashLSH
+from argparse import ArgumentParser
+import multiprocessing as mp
 
-NON_ALPHA = re.compile("[^A-Za-z_0-9]")
-# parameters used in DuplicationIndex
-MIN_NUM_TOKENS = 10
-NUM_PERM = 256
 
-# column name of file paths, we add as file identifiers
-PATH_COLUMN = "original_path"
-# name of the "text" column used in deduplication
-CONTENT = "content"
+def jaccard_similarity(code1, code2, num_hash_functions=100) -> float:
+    """Compute the Jaccard similarity of two code snippets."""
+    num_same = sum(
+        [1 for i in range(num_hash_functions) if code1[i] == code2[i]])
+    num_total = num_hash_functions
+    return float(num_same) / float(num_total)
 
-def get_min_hash(tokens: List[str]) -> Optional[MinHash]:
-    """Compute the MinHash of a code snippet."""
-    if len(tokens) < MIN_NUM_TOKENS:
-        return None
-    min_hash = MinHash(num_perm=NUM_PERM)
-    for token in set(tokens):
-        min_hash.update(token.encode())
-    return min_hash
+
+def minhash_signature(tokens, num_hash_functions=100):
+    # Create set of shingles
+    shingles = set()
+    for i in range(len(tokens)):
+        if i < len(tokens) - 2:
+            shingles.add((tokens[i], tokens[i+1], tokens[i+2]))
+        elif i < len(tokens) - 1:
+            shingles.add((tokens[i], tokens[i+1]))
+        else:
+            shingles.add(tokens[i])
+
+    # Create hash functions
+    hash_functions = []
+    for i in range(num_hash_functions):
+        hash_functions.append(hashlib.sha1(str(i).encode('utf-8')).hexdigest())
+
+    # Generate minhash signature
+    signature = [float('inf')] * num_hash_functions
+    for shingle in shingles:
+        shingle_str = str(shingle).encode('utf-8')
+        shingle_hash = hashlib.sha1(shingle_str).hexdigest()
+        for i, hf in enumerate(hash_functions):
+            hash_val = int(shingle_hash, 16) ^ int(hf, 16)
+            signature[i] = min(signature[i], hash_val)
+    return signature
 
 
 def _compute_min_hash(element):
-    index, data = element
-    min_hash = get_min_hash(data)
+    try:
+        value = json.loads(element)
+    except Exception:
+        print(element)
+    code = value['code_tokens']
+    
+    sample_id = None
+    if 'id' in value:
+        sample_id = value['id']
+    
+    min_hash = minhash_signature(code)
     if min_hash is not None:
-        return (index, data), min_hash
+        return sample_id, min_hash
+
+
+def minhash_iter(dataset_iterator):
+    with mp.Pool() as pool:
+        for data in pool.imap_unordered(
+            _compute_min_hash,
+            dataset_iterator
+        ):
+            if data is not None:
+                yield data
 
 
 def parse_args():
     parser = ArgumentParser(description='merge dataset')
     parser.add_argument(
-        "--path1",
-        "-P1",
+        "--data_path",
+        "-D",
         type=str,
         help="path to dataset #1",
     )
     parser.add_argument(
-        "--path2",
-        "-P2",
+        "--target_path",
+        "-T",
         type=str,
         help="path to dataset #2",
     )
@@ -56,39 +89,39 @@ def parse_args():
         default=0.85,
         help="Jaccard Threshold",
     )
-    # parser.add_argument(
-    #     "--multiprocess",
-    #     action='store_true',
-    #     help="multiprocessing",
-    # )
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     opt = parse_args()
     
-    di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
-    idx_mapping = {}
-    with open(opt.path1, 'r') as file:
-        data = list(file)
-        
-        for idx, item in enumerate(data):
-            item = json.loads(item)
-        
-            # idx = item['id']
-            code = item['code_tokens']
-            idx_mapping[idx] = item['id']
-            element, _hash = _compute_min_hash((idx, code))
-            di.add(idx, _hash)
+    # First load all data in target path into 
+    target_hash = []
+    print("Load target set")
+    with open(opt.target_path, 'r') as file:
+        dataset = list(file)
+        for _, min_hash in tqdm(minhash_iter(dataset), total=len(dataset)):
+            target_hash.append(min_hash)
+    print("Done load target set")
+            
+            
+    # Cal minhash and compare
+    print("Load dataset")
+    chunk_size = 100000
+    duplicate_list = []
+    with open(opt.data_path, 'r') as file:
+        dataset = list(file)
+        for i in range(0, len(dataset), chunk_size):
+            _dataset = dataset[i:i+chunk_size]
+            for index, min_hash in tqdm(minhash_iter(_dataset), total=len(dataset)):
+                for tgs in target_hash:
+                    score = jaccard_similarity(min_hash, tgs)
+                    if score > opt.threshold:
+                        duplicate_list.append(index)
 
     # Returns a List[Cluster] where Cluster is List[str] with the filenames.
-    res = di.get_duplicate_clusters()
     with open('./deduplicate.jsonl', "w") as f:
-        for item in res:
-            for idx, val in enumerate(item["original_index"]):
-                item["original_index"][idx] = idx_mapping[val]
-            json.dump(item, f)
+        for item in duplicate_list:
+            json.dump({'id': item}, f)
             f.write('\n')
-    
-
     
