@@ -108,20 +108,19 @@ if __name__ == '__main__':
     # Cal minhash and compare
     print("Load dataset")
     chunk_size = 100000
-    duplicate_list = []
+    writer = open('./deduplicate.jsonl', "w")
     with open(opt.data_path, 'r') as file:
         dataset = list(file)
-        for i in range(0, len(dataset), chunk_size):
+        for i in tqdm(range(0, len(dataset), chunk_size)):
+            duplicate_list = []
             _dataset = dataset[i:i+chunk_size]
-            for index, min_hash in tqdm(minhash_iter(_dataset), total=len(dataset)):
+            for index, min_hash in minhash_iter(_dataset):
                 for tgs in target_hash:
                     score = jaccard_similarity(min_hash, tgs)
                     if score > opt.threshold:
                         duplicate_list.append(index)
 
-    # Returns a List[Cluster] where Cluster is List[str] with the filenames.
-    with open('./deduplicate.jsonl', "w") as f:
-        for item in duplicate_list:
-            json.dump({'id': item}, f)
-            f.write('\n')
+            for item in duplicate_list:
+                json.dump({'id': item}, writer)
+                writer.write('\n')
     
