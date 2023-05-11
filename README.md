@@ -20,7 +20,7 @@ __________________________
     - [Splitting Train/Eval/Test](#splitting-trainevaltest)
     - [Splitting Train set](#splitting-trainset-into-multiple-subsets)
   - [Download Dataset](#download-dataset)
-    - [Downloading Data from Azure blob storage](#downloading-data-from-azure-blob-storage)
+    - [Download Data from Azure blob storage](#download-data-from-azure-blob-storage)
     - [Load dataset from huggingface hub](#load-dataset-from-huggingface-hub)
 - [The Vault toolkit](#the-vault-toolkit)
   - [Getting Started](#getting-started)
@@ -410,7 +410,7 @@ For convenience when experimenting, we continue split training dataset into 3 sm
 </details>
 
 ## Download dataset
-### Downloading Data from Azure blob storage
+### Download Data from Azure blob storage
 
 Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
 > https://ai4code.blob.core.windows.net/thevault/v1/{function, class, inline}/{python,java,javascript,go,cpp,c_sharp,c, rust, ruby, php}.zip
@@ -447,7 +447,7 @@ for sample in iter(data['train']):
     print(sample)
 ```
 
-Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub version. To download the full data, see [Downloading Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub version. To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
 
 # The Vault Toolkit
 ## Getting Started
