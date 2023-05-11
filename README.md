@@ -447,7 +447,7 @@ code-text pairs, as illustrated in Figure above.
 There are 3 seperate process:
 1. **Extracting Raw code:** By using Tree-sitter extractor to identify function/class/line node inside raw file and obtain their metadata
 2. **Extracting Docstring Style:** We implement a docstring style parser to capture all the informative section or param's description inside a docstring
-3. **Filtering Docstring:** From the docstring gathered from previous process, we use it as main factor to filter quality sample (remove empty docstring, uninformative docstring, etc). See more about cleaning methodologies at our [paper](https://arxiv.org)
+3. **Filtering Docstring:** From the docstring gathered from previous process, we use it as main factor to filter quality sample (remove empty docstring, uninformative docstring, etc). See more about cleaning methodologies at our [paper](https://arxiv.org/abs/2305.06156)
 
 We seperated the source code into multiple steps (coresponde for each process). Or you can run the full pipeline follow [this tutorial](#processing-custom-dataset).
 
@@ -513,7 +513,8 @@ res = process_raw_node(
 ![Raw node structure](./assets/raw-node.png)
 
 ### Filtering Extracted code snippet
-With the result function or class node and their metadata extracted from previous process, execute [`get_node_definitions()`](./src/utils/utils.py#L238) to filtering sample based on their docstring. Heuristic rules will remove sample that not meet the minimum requirement (We detailedly describe it inside our paper).
+With the result function or class node and their metadata extracted from previous process, execute [`get_node_definitions()`](./src/utils/utils.py#L238) to filtering sample based on their docstring. Heuristic rules will remove sample that not meet the minimum requirement (We detailedly describe it inside our 
+).
 
 ![](./assets/docstring-style.png)
 
@@ -572,7 +573,7 @@ options:
 ```
 
 # Citing the Vault
-More details can be found in our [paper](https://arxiv.org/abs/). 
+More details can be found in our [paper](https://arxiv.org/abs/2305.06156). 
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
 ```bibtex
