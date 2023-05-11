@@ -1,3 +1,4 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
 <div align="center">
 
 <p align="center">
@@ -6,13 +7,8 @@
 
 # The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation
 __________________________
-
 </div>
 
-## Relevant Links
-[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets/Fsoft-AIC/thevault-function-language) 🤗
-
-__________________
 ## Table of content
 - [The Vault Dataset](#the-vault-dataset)
   - [Data Summary](#data-summary)
@@ -410,26 +406,17 @@ For convenience when experimenting, we continue split training dataset into 3 sm
   Updating
 </details>
 
-## Load dataset
-We support load our dataset via Huggingface datasets hub:
+## Downloading Data from Azure blob storage
 
-```python
-!pip install datasets
+Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
+> https://ai4code.blob.core.windows.net/thevault/v1/{function, class, inline}/{python,java,javascript,go,cpp,c_sharp,c, rust, ruby, php}.zip
 
-from datasets import load_dataset
+For example, download *class* of *Python*:
+> https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip
 
-# Load full function level dataset (40M samples)
-ds = load_dataset("Fsoft-AIC/the-vault-function")
-
-# Load function level train/validation/test set
-ds = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"])
-
-# Load "small" (or "medium", "large") function level training set
-ds = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train/small"])
-
-# specific language (e.g. Golang) 
-ds = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], languages=['Go'])
-
+Or download using the script [`download_dataset.py`](./resources/download_dataset.py):
+```bash
+python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
 ```
 
 Our full data version can be downloaded at [here](https://github.com/FSoft-AI4Code/TheVault)

@@ -3,6 +3,8 @@ import glob
 from tqdm import tqdm
 from multiprocessing import Pool
 from argparse import ArgumentParser
+from codetext.parser.language_parser import tokenize_docstring
+from ...utils.utils import get_first_sentence
 
 import hashlib
 import json
@@ -46,7 +48,8 @@ def merge_files(args):
     idx, data_path, save_path = args
     filename = os.path.basename(os.path.normpath(data_path))
     
-    data_path = os.path.join(data_path)
+    # Add path here
+    data_path = os.path.join(data_path, 'function', 'extracted_2')
     file_list = glob.glob(os.path.join(data_path, '*.jsonl'))
     output_filename = os.path.join(save_path, f'{filename}_merged.jsonl')
     csv_output_filename = os.path.join(save_path, f'{filename}_meta.csv')
@@ -66,6 +69,11 @@ def merge_files(args):
                     code_len = len(data['code_tokens'])
                     idx = get_sample_id(code)
                     data['id'] = idx
+                    
+                    if 'short_docstring' not in data.keys():
+                        short_docstring = get_first_sentence(data['docstring'])
+                        data['short_docstring'] = short_docstring
+                        data['short_docstring_tokens'] = tokenize_docstring(short_docstring)
                     
                     # for metadata.csv
                     metadata.append([idx, repo, code_len, docs_len])

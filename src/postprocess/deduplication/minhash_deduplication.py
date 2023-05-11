@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import json
 import multiprocessing as mp
 import re
@@ -9,18 +10,13 @@ from datasets import Dataset
 from tqdm import tqdm
 
 from datasketch import MinHash, MinHashLSH
-from dpu_utils.utils.iterators import ThreadedIterator
+# from dpu_utils.utils.iterators import ThreadedIterator
 
 
 NON_ALPHA = re.compile("[^A-Za-z_0-9]")
 # parameters used in DuplicationIndex
 MIN_NUM_TOKENS = 10
 NUM_PERM = 256
-
-# column name of file paths, we add as file identifiers
-PATH_COLUMN = "original_path"
-# name of the "text" column used in deduplication
-CONTENT = "content"
 
 def get_min_hash(tokens: List[str]) -> Optional[MinHash]:
     """Compute the MinHash of a code snippet."""
@@ -61,8 +57,9 @@ class DuplicationIndex:
             min_hash: MinHash of the code_key.
         """
         close_duplicates = self._index.query(min_hash)
+        # print(self._index.keys)
+        # print(code_key)
         if code_key in self._index.keys:
-            print(f"Duplicate key {code_key}")
             return
 
         self._index.insert(code_key, min_hash)
@@ -88,7 +85,7 @@ class DuplicationIndex:
         for base, duplicates in self._duplicate_clusters.items():
             cluster = [base] + list(duplicates)
             # reformat the cluster to be a list of dict
-            cluster = [{"base_index": el[0], "original_path": el[1]} for el in cluster]
+            cluster = {"cluster_index": cluster[0], "original_index": cluster[1:]}
             duplicate_clusters.append(cluster)
         return duplicate_clusters
 
@@ -98,22 +95,22 @@ class DuplicationIndex:
             json.dump(duplicate_clusters, f)
 
 
-def _compute_min_hash(element):
-    index, data = element
-    min_hash = get_min_hash([t for t in NON_ALPHA.split(data[CONTENT]) if len(t.strip()) > 0])
-    if min_hash is not None:
-        return (index, data[PATH_COLUMN]), min_hash
+# def _compute_min_hash(element):
+#     index, data = element
+#     min_hash = get_min_hash(data)
+#     if min_hash is not None:
+#         return (index, data), min_hash
 
 
-def minhash_iter(dataset_iterator: Type[Dataset]):
-    with mp.Pool() as pool:
-        for data in pool.imap_unordered(
-            _compute_min_hash,
-            ThreadedIterator(dataset_iterator, max_queue_size=10000),
-            chunksize=100,
-        ):
-            if data is not None:
-                yield data
+# def minhash_iter(dataset_iterator: Type[Dataset]):
+#     with mp.Pool() as pool:
+#         for data in pool.imap_unordered(
+#             _compute_min_hash,
+#             ThreadedIterator(dataset_iterator, max_queue_size=10000),
+#             chunksize=100,
+#         ):
+#             if data is not None:
+#                 yield data
 
 
 def make_duplicate_clusters(dataset_iterator: Type[Dataset], jaccard_threshold: float):
@@ -137,79 +134,6 @@ def jaccard_similarity(code1: str, code2: str) -> float:
     tokens1 = get_tokens(code1)
     tokens2 = get_tokens(code2)
     return len(tokens1 & tokens2) / len(tokens1 | tokens2)
-
-
-_shared_dataset = None
-
-
-def _find_cluster_extremes_shared(cluster, jaccard_threshold):
-    """Find a reduced cluster such that each code in the origin cluster is similar to at least one code in the reduced cluster.
-    Two codes are similar if their Jaccard similarity is above the threshold.
-
-    Args:
-        cluster (List[dict]):
-           cluster is a list of dict, each dict contains the following keys:
-                - base_index
-                - repo_name
-                - path
-            This is a typical output of DuplicationIndex.get_duplicate_clusters()
-        jaccard_threshold (float):
-            threshold for Jaccard similarity.
-            Two codes are similar if their Jaccard similarity is above the threshold.
-
-    Returns:
-        extremes (List[dict]):
-            A reduced representation of the cluster. The field copies is added to each dict.
-            The copies field indicates the number of similar codes in the cluster for a extreme.
-    """
-    extremes = []
-    for element1 in cluster:
-        code1 = _shared_dataset[element1["base_index"]][CONTENT]
-        for element2 in extremes:
-            code2 = _shared_dataset[element2["base_index"]][CONTENT]
-            if jaccard_similarity(code1, code2) >= jaccard_threshold:
-                element2["copies"] += 1
-                break
-        else:
-            element1["copies"] = 1
-            extremes.append(element1)
-    return extremes
-
-
-def find_extremes(cluster_list, dataset, jaccard_threshold):
-    """Call the _find_cluster_extremes_shared function in a parallel fashion.
-
-    Args:
-        cluster_list (List[List[Dict]]):
-            each cluster is a list of dicts with the key base_index,
-            referring to the index of the base code in the dataset.
-        dataset (Type[Dataset]):
-            dataset is used to access the content of the code snippets,
-            using the base_index from the cluster_list.
-            dataset is shared between all the processes using a glabal variable (any other way to share the dataset?),
-            otherwise the multi processing is not speeded up.
-        jaccard_threshold (float):
-            the threshold for the jaccard similarity. The default value is 0.85
-
-    Returns:
-        extremes_list (List[Dict]):
-            Each cluster is reduced to extremes.
-            See _find_cluster_extremes_shared for the definition of extremes.
-    """
-    global _shared_dataset
-    _shared_dataset = dataset
-    extremes_list = []
-    f = partial(_find_cluster_extremes_shared, jaccard_threshold=jaccard_threshold)
-    with mp.Pool() as pool:
-        for extremes in tqdm(
-            pool.imap_unordered(
-                f,
-                cluster_list,
-            ),
-            total=len(cluster_list),
-        ):
-            extremes_list.append(extremes)
-    return extremes_list
 
 
 def deduplicate_dataset(
@@ -272,3 +196,82 @@ def deduplicate_dataset(
     print(f"Filtered dataset size: {len(ds_filter)}")
 
     return ds_filter, duplicate_clusters
+
+
+def _compute_min_hash(element):
+    index, value = element
+    value = json.loads(value)
+    code = value['code_tokens']
+    
+    sample_id = None
+    if 'id' in value:
+        sample_id = value['id']
+    
+    min_hash = get_min_hash(code)
+    if min_hash is not None:
+        return (index, sample_id, code), min_hash
+
+
+def minhash_iter(dataset_iterator):
+    with mp.Pool() as pool:
+        for data in pool.imap_unordered(
+            _compute_min_hash,
+            dataset_iterator
+        ):
+            if data is not None:
+                yield data
+
+
+def parse_args():
+    parser = ArgumentParser(description='merge dataset')
+    parser.add_argument(
+        "--data_path",
+        "-D",
+        type=str,
+        help="path to dataset #1",
+    )
+    parser.add_argument(
+        "--target_path",
+        "-T",
+        type=str,
+        help="path to dataset #2",
+    )
+    parser.add_argument(
+        "--threshold",
+        "-t",
+        type=float,
+        default=0.85,
+        help="Jaccard Threshold",
+    )
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    opt = parse_args()
+    
+    idx_mapping = {}
+    di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
+    
+    # First load all data in target path into 
+    with open(opt.target_path, 'r') as file:
+        dataset = list(file)
+        for meta, min_hash in tqdm(minhash_iter(enumerate(dataset)), total=len(dataset)):
+            idx, _, code =  meta
+            di.add(idx, min_hash)
+            
+    with open(opt.data_path, 'r') as file:
+        dataset = list(file)
+        for meta, min_hash in tqdm(minhash_iter(enumerate(dataset)), total=len(dataset)):
+            idx, sample_index, code =  meta
+            di.add(idx, min_hash)
+            idx_mapping[idx] = sample_index
+
+    # Returns a List[Cluster] where Cluster is List[str] with the filenames.
+    res = di.get_duplicate_clusters()
+    with open('./deduplicate.jsonl', "w") as f:
+        for item in res:
+            for idx, val in enumerate(item["original_index"]):
+                item["original_index"][idx] = idx_mapping[val]
+            json.dump(item, f)
+            f.write('\n')
+    
