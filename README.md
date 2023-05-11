@@ -430,9 +430,6 @@ ds = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train/small"])
 # specific language (e.g. Golang) 
 ds = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], languages=['Go'])
 
-# streaming load (that will only download the data as needed)
-ds = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], streaming=True)
-
 ```
 # The Vault Toolkit
 ## Getting Started
