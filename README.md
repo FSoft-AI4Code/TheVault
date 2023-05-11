@@ -1,18 +1,14 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
 <div align="center">
 
 <p align="center">
-  <img src="./assets/the-vault.png" width="220px" alt="logo">
+  <img src="./assets/the-vault-4-logo-png.png" width="300px" alt="logo">
 </p>
 
 **The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation**
 __________________________
-
 </div>
 
-## Relevant Links
-[The Vault paper](https://arxiv.org) | [The Vault on HuggingFace datasets](https://huggingface.co/datasets/Fsoft-AIC/thevault-function-language) <img alt="Hugging Face Datasets" src="https://img.shields.io/badge/-%F0%9F%A4%97%20datasets-blue"> </a >
-
-__________________
 ## Table of content
 - [The Vault Dataset](#the-vault-dataset)
   - [Data Summary](#data-summary)
@@ -410,29 +406,18 @@ For convenience when experimenting, we continue split training dataset into 3 sm
   Updating
 </details>
 
-## Load dataset
-We support load our dataset via Huggingface datasets hub:
 
-```python
-!pip install datasets
+## Downloading Data from Azure blob storage
 
-from datasets import load_dataset
+Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
+> https://ai4code.blob.core.windows.net/thevault/v1/{function, class, inline}/{python,java,javascript,go,cpp,c_sharp,c, rust, ruby, php}.zip
 
-# Load full train function dataset (40M samples)
-ds = load_dataset("Fsoft-AIC/thevault-function", split="train")
+For example, download *class* of *Python*:
+> https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip
 
-# Load function "small" trainset (or "medium", "large") 
-ds = load_dataset("Fsoft-AIC/thevault-function", split="train-small")
-
-# Load only function testset
-ds = load_dataset("Fsoft-AIC/thevault-function", split="test")
-
-# specific language (e.g. Golang) 
-ds = load_dataset("Fsoft-AIC/thevault-function", split="train", languages=['Go'])
-
-# streaming load (that will only download the data as needed)
-ds = load_dataset("Fsoft-AIC/thevault-function", split="train", streaming=True)
-
+Or download using the script [`download_dataset.py`](./resources/download_dataset.py):
+```bash
+python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
 ```
 # The Vault Toolkit
 ## Getting Started
