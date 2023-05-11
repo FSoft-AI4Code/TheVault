@@ -19,7 +19,7 @@ import pandas as pd
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--language', type=str, default=None)
-    parser.add_argument('--model_name_or_path', type=str, default= 'Fsoft-AIC/Codebert-comment-inconsistence')
+    parser.add_argument('--model_name_or_path', type=str, default= 'Fsoft-AIC/Codebert-docstring-inconsistency')
     parser.add_argument('--data_folder', type=str, default= './rule-based-cleaned/')
     parser.add_argument('--save_folder', type=str, default= './deep-learning-cleaned/')
     parser.add_argument('--sentence1_key', type=str, default='docstring')
