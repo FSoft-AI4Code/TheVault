@@ -420,7 +420,7 @@ Or download using the script [`download_dataset.py`](./resources/download_datase
 python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
 ```
 
-Our full data version can be downloaded at [here](https://github.com/FSoft-AI4Code/TheVault)
+Our full data version can be downloaded [here](https://github.com/FSoft-AI4Code/TheVault)
 # The Vault Toolkit
 ## Getting Started
 
