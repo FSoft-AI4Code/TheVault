@@ -1,4 +1,3 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
 <div align="center">
 
 <p align="center">
@@ -6,7 +5,6 @@
 </p>
 
 **The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation**
-__________________________
 </div>
 
 ## Table of content
@@ -30,6 +28,8 @@ __________________________
 - [License](#license)
 
 ___________
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
+
 # The Vault Dataset
 ## Data Summary
 The Vault dataset is a comprehensive, large-scale, multilingual parallel dataset that features high-quality code-text pairs derived from The Stack, the largest permissively-licensed source code dataset.
@@ -410,7 +410,7 @@ For convenience when experimenting, we continue split training dataset into 3 sm
 ## Downloading Data from Azure blob storage
 
 Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
-> https://ai4code.blob.core.windows.net/thevault/v1/{function, class, inline}/{python,java,javascript,go,cpp,c_sharp,c, rust, ruby, php}.zip
+> https://ai4code.blob.core.windows.net/thevault/v1/{function,class,inline}/{python,java,javascript,go,cpp,c_sharp,c,rust,ruby,php}.zip
 
 For example, download *class* of *Python*:
 > https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip

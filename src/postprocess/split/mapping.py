@@ -1,76 +1,63 @@
 import os
-import jsonlines
+import json
 import csv
 import glob
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor
+import multiprocessing as mp
 
 
-def process_sample(sample, sets):
+def index_mapping(iterator):
+    sets, sample = iterator
+    sample = json.loads(sample)
     for set_name, ids in sets.items():
         if sample["id"] in ids:
-            return (set_name, sample)
-    return None
+            return set_name, sample
+    return 'train', sample
 
 
-def process_jsonl_file(filename, sets):
-    with jsonlines.open(filename) as reader:
-        samples = []
-        name = os.path.basename(os.path.normpath(filename))
-        for sample in tqdm(reader, desc=f"Processing {name}"):
-            result = process_sample(sample, sets)
-            if result:
-                samples.append(result)
-    return samples
+def index_mapping_iter(sample_iterator):
+    with mp.Pool() as pool:
+        for res in pool.imap_unordered(
+            index_mapping,
+            sample_iterator
+        ):
+            if res is not None:
+                yield res
 
 
-def write_samples_to_jsonl(samples, language):
-    for set_name, sample_list in samples.items():
-        with jsonlines.open(f"{language}/{set_name}.jsonl", mode='w') as writer:
-            for sample in sample_list:
-                writer.write(sample)
-
-
-def load_ids(language, csv_files):
+def processing(data_path, _idx):
+    language = os.path.basename(os.path.normpath(data_path))
+    csv_files = ["medium_train.csv", "small_train.csv", "test.csv", "eval.csv"]
     sets = {}
-    for file in csv_files:
-        # set_name = file.split('_')[1].split('.')[0]
-        set_name = str(file).replace(".csv", "")
-        name = os.path.basename(os.path.normpath(language))
-        with open(f"{language}/{name}_{file}") as f:
+    writer_list = {}
+    for _csv in csv_files:
+        path = os.path.join(data_path, f"{language}_{_csv}")
+        set_name = _csv.replace('.csv', '')
+        writer_list[set_name] = open(os.path.join(data_path, f"{set_name}.jsonl"), 'w')
+        with open(path, 'r') as f:
             reader = csv.reader(f)
             ids = [row[0] for row in reader]
-        sets[set_name] = ids
-    return sets
-
-
-def processing(language):
-    csv_files = ["eval.csv", "large_train.csv", "medium_train.csv", "small_train.csv", "test.csv"]
-    sets = load_ids(language, csv_files)
-    name = os.path.basename(os.path.normpath(language))
-    jsonl_file = f"{language}/{name}_merged.jsonl"
-    samples = process_jsonl_file(jsonl_file, sets)
-
-    # Group samples by set
-    grouped_samples = {}
-    for set_name, sample in samples:
-        if set_name not in grouped_samples:
-            grouped_samples[set_name] = []
-        grouped_samples[set_name].append(sample)
-
-    write_samples_to_jsonl(grouped_samples, language)
-    # print(f"Finished processing {language} files.")
+            sets[set_name] = ids
+    writer_list['train'] = open(os.path.join(data_path, f"full_train.jsonl"), 'w')
+    
+    with open(os.path.join(data_path, f'{language}_merged.jsonl'), 'r') as file:
+        dataset = list(file)
+        args = [(sets, item) for item in dataset]
+        for set_name, data_point in tqdm(index_mapping_iter(args), desc=data_path, total=len(dataset), position=_idx, leave=False):
+            json.dump(data_point, writer_list[set_name])
+            writer_list[set_name].write('\n')
+            if set_name not in ['eval', 'test', 'train']:
+                json.dump(data_point, writer_list['train'])
+                writer_list['train'].write('\n')
 
 
 def main():
-    data_path = "/datadrive/dungnm31/data/thestack"
+    data_path = "/Users/nmd2000/Workspace/codetext/test_mapping"
     languages = glob.glob(os.path.join(data_path, '*'))
-    csv_files = ["eval.csv", "large_train.csv", "medium_train.csv", "small_train.csv", "test.csv"]
+    print(languages)
 
-    with ProcessPoolExecutor(max_workers=len(languages)) as executor:
-        executor.submit(processing, languages)
-        
-        executor.map(processing, languages)
+    for idx, _lang in enumerate(languages):
+        processing(_lang, idx)
 
 
 if __name__ == "__main__":
