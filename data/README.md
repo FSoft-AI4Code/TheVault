@@ -80,7 +80,7 @@ Extract results:
     "b": "int"
   },
   "return_type": "int",
-  "original_string": "def cal_sum(a: int, b: int) -> int:\n    """\n    This is demo function\n\n    Args:\n        a (int): this is a comment\n        b (int): this is another comment\n        c (int): this is a comment, but `c` is not `cal_sum`'s paramerter\n\n    Returns:\n        int: sum of 2 value\n\n    Raise:\n        ValueError: raise if `ValueError` if a or b is not digit\n    """\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    # return sum of `a` and `b`\n    return a + b", 
+  "original_string": "def cal_sum(a: int, b: int) -> int:\n    \"\"\"\n    This is demo function\n\n    Args:\n        a (int): this is a comment\n        b (int): this is another comment\n        c (int): this is a comment, but `c` is not `cal_sum`'s paramerter\n\n    Returns:\n        int: sum of 2 value\n\n    Raise:\n        ValueError: raise if `ValueError` if a or b is not digit\n    \"\"\"\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    # return sum of `a` and `b`\n    return a + b", 
   "code": "def cal_sum(a: int, b: int) -> int:\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    return a + b",
   "code_tokens": [...],
   "original_docstring": "This is demo function\n\n    Args:\n        a (int): this is a comment\n        b (int): this is another comment\n        c (int): this is a comment, but `c` is not `cal_sum`'s paramerter\n\n    Returns:\n        int: sum of 2 value\n\n    Raise:\n        ValueError: raise if `ValueError` if a or b is not digit",
