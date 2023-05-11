@@ -1,4 +1,7 @@
+<div align="center">
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
+</div>
+
 <div align="center">
 
 <p align="center">
