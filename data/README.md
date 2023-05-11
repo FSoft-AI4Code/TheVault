@@ -5,6 +5,7 @@
 - **path** the full path to the original file
 - **license** repo license
 - **language** the programming language
+- **parameters** dictionary of parameters and its type (type can be None)
 - **identifier** the function or method name
 - **return_type** the type returned by the function
 - **original_string** original version of function/class node
