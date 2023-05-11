@@ -588,12 +588,10 @@ More details can be found in our [paper](https://arxiv.org/abs/).
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
 ```bibtex
-@article{thevault,
-  title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation},
-  author={},
-  journal={},
-  pages={},
-  year={2023}
+@misc{manh2023vault,
+    title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation}, 
+    author={Dung Nguyen Manh and Nam Le Hai and Anh T. V. Dau and Anh Minh Nguyen and Khanh Nghiem and Jin Guo and Nghi D. Q. Bui},
+    year={2023},
 }
 ```
 
