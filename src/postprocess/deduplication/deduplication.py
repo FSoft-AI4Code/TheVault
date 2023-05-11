@@ -59,7 +59,7 @@ def _compute_min_hash(element):
 
 
 def minhash_iter(dataset_iterator):
-    with mp.Pool() as pool:
+    with mp.Pool(processor=mp.cpu_count()-2) as pool:
         for data in pool.imap_unordered(
             _compute_min_hash,
             dataset_iterator
@@ -83,6 +83,12 @@ def parse_args():
         help="path to dataset #2",
     )
     parser.add_argument(
+        "--save_name",
+        type=str,
+        default="",
+        help="path to dataset #2",
+    )
+    parser.add_argument(
         "--threshold",
         "-t",
         type=float,
@@ -97,30 +103,28 @@ if __name__ == '__main__':
     
     # First load all data in target path into 
     target_hash = []
-    print("Load target set")
+    print("Load target set", opt.target_path)
     with open(opt.target_path, 'r') as file:
         dataset = list(file)
         for _, min_hash in tqdm(minhash_iter(dataset), total=len(dataset)):
             target_hash.append(min_hash)
-    print("Done load target set")
+    print("Done load target set | Length:", len(dataset))
             
             
     # Cal minhash and compare
     print("Load dataset")
     chunk_size = 100000
-    writer = open('./deduplicate.jsonl', "w")
+    writer = open(f'./{opt.save_name}_deduplicate.jsonl', "w")
     with open(opt.data_path, 'r') as file:
         dataset = list(file)
-        for i in tqdm(range(0, len(dataset), chunk_size)):
-            duplicate_list = []
-            _dataset = dataset[i:i+chunk_size]
-            for index, min_hash in minhash_iter(_dataset):
-                for tgs in target_hash:
-                    score = jaccard_similarity(min_hash, tgs)
-                    if score > opt.threshold:
-                        duplicate_list.append(index)
+        duplicate_list = []
+        for index, min_hash in tqdm(minhash_iter(dataset), total=len(dataset)):
+            for tgs in target_hash:
+                score = jaccard_similarity(min_hash, tgs)
+                if score > opt.threshold:
+                    duplicate_list.append(index)
 
-            for item in duplicate_list:
-                json.dump({'id': item}, writer)
-                writer.write('\n')
+    for item in duplicate_list:
+        json.dump({'id': item}, writer)
+        writer.write('\n')
     

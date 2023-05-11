@@ -7,33 +7,31 @@ from tqdm import tqdm
 
 
 # HumanEvallanguage = "java"
-humaneval = load_dataset("codeparrot/apps")
-for set_name in ['test', 'train']:
-    writer = open(f'./apps_{set_name}.jsonl', 'w')
+humaneval = load_dataset("THUDM/humaneval-x", "js")
+for set_name in ['test']: #, 'train']:
+    writer = open(f'./javascript.jsonl', 'w')
     dataset = humaneval[set_name]
     _fail = 0
 
     for data in tqdm(dataset, total=len(dataset)):
-        try:
-            code = json.loads(data['solutions'])[0]
-            # code = data['declaration'] + data['canonical_solution']
-            node = parse_code(code, 'python').root_node
+        # try:
+        # code = json.loads(data['solutions'])[0]
+        code = data['declaration'] + data['canonical_solution']
+        node = parse_code(code, 'java').root_node
 
-            fn = PythonParser.get_function_list(node)
-            if len(fn) > 0:
-                docstring = PythonParser.get_comment_node(fn[0])
-                data['code_tokens'] = tokenize_code(fn[0], code, docstring)
-                continue
-            else:
-                docstring = PythonParser.get_comment_node(node)
-                data['code_tokens'] = tokenize_code(node, code, docstring)
+        fn = JavascriptParser.get_function_list(node)
+        print(fn)
+        if len(fn) > 0:
+            docstring = JavascriptParser.get_comment_node(fn[0])
+            data['code_tokens'] = tokenize_code(fn[0], code, docstring)
+        else:
+            docstring = JavascriptParser.get_comment_node(node)
+            data['code_tokens'] = tokenize_code(node, code, docstring)
 
-            json.dump(data, writer)
-            writer.write('\n')
+        json.dump(data, writer)
+        writer.write('\n')
             
-        except Exception:
-            _fail += 1
-            continue
+        # except Enue
     
     print('Fail', _fail)
     
