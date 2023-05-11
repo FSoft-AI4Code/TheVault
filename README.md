@@ -444,7 +444,7 @@ dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], lang
 # dataset streaming
 data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"])
 for sample in iter(data['train']): 
-    print(sample["code"])
+    print(sample)
 ```
 
 Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub version. To download the full data, see [Downloading Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
