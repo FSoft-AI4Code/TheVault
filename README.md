@@ -447,7 +447,7 @@ for sample in iter(data['train']):
     print(sample["code"])
 ```
 
-Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub. The full version can be downloaded follows [Downloading Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub version. To download the full data, see [Downloading Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
 
 # The Vault Toolkit
 ## Getting Started
