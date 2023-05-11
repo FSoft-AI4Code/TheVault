@@ -19,7 +19,9 @@ __________________________
     - [Data Near Deduplication](#data-near-deduplication)
     - [Splitting Train/Eval/Test](#splitting-trainevaltest)
     - [Splitting Train set](#splitting-trainset-into-multiple-subsets)
-  - [Load Dataset](#load-dataset)
+  - [Download Dataset](#download-dataset)
+    - [Downloading Data from Azure blob storage](#azure_download)
+    - [Load dataset from huggingface hub](#huggingface_download)
 - [The Vault toolkit](#the-vault-toolkit)
   - [Getting Started](#getting-started)
   - [Processing Pipeline](#processing-pipeline)
@@ -407,7 +409,8 @@ For convenience when experimenting, we continue split training dataset into 3 sm
   Updating
 </details>
 
-## Downloading Data from Azure blob storage
+## Download dataset
+### Downloading Data from Azure blob storage
 
 Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
 > https://ai4code.blob.core.windows.net/thevault/v1/{function, class, inline}/{python,java,javascript,go,cpp,c_sharp,c, rust, ruby, php}.zip
@@ -419,8 +422,33 @@ Or download using the script [`download_dataset.py`](./resources/download_datase
 ```bash
 python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
 ```
+### Load dataset from huggingface hub 
 
-Our full data version can be downloaded [here](https://github.com/FSoft-AI4Code/TheVault)
+We also publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on huggingface dataset hub.
+
+```python
+from datasets import load_dataset
+
+# Load full function level dataset (40M samples)
+dataset = load_dataset("Fsoft-AIC/the-vault-function")
+
+# Load function level train/validation/test set
+dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"])
+
+# Load "small" (or "medium", "large") function level training set
+dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train/small"])
+
+# specific language (e.g. Python) 
+dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], languages=['Python'])
+
+# dataset streaming
+data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"])
+for sample in iter(data['train']): 
+    print(sample["code"])
+```
+
+Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub. The full version can be downloaded follows [Downloading Data from Azure blob storage](#azure_download).
+
 # The Vault Toolkit
 ## Getting Started
 
