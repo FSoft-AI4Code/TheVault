@@ -599,7 +599,7 @@ options:
   --debug
 ```
 
-# Citing the Vault
+# Citing The Vault
 More details can be found in our [paper](https://arxiv.org/abs/2305.06156). 
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
