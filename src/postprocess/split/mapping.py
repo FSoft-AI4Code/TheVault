@@ -56,10 +56,12 @@ def processing(data_path, _idx):
     dataframe = []
     with open(os.path.join(data_path, f'{language}_merged.jsonl'), 'r') as file:
         dataset = list(file)
-        for data_point in tqdm(dataset, desc=f"Load {language} jsonl", total=len(dataset), position=_idx, leave=False):
+        for data_point in tqdm(dataset, desc=f"Load {language} jsonl", total=len(dataset)):
             data_loaded = json.loads(data_point)
             dataframe.append([data_loaded['id'], data_point])
     content_df = pd.DataFrame(dataframe, columns=['id', 'str_sample'])
+    print("Shape of set_name dataframe: ", len(set_name_df))
+    print("Shape of content dataframe: ", len(content_df))
 
     print("Concating ...")
     result = pd.merge(set_name_df, content_df, on='id', how='outer')
@@ -67,7 +69,7 @@ def processing(data_path, _idx):
     result.to_csv(os.path.join(data_path, 'split_meta.csv'))
     print("Done")
 
-    for index, row in tqdm(result.iterrows(), total=result.shape[0]): 
+    for index, row in tqdm(result.iterrows(), total=len(result)): 
         data_point = row['str_sample']
         set_name = row['set_name']
         writer_list[set_name].write(data_point)
