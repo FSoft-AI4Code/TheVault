@@ -451,7 +451,7 @@ for sample in iter(data['train']):
     print(sample)
 ```
 
-Note: Due to the limitation of the huggingface data structure, we do not contain **parameters** and **docstring_params** data fields in the hub version. To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+Note: We exlude some fields that are in the original The Stack dataset in the hub version and only keep the hexsha so you can trace back to the original file in The Stack. To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
 
 # The Vault Toolkit
 ## Getting Started
