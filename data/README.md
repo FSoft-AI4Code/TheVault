@@ -1,11 +1,12 @@
 # Data format
 
 ## Function-level and Class-level
+- **hexsha** unique git hash of file
 - **repo** the owner/repo
 - **path** the full path to the original file
 - **license** repo license
 - **language** the programming language
-- **parameters** dictionary of parameters and its type (type can be None)
+- **parameters** list of parameters and its type (type can be None)
 - **identifier** the function or method name
 - **return_type** the type returned by the function
 - **original_string** original version of function/class node
@@ -76,10 +77,12 @@ Extract results:
   "language": "Python",
   "license": "",
   "identifier": "plotpoints",
-  "parameters": {
-    "a": "int",
-    "b": "int"
-  },
+  "parameters": [
+    {"param":"a",
+     "type": "int"},
+    {"param":"b",
+     "type": "int"}
+  ],
   "return_type": "int",
   "original_string": "def cal_sum(a: int, b: int) -> int:\n    \"\"\"\n    This is demo function\n\n    Args:\n        a (int): this is a comment\n        b (int): this is another comment\n        c (int): this is a comment, but `c` is not `cal_sum`'s paramerter\n\n    Returns:\n        int: sum of 2 value\n\n    Raise:\n        ValueError: raise if `ValueError` if a or b is not digit\n    \"\"\"\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    # return sum of `a` and `b`\n    return a + b", 
   "code": "def cal_sum(a: int, b: int) -> int:\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    return a + b",
