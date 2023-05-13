@@ -186,8 +186,8 @@ Therefore, we decided to split 20k sample for each evaluation set. *These set ar
 For convenience when experimenting, we continue split training dataset into 3 smaller subsets:
 
 - Small set (contains 5%)
-- Medium set (contains 25%)
-- Large set (contains 75%)
+- Medium set (contains 20%)
+- Full set (contains 100%)
 
 <details>
     <summary>Function set:</summary>
@@ -439,7 +439,7 @@ dataset = load_dataset("Fsoft-AIC/the-vault-function")
 # Load function level train/validation/test set
 dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"])
 
-# Load "small" (or "medium", "large") function level training set
+# Load "small" (or "medium", "full") function level training set
 dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train/small"])
 
 # specific language (e.g. Python) 
@@ -451,7 +451,7 @@ for sample in iter(data['train']):
     print(sample)
 ```
 
-Note: We exlude some fields that are in the original The Stack dataset in the hub version and only keep the hexsha so you can trace back to the original file in The Stack. To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+Note: We exlude some fields that are in the original The Stack dataset in the hub version and only keep the hexsha so you can trace back to the original file in The Stack (see [Data fields](./data/README.md)). To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
 
 # The Vault Toolkit
 ## Getting Started
