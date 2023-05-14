@@ -609,10 +609,11 @@ More details can be found in our [paper](https://arxiv.org/abs/2305.06156).
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
 ```bibtex
-@misc{manh2023vault,
-    title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation}, 
-    author={Dung Nguyen Manh and Nam Le Hai and Anh T. V. Dau and Anh Minh Nguyen and Khanh Nghiem and Jin Guo and Nghi D. Q. Bui},
-    year={2023},
+@article{manh2023vault,
+  title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation},
+  author={Manh, Dung Nguyen and Hai, Nam Le and Dau, Anh TV and Nguyen, Anh Minh and Nghiem, Khanh and Guo, Jin and Bui, Nghi DQ},
+  journal={arXiv preprint arXiv:2305.06156},
+  year={2023}
 }
 ```
 
