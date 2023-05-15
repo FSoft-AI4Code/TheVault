@@ -1,18 +1,24 @@
 # Data format
 
 ## Function-level and Class-level
+- **hexsha** unique git hash of file
 - **repo** the owner/repo
 - **path** the full path to the original file
-- **identifier** the function or method name
 - **license** repo license
-- **original_string** the raw string before tokenization or parsing
 - **language** the programming language
+- **parameters** list of parameters and its type (type can be None)
+- **identifier** the function or method name
+- **return_type** the type returned by the function
+- **original_string** original version of function/class node
+- **original_docstring** the raw docstring before tokenization or parsing
+- **docstring** the top-level comment or docstring (docstring version without param’s doc, return, exception, etc)
+- **docstring_tokens** tokenized version of `docstring`
 - **code** the part of the `original_string` that is code
 - **code_tokens** tokenized version of `code`
-- **docstring** the top-level comment or docstring (docstring version without param’s doc, return, exception, etc)
+- **short_docstring**: short, brief summarization (first line of the docstring)
+- **short_docstring_tokens**: tokenized version of short_docstring
 - **comment**
     - List of comment (line) inside the function/class
-- **docstring_tokens** tokenized version of `docstring`
 - **docstring_params**
     - **params**
         List of param's docstring (which actually is paramerter of the function). Each item in the list is a dictionary, sample example:
@@ -42,7 +48,7 @@
 
 See the example below:
 ```python
-def cal_sum(a: int, b: int):
+def cal_sum(a: int, b: int) -> int:
     """
     This is demo function
 
@@ -66,24 +72,29 @@ def cal_sum(a: int, b: int):
 Extract results:
 ```json
 {
-  "identifier": "plotpoints",
-  "parameters": {
-    "a": "int",
-    "b": "int"
-  },
   "repo": "",
   "path": "",
   "language": "Python",
   "license": "",
-  "size": 10,
-  "code": "",
-  "code_tokens": [],
+  "identifier": "plotpoints",
+  "parameters": [
+    {"param":"a",
+     "type": "int"},
+    {"param":"b",
+     "type": "int"}
+  ],
+  "return_type": "int",
+  "original_string": "def cal_sum(a: int, b: int) -> int:\n    \"\"\"\n    This is demo function\n\n    Args:\n        a (int): this is a comment\n        b (int): this is another comment\n        c (int): this is a comment, but `c` is not `cal_sum`'s paramerter\n\n    Returns:\n        int: sum of 2 value\n\n    Raise:\n        ValueError: raise if `ValueError` if a or b is not digit\n    \"\"\"\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    # return sum of `a` and `b`\n    return a + b", 
+  "code": "def cal_sum(a: int, b: int) -> int:\n    assert str(a).isdigit() == True, ValueError()\n    assert str(b).isdigit() == True, ValueError()\n    return a + b",
+  "code_tokens": [...],
   "original_docstring": "This is demo function\n\n    Args:\n        a (int): this is a comment\n        b (int): this is another comment\n        c (int): this is a comment, but `c` is not `cal_sum`'s paramerter\n\n    Returns:\n        int: sum of 2 value\n\n    Raise:\n        ValueError: raise if `ValueError` if a or b is not digit",
+  "docstring": "This is demo function",
   "docstring_tokens": [...],
+  "short_docstring": "This is demo function",
+  "short_docstring_tokens": [...]
   "comment": [
     "# return sum of `a` and `b`",
   ],
-  "docstring": "This is demo function",
   "docstring_params": {
     "returns": [
       {

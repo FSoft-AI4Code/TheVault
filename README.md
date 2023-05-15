@@ -5,7 +5,14 @@
 </p>
 
 **The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation**
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![arXiv](https://img.shields.io/badge/arXiv-2305.06156-b31b1b.svg)](https://arxiv.org/abs/2305.06156) [![The Vault on HuggingFace datasets](https://img.shields.io/badge/-%F0%9F%A4%97%20Datasets-white)](https://huggingface.co/datasets/Fsoft-AIC/thevault-function) 
 </div>
+
+  
+# The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation
+</div>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
 
 ## Table of content
 - [The Vault Dataset](#the-vault-dataset)
@@ -16,7 +23,9 @@
     - [Data Near Deduplication](#data-near-deduplication)
     - [Splitting Train/Eval/Test](#splitting-trainevaltest)
     - [Splitting Train set](#splitting-trainset-into-multiple-subsets)
-  - [Load Dataset](#load-dataset)
+  - [Download Dataset](#download-dataset)
+    - [Download Data from Azure blob storage](#download-data-from-azure-blob-storage)
+    - [Load dataset from huggingface hub](#load-dataset-from-huggingface-hub)
 - [The Vault toolkit](#the-vault-toolkit)
   - [Getting Started](#getting-started)
   - [Processing Pipeline](#processing-pipeline)
@@ -179,8 +188,8 @@ Therefore, we decided to split 20k sample for each evaluation set. *These set ar
 For convenience when experimenting, we continue split training dataset into 3 smaller subsets:
 
 - Small set (contains 5%)
-- Medium set (contains 25%)
-- Large set (contains 75%)
+- Medium set (contains 20%)
+- Full set (contains 100%)
 
 <details>
     <summary>Function set:</summary>
@@ -406,8 +415,8 @@ For convenience when experimenting, we continue split training dataset into 3 sm
   Updating
 </details>
 
-
-## Downloading Data from Azure blob storage
+## Download dataset
+### Download Data from Azure blob storage
 
 Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
 > https://ai4code.blob.core.windows.net/thevault/v1/{function,class,inline}/{python,java,javascript,go,cpp,c_sharp,c,rust,ruby,php}.zip
@@ -419,6 +428,33 @@ Or download using the script [`download_dataset.py`](./resources/download_datase
 ```bash
 python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
 ```
+### Load dataset from huggingface hub 
+
+We also publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on huggingface dataset hub.
+
+```python
+from datasets import load_dataset
+
+# Load full function level dataset (40M samples)
+dataset = load_dataset("Fsoft-AIC/the-vault-function")
+
+# Load function level train/validation/test set
+dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"])
+
+# Load "small" (or "medium", "full") function level training set
+dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train/small"])
+
+# specific language (e.g. Python) 
+dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], languages=['Python'])
+
+# dataset streaming
+data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"])
+for sample in iter(data['train']): 
+    print(sample)
+```
+
+Note: We exlude some fields that are in the original The Stack dataset in the hub version and only keep the hexsha so you can trace back to the original file in The Stack (see [Data fields](./data/README.md)). To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+
 # The Vault Toolkit
 ## Getting Started
 
@@ -444,8 +480,8 @@ Our toolkit takes raw source code files as input and streamlines the extraction 
 code-text pairs, as illustrated in Figure above.
 There are 3 seperate process:
 1. **Extracting Raw code:** By using Tree-sitter extractor to identify function/class/line node inside raw file and obtain their metadata
-2. **Filtering Docstring:** From the docstring gathered from previous process, we use it as main factor to filter quality sample (remove empty docstring, uninformative docstring, etc). See more about cleaning rules at  our [technical report](https://arxiv.org)
-3. **Extracting Docstring Style:** We implement a docstring style parser to capture all the informative section or param's description inside a docstring
+2. **Extracting Docstring Style:** We implement a docstring style parser to capture all the informative section or param's description inside a docstring
+3. **Filtering Docstring:** From the docstring gathered from previous process, we use it as main factor to filter quality sample (remove empty docstring, uninformative docstring, etc). See more about cleaning methodologies at our [paper](https://arxiv.org/abs/2305.06156)
 
 We seperated the source code into multiple steps (coresponde for each process). Or you can run the full pipeline follow [this tutorial](#processing-custom-dataset).
 
@@ -511,7 +547,8 @@ res = process_raw_node(
 ![Raw node structure](./assets/raw-node.png)
 
 ### Filtering Extracted code snippet
-With the result function or class node and their metadata extracted from previous process, execute [`get_node_definitions()`](./src/utils/utils.py#L238) to filtering sample based on their docstring. Heuristic rules will remove sample that not meet the minimum requirement (We detailedly describe it inside our technical report).
+With the result function or class node and their metadata extracted from previous process, execute [`get_node_definitions()`](./src/utils/utils.py#L238) to filtering sample based on their docstring. Heuristic rules will remove sample that not meet the minimum requirement (We detailedly describe it inside our 
+).
 
 ![](./assets/docstring-style.png)
 
@@ -569,22 +606,23 @@ options:
   --debug
 ```
 
-# Citing the Vault
-More details can be found in our [technical report](https://arxiv.org/abs/). 
+# Citing The Vault
+More details can be found in our [paper](https://arxiv.org/abs/2305.06156). 
 
 If you're using The Vault or the toolkit in your research or applications, please cite using this BibTeX:
 ```bibtex
-@article{thevault,
+@article{manh2023vault,
   title={The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation},
-  author={},
-  journal={},
-  pages={},
+  author={Manh, Dung Nguyen and Hai, Nam Le and Dau, Anh TV and Nguyen, Anh Minh and Nghiem, Khanh and Guo, Jin and Bui, Nghi DQ},
+  journal={arXiv preprint arXiv:2305.06156},
   year={2023}
 }
 ```
 
 # Contact us
-If you have any questions, comments or suggestions, please do not hesitate to contact us at [email].
+If you have any questions, comments or suggestions, please do not hesitate to contact us.
+- Website: [fpt-aicenter](https://www.fpt-aicenter.com/ai-residency/)
+- Email: support.ailab@fpt.com
 
 # License
 [MIT License](LICENSE.txt)
