@@ -4,7 +4,7 @@
   <img src="./assets/the-vault-4-logo-png.png" width="300px" alt="logo">
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![arXiv](https://img.shields.io/badge/arXiv-2305.06156-b31b1b.svg)](https://arxiv.org/abs/2305.06156) [![The Vault on HuggingFace datasets](https://img.shields.io/badge/%F0%9F%A4%97%20Datasets-The%20Vault-yellow?style=flat)](https://huggingface.co/datasets/Fsoft-AIC/thevault-function) 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![arXiv](https://img.shields.io/badge/arXiv-2305.06156-b31b1b.svg)](https://arxiv.org/abs/2305.06156) [![The Vault on HuggingFace datasets](https://img.shields.io/badge/%F0%9F%A4%97%20Datasets-The%20Vault-yellow?style=flat)](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) 
 
 # The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation
 </div>
@@ -32,7 +32,7 @@
 - [License](#license)
 
 ___________
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
+
 
 # The Vault Dataset
 ## Data Summary
@@ -49,17 +49,17 @@ Every sample of The Vault are stored in form of a json object and compressed int
 See detail of data fields and example for each type of set [Here](./data/README.md)
 
 ### Data Near-Deduplication
-We applied near-deduplication internal and  external with other dataset.
+We applied deduplication for internal and external.
 
-- **Internal**: Deduplicate similar sample in full dataset
-- **External**: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
+- **Internal**: Apply exact deduplicate in full dataset.
+- **External**: Apply near deduplicate with the test sets of CodeSearchNet, HumanEval and APPS.
 
-Near-deduplication use MinHash to clustering sample based on their code. Those sample are close to each other (even little modified forked version) can be detected. (The hash depend a lot on tokenizer, in our experiment, we use a simple tokenizer which seperate every character).
+*[Near-deduplication](https://chenghaomou.github.io/posts/20230220150602) use MinHash LSH to clustering sample based on their code. Those sample are close to each other (or even modified version) can be detected.
 
 ### Splitting train/eval/test
-Due to the large amount of samples in each language, we first decided to split eval and test set by 5% each, but this lead to huge amount of test set in some language (it will be 1M sample for Python test set and eval set).
+We have divided the complete dataset into three distinct sets: a training set, an evaluation set, and a test set, to maintain consistency throughout the experiment.
 
-Therefore, we decided to split 20k sample for each evaluation set. *These set are splitting to mimics the distribution (of code and docstring) in the full dataset.* 
+To avoid data leakage, we allocated all samples from the same repository to a singular set. We then subdivided these sets using code tokens as splitting factors. As a result, these subsets mirror the distribution of the full dataset.
 
 <details>
   <summary>Function set</summary>
@@ -180,11 +180,11 @@ Therefore, we decided to split 20k sample for each evaluation set. *These set ar
 </details>
 
 ### Splitting trainset into multiple subsets
-For convenience when experimenting, we continue split training dataset into 3 smaller subsets:
+Given the substantial size of our dataset, we found it beneficial to further divide the training set into two smaller subsets for ease of experimentation:
 
-- Small set (contains 5%)
-- Medium set (contains 20%)
-- Full set (contains 100%)
+- A small training set, which contains 5% of the total data.
+- A medium training set, comprising 20% of the full dataset.
+- (And) the full training set.
 
 <details>
     <summary>Function set:</summary>
@@ -330,72 +330,6 @@ For convenience when experimenting, we continue split training dataset into 3 sm
         <td class="tg-0pky">10,335,698</td>
         <td class="tg-0pky">61,187,957</td>
       </tr>
-      <tr>
-        <td class="tg-4erg">Large(70%)</td>
-        <td class="tg-0pky">Python</td>
-        <td class="tg-0pky">7,010,982</td>
-        <td class="tg-0pky">20,388,095</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">PHP</td>
-        <td class="tg-0pky">3,858,968</td>
-        <td class="tg-0pky">17,311,537</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">JavaScript</td>
-        <td class="tg-0pky">1,827,627</td>
-        <td class="tg-0pky">21,227,333</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Java</td>
-        <td class="tg-0pky">5,593,370</td>
-        <td class="tg-0pky">43,171,557</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C#</td>
-        <td class="tg-0pky">2,836,916</td>
-        <td class="tg-0pky">22,122,806</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C++</td>
-        <td class="tg-0pky">1,359,021</td>
-        <td class="tg-0pky">18,664,059</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C</td>
-        <td class="tg-0pky">1,383,885</td>
-        <td class="tg-0pky">8,194,206</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Go</td>
-        <td class="tg-0pky">3,950,783</td>
-        <td class="tg-0pky">12,676,152</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Rust</td>
-        <td class="tg-0pky">737,575</td>
-        <td class="tg-0pky">4,967,827</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Ruby</td>
-        <td class="tg-0pky">380,827</td>
-        <td class="tg-0pky">2,602,707</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Total</td>
-        <td class="tg-0pky">28,939,953</td>
-        <td class="tg-0pky">171,326,280</td>
-      </tr>
     </tbody>
     </table>
 </details>
@@ -411,21 +345,9 @@ For convenience when experimenting, we continue split training dataset into 3 sm
 </details>
 
 ## Download dataset
-### Download Data from Azure blob storage
+### Load dataset
 
-Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
-> https://ai4code.blob.core.windows.net/thevault/v1/{function,class,inline}/{python,java,javascript,go,cpp,c_sharp,c,rust,ruby,php}.zip
-
-For example, download *class* of *Python*:
-> https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip
-
-Or download using the script [`download_dataset.py`](./resources/download_dataset.py):
-```bash
-python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
-```
-### Load dataset from huggingface hub 
-
-We also publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on huggingface dataset hub.
+We publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on Huggingface dataset hub.
 
 ```python
 from datasets import load_dataset
@@ -447,8 +369,18 @@ data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"])
 for sample in iter(data['train']): 
     print(sample)
 ```
+### Download via link
 
-Note: We exlude some fields that are in the original The Stack dataset in the hub version and only keep the hexsha so you can trace back to the original file in The Stack (see [Data fields](./data/README.md)). To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+Or download the Vault directly from Azure blob storage via download link. Here are the link pattern for specific download option:
+> https://ai4code.blob.core.windows.net/thevault/v1/{function,class,inline}/{python,java,javascript,go,cpp,c_sharp,c,rust,ruby,php}.zip
+
+For example, download *class* of *Python*:
+> https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip
+
+Or download using the script [`download_dataset.py`](./resources/download_dataset.py):
+```bash
+python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
+```
 
 # The Vault Toolkit
 ## Getting Started
