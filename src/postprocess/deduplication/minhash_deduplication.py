@@ -1,277 +1,332 @@
-from argparse import ArgumentParser
-import json
-import multiprocessing as mp
+"""Source: https://github.com/bigcode-project/bigcode-dataset/"""
+import hashlib
 import re
-from collections import defaultdict
-from functools import partial
-from typing import Dict, List, Optional, Set, Tuple, Type
+import struct
+import sys
+from itertools import tee
+from logging import Logger
+from typing import Iterable
+from typing import List
+from typing import Tuple
 
-from datasets import Dataset
-from tqdm import tqdm
+import numpy as np
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+from scipy.integrate import quad as integrate
 
-from datasketch import MinHash, MinHashLSH
-# from dpu_utils.utils.iterators import ThreadedIterator
-
-
+SEED = 42
 NON_ALPHA = re.compile("[^A-Za-z_0-9]")
-# parameters used in DuplicationIndex
-MIN_NUM_TOKENS = 10
-NUM_PERM = 256
-
-def get_min_hash(tokens: List[str]) -> Optional[MinHash]:
-    """Compute the MinHash of a code snippet."""
-    if len(tokens) < MIN_NUM_TOKENS:
-        return None
-    min_hash = MinHash(num_perm=NUM_PERM)
-    for token in set(tokens):
-        min_hash.update(token.encode())
-    return min_hash
+RNG = np.random.RandomState(SEED)
+MAX_HASH = np.uint64((1 << 32) - 1)
+MERSENNE_PRIME = np.uint64((1 << 61) - 1)
 
 
-def get_tokens(code: str) -> Set[str]:
-    """Tokenize a code snippet."""
-    return set([t for t in NON_ALPHA.split(code) if len(t.strip()) > 0])
+# Connected Components in MapReduce and Beyond
+def large_star_map(edge):
+    return [(edge[0], edge[1]), (edge[1], edge[0])]
 
 
-class DuplicationIndex:
-    def __init__(
-        self,
-        *,
-        duplication_jaccard_threshold: float = 0.85,
-    ):
-        self._duplication_jaccard_threshold = duplication_jaccard_threshold
-        self._num_perm = NUM_PERM
-        self._index = MinHashLSH(threshold=self._duplication_jaccard_threshold, num_perm=self._num_perm)
-
-        self._duplicate_clusters = defaultdict(set)
-
-    def add(self, code_key: Tuple, min_hash: MinHash) -> None:
-        """Add a key to _index (MinHashLSH)
-        the min_hash is used to query closest matches based on the jaccard_threshold.
-        The new key is either added to a existing cluster of one close match,
-        or a new cluster is created. The clusters created in this way, depend on the order of add.
-
-        Args:
-            code_key (Tuple of (index, repo_name, path)):
-                Theoritically any hasbale key. Here we use a tuple to retrieve the information later.
-            min_hash: MinHash of the code_key.
-        """
-        close_duplicates = self._index.query(min_hash)
-        # print(self._index.keys)
-        # print(code_key)
-        if code_key in self._index.keys:
-            return
-
-        self._index.insert(code_key, min_hash)
-        if len(close_duplicates) > 0:
-
-            for base_duplicate in close_duplicates:
-                if base_duplicate in self._duplicate_clusters:
-                    self._duplicate_clusters[base_duplicate].add(code_key)
-                    break
-            else:
-                self._duplicate_clusters[close_duplicates[0]].add(code_key)
-
-    def get_duplicate_clusters(self) -> List[List[Dict]]:
-        """Export the duplicate clusters.
-        For each cluster, the first element is the base element of the cluster.
-        The base element has an estimation jaccard similarity higher than the threshold with all the other elements.
-
-        Returns:
-            duplicate_clusters (List[List[Dict]]):
-                List of duplicate clusters.
-        """
-        duplicate_clusters = []
-        for base, duplicates in self._duplicate_clusters.items():
-            cluster = [base] + list(duplicates)
-            # reformat the cluster to be a list of dict
-            cluster = {"cluster_index": cluster[0], "original_index": cluster[1:]}
-            duplicate_clusters.append(cluster)
-        return duplicate_clusters
-
-    def save(self, filepath) -> None:
-        duplicate_clusters = self.get_duplicate_clusters()
-        with open(filepath, "w") as f:
-            json.dump(duplicate_clusters, f)
+def large_star_reduce(group):
+    x, neighbors = group
+    nodes = [x] + list(neighbors)
+    minimum = min(nodes)
+    return [(n, minimum) for n in nodes if n > x]
 
 
-# def _compute_min_hash(element):
-#     index, data = element
-#     min_hash = get_min_hash(data)
-#     if min_hash is not None:
-#         return (index, data), min_hash
+def small_star_map(edge):
+    x, y = edge
+    if y <= x:
+        return (x, y)
+    else:
+        return (y, x)
 
 
-# def minhash_iter(dataset_iterator: Type[Dataset]):
-#     with mp.Pool() as pool:
-#         for data in pool.imap_unordered(
-#             _compute_min_hash,
-#             ThreadedIterator(dataset_iterator, max_queue_size=10000),
-#             chunksize=100,
-#         ):
-#             if data is not None:
-#                 yield data
+def small_star_reduce(group):
+    x, neighbors = group
+    nodes = [x] + list(neighbors)
+    minimum = min(nodes)
+    return [(n, minimum) for n in nodes if n != minimum]
 
 
-def make_duplicate_clusters(dataset_iterator: Type[Dataset], jaccard_threshold: float):
-    """Find duplicate clusters in the dataset in two steps:
-    1. Compute MinHash for each code snippet. MinHash is a tool for fast jaccard similarity estimation.
-    This step is computed using an asynchronous multiprocessing pool, minhash_iter
-    2. Find duplicate clusters. The computed MinHash is added sequentially to the DuplicationIndex.
-    This step cannot be parallelized. So using asynchronous thread in the previous step helps to speed up the process.
+def ngrams(sequence: List[str], n: int, min_ngram_size: int = 5) -> Iterable:
     """
-    di = DuplicationIndex(duplication_jaccard_threshold=jaccard_threshold)
+    Code taken from NLTK, without padding.
 
-    for filename, min_hash in tqdm(ThreadedIterator(minhash_iter(enumerate(dataset_iterator)), max_queue_size=100)):
-        di.add(filename, min_hash)
+    Parameters
+    ----------
+    sequence : list
+        The sequence of items to be converted into n-grams.
+    n : int
+        The order of the n-grams to be extracted.
+    min_ngram_size : int
+        The minimum number of items in the sequence to generate n-grams.
 
-    # Returns a List[Cluster] where Cluster is List[str] with the filenames.
-    return di.get_duplicate_clusters()
+    Returns
+    -------
+    Iterable
+        The n-grams generated from the sequence.
 
-
-def jaccard_similarity(code1: str, code2: str) -> float:
-    """Compute the Jaccard similarity of two code snippets."""
-    tokens1 = get_tokens(code1)
-    tokens2 = get_tokens(code2)
-    return len(tokens1 & tokens2) / len(tokens1 | tokens2)
-
-
-def deduplicate_dataset(
-    dataset: Type[Dataset], jaccard_threshold: float = 0.85
-) -> Tuple[Type[Dataset], List[List[Dict]]]:
-    """Deduplicate the dataset using minhash and jaccard similarity.
-    This function first generate duplicate clusters, then each cluster
-    is reduced to the extremes that are similar to the other elements in the cluster.
-    Codes are called similar if their Jaccard similarity is greater than jaccard_threshold (0.85 default).
-
-    Args:
-        dataset (Type[Dataset]):
-            The dataset to deduplicate.
-        jaccard_threshold (float, default=0.85):
-            jaccard threshold to determine if two codes are similar
-
-    Returns:
-        ds_dedup (Type[Dataset]):
-            The deduplicated dataset.
-        duplicate_clusters (List[List[Dict]]):
-            The list of duplicate clusters.
-            Each cluster is a list of dicts with the following keys:
-            - base_index : int
-                The index of the code in the original dataset.
-            - repo_name : str
-            - path : str
-            - copies : int
-                The number of copies of the code in the cluster. (find_cluster_extremes)
-            - is_extreme : bool
-                Whether the code is an extreme in the cluster.
-            All the codes in the cluster are removed from the dataset except the extremes.
-
-    Example:
-        >>> from datasets import load_dataset
-        >>> from minhash_deduplication import deduplicate_dataset
-        >>> ds = load_dataset("lvwerra/codeparrot-clean", split="train")
-        >>> ds_dedup, duplicate_clusters = deduplicate_dataset(ds, jaccard_threshold=0.85)
+    Examples
+    --------
+    >>> list(ngrams(['a', 'b', 'c', 'd'], 2))
+    [('a', 'b'), ('b', 'c'), ('c', 'd')]
+    >>> list(ngrams(['a', 'b', 'c', 'd'], 3))
+    [('a', 'b', 'c'), ('b', 'c', 'd')]
     """
-    duplicate_clusters = make_duplicate_clusters(dataset, jaccard_threshold)
-    duplicate_indices = set(x["base_index"] for cluster in duplicate_clusters for x in cluster)
-    extreme_dict = {}
-    extremes_clusters = find_extremes(duplicate_clusters, dataset, jaccard_threshold)
-    for extremes in extremes_clusters:
-        for element in extremes:
-            extreme_dict[element["base_index"]] = element
-    remove_indices = duplicate_indices - set(extreme_dict.keys())
-    ds_filter = dataset.filter(lambda x, idx: idx not in remove_indices, with_indices=True)
-
-    # update duplicate_clusters
-    for cluster in duplicate_clusters:
-        for element in cluster:
-            element["is_extreme"] = element["base_index"] in extreme_dict
-            if element["is_extreme"]:
-                element["copies"] = extreme_dict[element["base_index"]]["copies"]
-
-    print(f"Original dataset size: {len(dataset)}")
-    print(f"Number of duplicate clusters: {len(duplicate_clusters)}")
-    print(f"Files in duplicate cluster: {len(duplicate_indices)}")
-    print(f"Unique files in duplicate cluster: {len(extreme_dict)}")
-    print(f"Filtered dataset size: {len(ds_filter)}")
-
-    return ds_filter, duplicate_clusters
-
-
-def _compute_min_hash(element):
-    index, value = element
-    value = json.loads(value)
-    code = value['code_tokens']
+    if len(sequence) < min_ngram_size:
+        return []
     
-    sample_id = None
-    if 'id' in value:
-        sample_id = value['id']
-    
-    min_hash = get_min_hash(code)
-    if min_hash is not None:
-        return (index, sample_id, code), min_hash
+    iterables = tee(sequence, n)
+    for i, sub_iterable in enumerate(iterables):
+        for _ in range(i):
+            next(sub_iterable, None)
+    return zip(*iterables)
 
 
-def minhash_iter(dataset_iterator):
-    with mp.Pool() as pool:
-        for data in pool.imap_unordered(
-            _compute_min_hash,
-            dataset_iterator
-        ):
-            if data is not None:
-                yield data
+def sha1_hash32(data):
+    """
+    Directly taken from datasketch package to avoid dependency.
+
+    Parameters
+    ----------
+    data : bytes
+
+    Returns
+    -------
+    int
+        The first 4 bytes (32 bits) of the SHA1 hash of the input data.
+
+    Examples
+    --------
+    >>> sha1_hash32(b"hello")
+    499578026
+    >>> bin(sha1_hash32(b"hello"))
+    '0b11101110001101111010010101010'
+    >>> sha1_hash32(b"hello world").bit_length()
+    30
+    """
+    return struct.unpack("<I", hashlib.sha1(data).digest()[:4])[0]
 
 
-def parse_args():
-    parser = ArgumentParser(description='merge dataset')
-    parser.add_argument(
-        "--data_path",
-        "-D",
-        type=str,
-        help="path to dataset #1",
+def generate_hash_values(
+    content: str,
+    idx: int,
+    num_perm: int,
+    ngram_size: int,
+    hashranges: List[Tuple[int, int]],
+    permutations: np.ndarray,
+    min_ngram_size: int,
+) -> List[Tuple[int, bytes, int]]:
+    """
+    Generate the MinHashLSH values for a given document.
+
+    Parameters
+    ----------
+    content : str
+        The content of the document.
+    idx : int
+        The index of the document.
+    num_perm : int
+        The number of permutations.
+    ngram_size : int
+        The size of the n-grams.
+    hashranges : list
+        The ranges of offsets for each hash value.
+    permutations : np.ndarray
+        The permutations for the hash values.
+    min_ngram_size : int
+        The minimum number of items in the sequence to generate n-grams.
+
+    Returns
+    -------
+    List[Tuple[int, bytes, int]]
+        The list of (band_idx, hash value, idx) for the document.
+    """
+    hashvalues = np.ones(num_perm, dtype=np.uint64) * MAX_HASH
+    tokens = {" ".join(t) for t in ngrams(NON_ALPHA.split(content), ngram_size, min_ngram_size)}
+    hv = np.array([sha1_hash32(token.encode("utf-8")) for token in tokens], dtype=np.uint64)
+    a, b = permutations
+    phv = np.bitwise_and(((hv * np.tile(a, (len(hv), 1)).T).T + b) % MERSENNE_PRIME, MAX_HASH)
+    hashvalues = np.vstack([phv, hashvalues]).min(axis=0)
+    Hs = [bytes(hashvalues[start:end].byteswap().data) for start, end in hashranges]
+    return [(band_idx, H, idx) for band_idx, H in enumerate(Hs)]
+
+
+def optimal_param(
+    threshold: float,
+    num_perm: int,
+    false_positive_weight: float = 0.5,
+    false_negative_weight: float = 0.5,
+):
+    """
+    Compute the optimal `MinHashLSH` parameter that minimizes the weighted sum
+    of probabilities of false positive and false negative, taken from datasketch.
+
+    Parameters
+    ----------
+    threshold : float
+        The threshold for similarity.
+    num_perm : int
+        The number of permutations.
+    false_positive_weight : float
+        The weight of false positive.
+    false_negative_weight : float
+        The weight of false negative.
+
+    Returns
+    -------
+    Tuple[int, int]
+        The optimal `b` and `r` parameters.
+        The number of bands, and the number of rows per band respectively.
+
+    Examples
+    --------
+    >>> optimal_param(0.7, 256)
+    (25, 10)
+    """
+
+    def false_positive_probability(threshold: float, b: int, r: int):
+        """Source: `datasketch.lsh`"""
+
+        def proba(s):
+            return 1 - (1 - s ** float(r)) ** float(b)
+
+        a, _ = integrate(proba, 0.0, threshold)
+        return a
+
+    def false_negative_probability(threshold: float, b: int, r: int):
+        """Source: `datasketch.lsh`"""
+
+        def proba(s):
+            return 1 - (1 - (1 - s ** float(r)) ** float(b))
+
+        a, _ = integrate(proba, threshold, 1.0)
+        return a
+
+    min_error = float("inf")
+    opt = (0, 0)
+    for b in range(1, num_perm + 1):
+        max_r = int(num_perm / b)
+        for r in range(1, max_r + 1):
+            fp = false_positive_probability(threshold, b, r)
+            fn = false_negative_probability(threshold, b, r)
+            error = fp * false_positive_weight + fn * false_negative_weight
+            if error < min_error:
+                min_error = error
+                opt = (b, r)
+    return opt
+
+
+def generate_edges(nodes: List[int]) -> List[Tuple[int, int]]:
+    """
+    Generate edges from a cluster. Instead of generating N^2 edges, we only need all nodes align to a single node, since
+    we will be running connected components on the edges later.
+
+    Parameters
+    ----------
+    nodes : List[int]
+        The list of nodes in the cluster.
+
+    Returns
+    -------
+    List[Tuple[int, int]]
+        The list of edges.
+    """
+    if len(nodes) <= 1:
+        return []
+
+    min_node = min(nodes)
+    return [(n, min_node) for n in nodes if n != min_node]
+
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Near-deduplicating BigQuery Table with PySpark")
+    parser.add_argument("--table", type=str, required=True, help="BigQuery table to deduplicate")
+    parser.add_argument("--threshold", type=float, default=0.7, help="Similarity threshold")
+    parser.add_argument("--min_ngram_size", type=int, default=5, help="Shorter docs will be removed")
+    parser.add_argument("--ngram_size", type=int, default=5, help="N-gram size")
+    parser.add_argument("--num_perm", type=int, default=256, help="Number of permutations")
+    parser.add_argument("--b", type=int, default=None, help="Number of bands")
+    parser.add_argument("--r", type=int, default=None, help="Number of rows per band")
+    parser.add_argument("--column", "-c", type=str, default="content", help="Column to deduplicate")
+    parser.add_argument("--output", "-o", type=str, required=True, help="Output directory")
+    args = parser.parse_args()
+
+    conf = SparkConf()
+    conf.set("spark.app.name", "MinHashLSH")
+    conf.set("spark.debug.maxToStringFields", "100")
+    spark = SparkSession.builder.config(conf=conf).getOrCreate()
+    log: Logger = spark.sparkContext._jvm.org.apache.log4j.LogManager.getLogger(__name__)  # type: ignore
+
+    if args.b is None or args.r is None:
+        B, R = optimal_param(args.threshold, args.num_perm)
+        log.info(f"Using optimal parameters: {B=}, {R=}")
+    else:
+        B, R = args.b, args.r
+
+    HASH_RANGES = [(i * R, (i + 1) * R) for i in range(B)]
+    PERMUTATIONS = np.array(
+        [
+            (
+                RNG.randint(1, MERSENNE_PRIME, dtype=np.uint64),
+                RNG.randint(0, MERSENNE_PRIME, dtype=np.uint64),
+            )
+            for _ in range(args.num_perm)
+        ],
+        dtype=np.uint64,
+    ).T
+
+    df = spark.read.format("bigquery").option("table", args.table).load()
+    df = df.withColumn("__id__", F.monotonically_increasing_id()).cache()
+    records = df.select("__id__", args.column).rdd
+    records = records.repartition(args.num_perm * 2).cache()
+
+    edges = (
+        records.flatMap(
+            lambda x: generate_hash_values(
+                content=x[1],
+                idx=x[0],
+                num_perm=args.num_perm,
+                ngram_size=args.ngram_size,
+                hashranges=HASH_RANGES,
+                permutations=PERMUTATIONS,
+                min_ngram_size=args.min_ngram_size,
+            )
+        )
+        .groupBy(lambda x: (x[0], x[1]))
+        .flatMap(lambda x: generate_edges([i[2] for i in x[1]]))
+        .distinct()
+        .cache()
     )
-    parser.add_argument(
-        "--target_path",
-        "-T",
-        type=str,
-        help="path to dataset #2",
-    )
-    parser.add_argument(
-        "--threshold",
-        "-t",
-        type=float,
-        default=0.85,
-        help="Jaccard Threshold",
-    )
-    return parser.parse_args()
 
+    a = edges
+    while True:
+        b = a.flatMap(large_star_map).groupByKey().flatMap(large_star_reduce).distinct().cache()
+        a = b.map(small_star_map).groupByKey().flatMap(small_star_reduce).distinct().cache()
+        changes = a.subtract(b).union(b.subtract(a)).collect()
+        if len(changes) == 0:
+            break
 
-if __name__ == '__main__':
-    opt = parse_args()
-    
-    idx_mapping = {}
-    di = DuplicationIndex(duplication_jaccard_threshold=opt.threshold)
-    
-    # First load all data in target path into 
-    with open(opt.target_path, 'r') as file:
-        dataset = list(file)
-        for meta, min_hash in tqdm(minhash_iter(enumerate(dataset)), total=len(dataset)):
-            idx, _, code =  meta
-            di.add(idx, min_hash)
-            
-    with open(opt.data_path, 'r') as file:
-        dataset = list(file)
-        for meta, min_hash in tqdm(minhash_iter(enumerate(dataset)), total=len(dataset)):
-            idx, sample_index, code =  meta
-            di.add(idx, min_hash)
-            idx_mapping[idx] = sample_index
+    results = a.collect()
+    if len(results) == 0:
+        log.info("No components found.")
+        df.write.option(
+            "maxRecordsPerFile", 300_000
+        ).option(
+            "intermediateFormat", "orc"
+        ).parquet(args.output, mode="overwrite")
+        sys.exit(0)
 
-    # Returns a List[Cluster] where Cluster is List[str] with the filenames.
-    res = di.get_duplicate_clusters()
-    with open('./deduplicate.jsonl', "w") as f:
-        for item in res:
-            for idx, val in enumerate(item["original_index"]):
-                item["original_index"][idx] = idx_mapping[val]
-            json.dump(item, f)
-            f.write('\n')
-    
+    components = spark.createDataFrame(results, schema=["__id__", "component"]).sort(["component", "__id__"])
+    components.show()
+    df = df.join(components, on="__id__", how="left")
+    df = df.filter(F.col("component").isNull()).drop("__id__", "component").cache()
+    df.write.option(
+        "maxRecordsPerFile", 300_000
+    ).option(
+        "intermediateFormat", "orc"
+    ).parquet(args.output, mode="overwrite")

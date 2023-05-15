@@ -86,7 +86,7 @@ def parse_args():
         "--save_name",
         type=str,
         default="",
-        help="path to dataset #2",
+        help="path to save dir",
     )
     parser.add_argument(
         "--threshold",
