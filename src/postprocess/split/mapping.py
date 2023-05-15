@@ -28,7 +28,7 @@ def index_mapping_iter(sample_iterator):
 
 def processing(data_path, _idx):
     language = os.path.basename(os.path.normpath(data_path))
-    csv_files = ["medium_train.csv", "small_train.csv", "test.csv", "eval.csv"]
+    csv_files = ["medium_train.csv", "small_train.csv", "large_train.csv", "test.csv", "eval.csv"]
     sets = {"id": [], "set_name": []}
     # sets = []
     writer_list = {}
@@ -66,7 +66,7 @@ def processing(data_path, _idx):
     print("Concating ...")
     result = pd.merge(set_name_df, content_df, on='id', how='outer')
     result['set_name'].fillna('train', inplace=True)
-    result.to_csv(os.path.join(data_path, 'split_meta.csv'))
+    # result.to_csv(os.path.join(data_path, 'split_meta.csv'))
     print("Done")
 
     for index, row in tqdm(result.iterrows(), total=len(result)): 
@@ -85,7 +85,7 @@ def processing(data_path, _idx):
 
 
 def main():
-    data_path = "/Users/nmd2000/Workspace/codetext/test_mapping"
+    data_path = "/datadrive/dungnm31/data/ext5"
     languages = glob.glob(os.path.join(data_path, '*'))
     print(languages)
 

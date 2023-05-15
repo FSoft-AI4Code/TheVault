@@ -13,22 +13,34 @@ SMALL_RATIO = 0.05
 MEDIUM_RATIO = 0.25
 LARGE_RATIO = 0.7
 
-def train_test_stratified_sampling(dataframe_path, idx=0):
+def train_test_stratified_sampling(dataframe_path, split_train=False):
     dataframe = pd.read_csv(dataframe_path)
-    test_size = TEST_SIZE
     
+    bf = len(dataframe)
+    dataframe = dataframe.drop_duplicates(subset='ID', keep="first")
+    af = len(dataframe)
     data = dataframe.copy(deep=True)
+    print(f"{dataframe_path}: Before {bf} | After {af}")
+    
     data = data.groupby(['Repo Name'])[['Code Length', 'Docs Length']].mean().reset_index()
     data['CL_bin'] = pd.qcut(data['Code Length'], 10, labels=False)
-
-    # repo_ratio = len(dataframe) / len(data)
-    # test_ratio = test_size / (len(data) * repo_ratio)
-    test_ratio = SMALL_RATIO
-    train_val_set, test_set, y_train_val, y_test = train_test_split(data, data[['CL_bin']], test_size=test_ratio, random_state=42, stratify=data[['CL_bin']])
     
-    # eval_ratio = test_size / (len(train_val_set) * repo_ratio)
-    eval_ratio = MEDIUM_RATIO * len(data) / len(train_val_set)
-    train_set, eval_set = train_test_split(train_val_set, test_size=eval_ratio, random_state=42, stratify=y_train_val)
+    if split_train:
+        test_ratio = SMALL_RATIO
+        train_val_set, test_set, y_train_val, y_test = train_test_split(data, data[['CL_bin']], test_size=test_ratio, random_state=42, stratify=data[['CL_bin']])
+        eval_ratio = MEDIUM_RATIO * len(data) / len(train_val_set)
+        train_set, eval_set = train_test_split(train_val_set, test_size=eval_ratio, random_state=42, stratify=y_train_val)
+        set_name = ['large_train', 'medium_train', 'small_train']
+    
+    else:
+        test_size = TEST_SIZE
+        repo_ratio = len(dataframe) / len(data)
+        test_ratio = test_size / (len(data) * repo_ratio)
+        train_val_set, test_set, y_train_val, y_test = train_test_split(data, data[['CL_bin']], test_size=test_ratio, random_state=42, stratify=data[['CL_bin']])
+        eval_ratio = test_size / (len(train_val_set) * repo_ratio)
+        train_set, eval_set = train_test_split(train_val_set, test_size=eval_ratio, random_state=42, stratify=y_train_val)
+        set_name = ['train', 'eval', 'test']
+    
 
     train_set['Set Name'] = 'train'
     eval_set['Set Name'] = 'eval'
@@ -44,26 +56,23 @@ def train_test_stratified_sampling(dataframe_path, idx=0):
         grouped[name] = group
         
     
-    save_name = str(dataframe_path).replace('train.csv', '')
+    if split_train:
+        save_name = str(dataframe_path).replace('train.csv', '')
+    else:
+        save_name = str(dataframe_path).replace('meta.csv', '')
+        
     # access the groups by their name
-    grouped['train'].to_csv(f'{save_name}large_train.csv', index=False)
-    grouped['eval'].to_csv(f'{save_name}medium_train.csv', index=False)
-    grouped['test'].to_csv(f'{save_name}small_train.csv', index=False)
+    grouped['train'].to_csv(f'{save_name}{set_name[0]}.csv', index=False)
+    grouped['eval'].to_csv(f'{save_name}{set_name[1]}.csv', index=False)
+    grouped['test'].to_csv(f'{save_name}{set_name[2]}.csv', index=False)
+    print(f"Split train: {split_train} | {set_name[0]}: {len(grouped['train'])} | {set_name[1]}: {len(grouped['eval'])} | {set_name[2]}: {len(grouped['test'])}")
     
-    # grouped['train'].to_csv(f'{save_name}train.csv', index=False)
-    # grouped['eval'].to_csv(f'{save_name}eval.csv', index=False)
-    # grouped['test'].to_csv(f'{save_name}test.csv', index=False)
-    
-    print(f"Done splitting {os.path.basename(os.path.normpath(dataframe_path))}")
+    print(f"""Done splitting {os.path.basename(os.path.normpath(dataframe_path))}""")
 
 
 def train_test_split_wrapper(args):
-    dataframe_path, idx = args
-    train_test_stratified_sampling(dataframe_path, idx)
-    
-    
-def partition_sampling(dataframe, save_path):
-    pass
+    dataframe_path, split_train = args
+    train_test_stratified_sampling(dataframe_path, split_train)
 
 
 def parse_args():
@@ -83,17 +92,31 @@ def parse_args():
         action='store_true',
         help="multiprocessing",
     )
+    parser.add_argument(
+        "--split_train",
+        action='store_true',
+        help="split 3 sets for training",
+    )
+    
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     opt = parse_args()
     data_path = opt.data_path
-    file_list = glob.glob(os.path.join(data_path, '*train.csv'))
+    languages = os.listdir(data_path)
+    file_list = []
+    
+    look_pattern = "*meta.csv"
+    if opt.split_train:
+        look_pattern = "*train.csv"
+        
+    for _lang in languages:
+        file_list.extend(glob.glob(os.path.join(data_path, _lang, look_pattern)))
     
     if opt.multiprocess:
         with Pool(processes=len(file_list)) as pool:
-            args = [(file, idx) for idx, file in enumerate(file_list)]
+            args = [(file, opt.split_train) for file in file_list]
             pool.map(train_test_split_wrapper, args)
     else:
         for file in file_list:

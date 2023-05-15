@@ -4,11 +4,30 @@ from tqdm import tqdm
 from multiprocessing import Pool
 from argparse import ArgumentParser
 from codetext.parser.language_parser import tokenize_docstring
-from ...utils.utils import get_first_sentence
+from codetext.clean import remove_comment_delimiters
 
+import nltk
 import hashlib
 import json
 import csv
+
+def get_first_sentence(paragraph):
+    """
+    Returns the first sentence of a given paragraph of text.
+    """
+    # Tokenize the paragraph into sentences
+    paragraph = remove_comment_delimiters(paragraph)
+    first_para = paragraph.split('\n\n')[0]
+    
+    sentences = nltk.sent_tokenize(first_para)
+    
+    # Iterate over the sentences to find the first one that is not empty
+    for sentence in sentences:
+        if len(sentence.strip()) > 0:
+            return sentence.strip()
+    
+    # If all sentences are empty, return an empty string
+    return ''
 
 def get_sample_id(description: str):
     """
@@ -49,7 +68,7 @@ def merge_files(args):
     filename = os.path.basename(os.path.normpath(data_path))
     
     # Add path here
-    data_path = os.path.join(data_path, 'function', 'extracted_2')
+    data_path = os.path.join(data_path) #, 'function', 'extracted_2')
     file_list = glob.glob(os.path.join(data_path, '*.jsonl'))
     output_filename = os.path.join(save_path, f'{filename}_merged.jsonl')
     csv_output_filename = os.path.join(save_path, f'{filename}_meta.csv')
