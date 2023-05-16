@@ -1,53 +1,10 @@
-"""Source: https://github.com/bigcode-project/bigcode-dataset/"""
-import hashlib
-import re
-import struct
-import sys
+import json
+import argparse
 from itertools import tee
-from logging import Logger
-from typing import Iterable
-from typing import List
-from typing import Tuple
-
-import numpy as np
-from pyspark import SparkConf
-from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-from scipy.integrate import quad as integrate
-
-SEED = 42
-NON_ALPHA = re.compile("[^A-Za-z_0-9]")
-RNG = np.random.RandomState(SEED)
-MAX_HASH = np.uint64((1 << 32) - 1)
-MERSENNE_PRIME = np.uint64((1 << 61) - 1)
-
-
-# Connected Components in MapReduce and Beyond
-def large_star_map(edge):
-    return [(edge[0], edge[1]), (edge[1], edge[0])]
-
-
-def large_star_reduce(group):
-    x, neighbors = group
-    nodes = [x] + list(neighbors)
-    minimum = min(nodes)
-    return [(n, minimum) for n in nodes if n > x]
-
-
-def small_star_map(edge):
-    x, y = edge
-    if y <= x:
-        return (x, y)
-    else:
-        return (y, x)
-
-
-def small_star_reduce(group):
-    x, neighbors = group
-    nodes = [x] + list(neighbors)
-    minimum = min(nodes)
-    return [(n, minimum) for n in nodes if n != minimum]
-
+from tqdm import tqdm
+from typing import List, Iterable, Dict
+from datasketch import MinHash, MinHashLSH
+import multiprocessing as mp
 
 def ngrams(sequence: List[str], n: int, min_ngram_size: int = 5) -> Iterable:
     """
@@ -84,249 +41,109 @@ def ngrams(sequence: List[str], n: int, min_ngram_size: int = 5) -> Iterable:
     return zip(*iterables)
 
 
-def sha1_hash32(data):
-    """
-    Directly taken from datasketch package to avoid dependency.
+def calculate_minhash(idx, tokens, num_perm=128):
+    set_token = set(tokens)
+    minhash = MinHash(num_perm=num_perm)
+    for t in set_token:
+        minhash.update(t.encode("utf8"))
+    
+    return (idx, minhash)
 
+
+def calculate_minhash_iter(dataset, ngram):
+    args = []
+    for item in dataset:
+        item = json.loads(item)
+        idx = item['id']
+        content = item['code_tokens']
+        args.append((idx, [" ".join(t) for t in ngrams(content, ngram)]))
+
+    hash_result = []
+    with mp.Pool() as p:
+        with tqdm(total=len(args)) as pbar:
+            for res in p.starmap(calculate_minhash, args):
+                hash_result.append(res)
+                pbar.update()
+            # hash_result = p.starmap(calculate_minhash, args)
+    
+    return hash_result
+
+
+def insert_minhash_lsh(hash_dict: Dict, threshold: float = 0.7, num_perm: int = 128):
+    lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
+
+    for idx, val in hash_dict.items():
+        lsh.insert(idx, val)
+    
+    return lsh
+
+
+def deduplicate(set1: List, set2: List, threshold: float, num_perm: int = 128, ngram: int = 3):
+    """
+    Compare duplicate sample in set1 and set2.
+    We consider set1 as source set and compare each sample in set1 (which should
+    large than the other) and set2 as target set.
+    The output is list of duplicated sample of set1 correspond with
+    the duplicated sample of set2.
+    
     Parameters
     ----------
-    data : bytes
-
-    Returns
-    -------
-    int
-        The first 4 bytes (32 bits) of the SHA1 hash of the input data.
-
-    Examples
-    --------
-    >>> sha1_hash32(b"hello")
-    499578026
-    >>> bin(sha1_hash32(b"hello"))
-    '0b11101110001101111010010101010'
-    >>> sha1_hash32(b"hello world").bit_length()
-    30
-    """
-    return struct.unpack("<I", hashlib.sha1(data).digest()[:4])[0]
-
-
-def generate_hash_values(
-    content: str,
-    idx: int,
-    num_perm: int,
-    ngram_size: int,
-    hashranges: List[Tuple[int, int]],
-    permutations: np.ndarray,
-    min_ngram_size: int,
-) -> List[Tuple[int, bytes, int]]:
-    """
-    Generate the MinHashLSH values for a given document.
-
-    Parameters
-    ----------
-    content : str
-        The content of the document.
-    idx : int
-        The index of the document.
+    set1 : list
+        The sequence of items to be converted into n-grams.
+    set2 : int
+        The order of the n-grams to be extracted.
     num_perm : int
-        The number of permutations.
-    ngram_size : int
-        The size of the n-grams.
-    hashranges : list
-        The ranges of offsets for each hash value.
-    permutations : np.ndarray
-        The permutations for the hash values.
-    min_ngram_size : int
-        The minimum number of items in the sequence to generate n-grams.
-
-    Returns
-    -------
-    List[Tuple[int, bytes, int]]
-        The list of (band_idx, hash value, idx) for the document.
+        The number of permutation for minhash function
+    ngram: int
+        The order of the n-grams to be extracted (for `ngrams` function)
     """
-    hashvalues = np.ones(num_perm, dtype=np.uint64) * MAX_HASH
-    tokens = {" ".join(t) for t in ngrams(NON_ALPHA.split(content), ngram_size, min_ngram_size)}
-    hv = np.array([sha1_hash32(token.encode("utf-8")) for token in tokens], dtype=np.uint64)
-    a, b = permutations
-    phv = np.bitwise_and(((hv * np.tile(a, (len(hv), 1)).T).T + b) % MERSENNE_PRIME, MAX_HASH)
-    hashvalues = np.vstack([phv, hashvalues]).min(axis=0)
-    Hs = [bytes(hashvalues[start:end].byteswap().data) for start, end in hashranges]
-    return [(band_idx, H, idx) for band_idx, H in enumerate(Hs)]
+        
+    print("Calculate MinHash for Source set")
+    set1_hash = calculate_minhash_iter(set1, ngram)
+    
+    lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
+    for idx, val in set1_hash:
+        lsh.insert(idx, val)
+    
+    set2_hash = calculate_minhash_iter(set2, ngram)
+    duplicate_info = []
+    for idx, val in set2_hash:
+        res = lsh.query(val)
+        if res:
+            print(res)
+            duplicate_info.append({'tgt': idx, 'src': res})
+            # duplicate_info[idx] = res
+    
+    print(duplicate_info)
+    if len(res) < 1:
+        print("Not find any duplicated sample")
+    else:
+        # TODO: save duplicate_info as 
+        with open("./deduplicate_info.jsonl", 'w') as writer:
+            for item in duplicate_info:
+                json.dump(item, writer)
+                writer.write('\n')
 
 
-def optimal_param(
-    threshold: float,
-    num_perm: int,
-    false_positive_weight: float = 0.5,
-    false_negative_weight: float = 0.5,
-):
-    """
-    Compute the optimal `MinHashLSH` parameter that minimizes the weighted sum
-    of probabilities of false positive and false negative, taken from datasketch.
-
-    Parameters
-    ----------
-    threshold : float
-        The threshold for similarity.
-    num_perm : int
-        The number of permutations.
-    false_positive_weight : float
-        The weight of false positive.
-    false_negative_weight : float
-        The weight of false negative.
-
-    Returns
-    -------
-    Tuple[int, int]
-        The optimal `b` and `r` parameters.
-        The number of bands, and the number of rows per band respectively.
-
-    Examples
-    --------
-    >>> optimal_param(0.7, 256)
-    (25, 10)
-    """
-
-    def false_positive_probability(threshold: float, b: int, r: int):
-        """Source: `datasketch.lsh`"""
-
-        def proba(s):
-            return 1 - (1 - s ** float(r)) ** float(b)
-
-        a, _ = integrate(proba, 0.0, threshold)
-        return a
-
-    def false_negative_probability(threshold: float, b: int, r: int):
-        """Source: `datasketch.lsh`"""
-
-        def proba(s):
-            return 1 - (1 - (1 - s ** float(r)) ** float(b))
-
-        a, _ = integrate(proba, threshold, 1.0)
-        return a
-
-    min_error = float("inf")
-    opt = (0, 0)
-    for b in range(1, num_perm + 1):
-        max_r = int(num_perm / b)
-        for r in range(1, max_r + 1):
-            fp = false_positive_probability(threshold, b, r)
-            fn = false_negative_probability(threshold, b, r)
-            error = fp * false_positive_weight + fn * false_negative_weight
-            if error < min_error:
-                min_error = error
-                opt = (b, r)
+def args_parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--set1', '-s1', help='Source set')
+    parser.add_argument('--set2', '-s2', help='Target set')
+    parser.add_argument('--num_perm', type=int, default=128, help='Number of permutation')
+    parser.add_argument('--threshold', type=float, default=0.8, help='Threshold')
+    parser.add_argument('--n_gram', type=int, default=3, help='Number of Ngrams')
+    opt = parser.parse_args()
     return opt
 
 
-def generate_edges(nodes: List[int]) -> List[Tuple[int, int]]:
-    """
-    Generate edges from a cluster. Instead of generating N^2 edges, we only need all nodes align to a single node, since
-    we will be running connected components on the edges later.
-
-    Parameters
-    ----------
-    nodes : List[int]
-        The list of nodes in the cluster.
-
-    Returns
-    -------
-    List[Tuple[int, int]]
-        The list of edges.
-    """
-    if len(nodes) <= 1:
-        return []
-
-    min_node = min(nodes)
-    return [(n, min_node) for n in nodes if n != min_node]
-
-
-if __name__ == "__main__":
-
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Near-deduplicating BigQuery Table with PySpark")
-    parser.add_argument("--table", type=str, required=True, help="BigQuery table to deduplicate")
-    parser.add_argument("--threshold", type=float, default=0.7, help="Similarity threshold")
-    parser.add_argument("--min_ngram_size", type=int, default=5, help="Shorter docs will be removed")
-    parser.add_argument("--ngram_size", type=int, default=5, help="N-gram size")
-    parser.add_argument("--num_perm", type=int, default=256, help="Number of permutations")
-    parser.add_argument("--b", type=int, default=None, help="Number of bands")
-    parser.add_argument("--r", type=int, default=None, help="Number of rows per band")
-    parser.add_argument("--column", "-c", type=str, default="content", help="Column to deduplicate")
-    parser.add_argument("--output", "-o", type=str, required=True, help="Output directory")
-    args = parser.parse_args()
-
-    conf = SparkConf()
-    conf.set("spark.app.name", "MinHashLSH")
-    conf.set("spark.debug.maxToStringFields", "100")
-    spark = SparkSession.builder.config(conf=conf).getOrCreate()
-    log: Logger = spark.sparkContext._jvm.org.apache.log4j.LogManager.getLogger(__name__)  # type: ignore
-
-    if args.b is None or args.r is None:
-        B, R = optimal_param(args.threshold, args.num_perm)
-        log.info(f"Using optimal parameters: {B=}, {R=}")
-    else:
-        B, R = args.b, args.r
-
-    HASH_RANGES = [(i * R, (i + 1) * R) for i in range(B)]
-    PERMUTATIONS = np.array(
-        [
-            (
-                RNG.randint(1, MERSENNE_PRIME, dtype=np.uint64),
-                RNG.randint(0, MERSENNE_PRIME, dtype=np.uint64),
-            )
-            for _ in range(args.num_perm)
-        ],
-        dtype=np.uint64,
-    ).T
-
-    df = spark.read.format("bigquery").option("table", args.table).load()
-    df = df.withColumn("__id__", F.monotonically_increasing_id()).cache()
-    records = df.select("__id__", args.column).rdd
-    records = records.repartition(args.num_perm * 2).cache()
-
-    edges = (
-        records.flatMap(
-            lambda x: generate_hash_values(
-                content=x[1],
-                idx=x[0],
-                num_perm=args.num_perm,
-                ngram_size=args.ngram_size,
-                hashranges=HASH_RANGES,
-                permutations=PERMUTATIONS,
-                min_ngram_size=args.min_ngram_size,
-            )
-        )
-        .groupBy(lambda x: (x[0], x[1]))
-        .flatMap(lambda x: generate_edges([i[2] for i in x[1]]))
-        .distinct()
-        .cache()
-    )
-
-    a = edges
-    while True:
-        b = a.flatMap(large_star_map).groupByKey().flatMap(large_star_reduce).distinct().cache()
-        a = b.map(small_star_map).groupByKey().flatMap(small_star_reduce).distinct().cache()
-        changes = a.subtract(b).union(b.subtract(a)).collect()
-        if len(changes) == 0:
-            break
-
-    results = a.collect()
-    if len(results) == 0:
-        log.info("No components found.")
-        df.write.option(
-            "maxRecordsPerFile", 300_000
-        ).option(
-            "intermediateFormat", "orc"
-        ).parquet(args.output, mode="overwrite")
-        sys.exit(0)
-
-    components = spark.createDataFrame(results, schema=["__id__", "component"]).sort(["component", "__id__"])
-    components.show()
-    df = df.join(components, on="__id__", how="left")
-    df = df.filter(F.col("component").isNull()).drop("__id__", "component").cache()
-    df.write.option(
-        "maxRecordsPerFile", 300_000
-    ).option(
-        "intermediateFormat", "orc"
-    ).parquet(args.output, mode="overwrite")
+if __name__ == '__main__':
+    opt = args_parse()
+    mp.set_start_method("fork")
+    
+    # TODO: Load 2 sets, take code_tokens or docstring_tokens
+    with open(opt.set1, 'r') as file1:
+        src = list(file1)
+    with open(opt.set2, 'r') as file2:
+        tgt = list(file2)
+        
+    deduplicate(src, tgt, opt.threshold, opt.num_perm, opt.n_gram)
