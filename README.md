@@ -4,15 +4,10 @@
   <img src="./assets/the-vault-4-logo-png.png" width="300px" alt="logo">
 </p>
 
-<div align="center">
-<a href="https://arxiv.org/abs/2305.06156">Technical Report</a>
-</div>
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![arXiv](https://img.shields.io/badge/arXiv-2305.06156-b31b1b.svg)](https://arxiv.org/abs/2305.06156) [![The Vault on HuggingFace datasets](https://img.shields.io/badge/%F0%9F%A4%97%20Datasets-The%20Vault-yellow?style=flat)](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) 
 
-  
 # The Vault: A Comprehensive Multilingual Dataset for Advancing Code Understanding and Generation
 </div>
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![The Vault paper](https://img.shields.io/badge/math.CO-arXiv%3A2305.06156-B31B1B.svg)](https://arxiv.org/abs/2305.06156)
 
 ## Table of content
 - [The Vault Dataset](#the-vault-dataset)
@@ -37,6 +32,8 @@
 - [License](#license)
 
 ___________
+
+
 # The Vault Dataset
 ## Data Summary
 The Vault dataset is a comprehensive, large-scale, multilingual parallel dataset that features high-quality code-text pairs derived from The Stack, the largest permissively-licensed source code dataset.
@@ -52,383 +49,44 @@ Every sample of The Vault are stored in form of a json object and compressed int
 See detail of data fields and example for each type of set [Here](./data/README.md)
 
 ### Data Near-Deduplication
-We applied near-deduplication internal and  external with other dataset.
+We applied deduplication for internal and external.
 
-- **Internal**: Deduplicate similar sample in full dataset
-- **External**: Deduplicate similar sample with sample in test set of CodeSearchNet, HumanEval, APPS, CoDesc
+- **Internal**: Apply exact deduplicate in full dataset.
+- **External**: Apply near deduplicate with the test sets of CodeSearchNet, HumanEval and APPS.
 
-Near-deduplication use MinHash to clustering sample based on their code. Those sample are close to each other (even little modified forked version) can be detected. (The hash depend a lot on tokenizer, in our experiment, we use a simple tokenizer which seperate every character).
+*[Near-deduplication](https://chenghaomou.github.io/posts/20230220150602) use MinHash LSH to clustering sample based on their code. Those sample are close to each other (or even modified version) can be detected.
 
 ### Splitting train/eval/test
-Due to the large amount of samples in each language, we first decided to split eval and test set by 5% each, but this lead to huge amount of test set in some language (it will be 1M sample for Python test set and eval set).
+We have divided the complete dataset into three distinct sets: a training set, an evaluation set, and a test set, to maintain consistency throughout the experiment.
 
-Therefore, we decided to split 20k sample for each evaluation set. *These set are splitting to mimics the distribution (of code and docstring) in the full dataset.* 
+To avoid data leakage, we allocated all samples from the same repository to a singular set. We then subdivided these sets using code tokens as splitting factors. As a result, these subsets mirror the distribution of the full dataset.
 
-<details>
-  <summary>Function set</summary>
-  <table>
-    <thead>
-      <tr>
-        <th>Language</th>
-        <th>Train set  (w/ docstring)</th>
-        <th>Eval set (w/ docstring)</th>
-        <th>Test set (w/ docstring)</th>
-        <th>Train set (w/o docstring)</th>
-        <th>Eval set (w/o docstring)</th>
-        <th>Test set (w/o docstring)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Python</td>
-        <td>10,015,689</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>29,125,850</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>PHP</td>
-        <td>5,512,811</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>24,730,767</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>JavaScript</td>
-        <td>2,610,895</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>30,324,762</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>Java</td>
-        <td>7,990,528</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>61,673,653</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>C#</td>
-        <td>4,052,737</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>31,604,009</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>C++</td>
-        <td>1,941,459</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>26,662,941</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>C</td>
-        <td>1,976,979</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>11,706,009</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>Go</td>
-        <td>5,643,975</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>18,108,788</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>Rust</td>
-        <td>1,053,679</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>7,096,896</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>Ruby</td>
-        <td>544,038</td>
-        <td>20,000</td>
-        <td>20,000</td>
-        <td>3,718,153</td>
-        <td>20,000</td>
-        <td>20,000</td>
-      </tr>
-      <tr>
-        <td>Total</td>
-        <td>41,342,790</td>
-        <td>200,000</td>
-        <td>200,000</td>
-        <td>244,751,828</td>
-        <td>200,000</td>
-        <td>200,000</td>
-      </tr>
-    </tbody>
-    </table>
-</details>
 
 ### Splitting trainset into multiple subsets
-For convenience when experimenting, we continue split training dataset into 3 smaller subsets:
+Given the substantial size of our dataset, we found it beneficial to further divide the training set into two smaller subsets for ease of experimentation:
 
-- Small set (contains 5%)
-- Medium set (contains 20%)
-- Full set (contains 100%)
+- A small training set, which contains 5% of the total data.
+- A medium training set, comprising 20% of the full dataset.
+- (And) the full training set.
 
-<details>
-    <summary>Function set:</summary>
-    <table class="tg">
-    <thead>
-      <tr>
-        <th class="tg-7btt">Subset</th>
-        <th class="tg-7btt">Language</th>
-        <th class="tg-7btt">With docstring</th>
-        <th class="tg-7btt">Without docstring</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="tg-4erg">Small (5%)</td>
-        <td class="tg-0pky">Python</td>
-        <td class="tg-0pky">500,784</td>
-        <td class="tg-0pky">1,456,293</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">PHP</td>
-        <td class="tg-0pky">275,641</td>
-        <td class="tg-0pky">1,236,538</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">JavaScript</td>
-        <td class="tg-0pky">130,545</td>
-        <td class="tg-0pky">1,516,238</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Java</td>
-        <td class="tg-0pky">399,526</td>
-        <td class="tg-0pky">3,083,683</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C#</td>
-        <td class="tg-0pky">202,637</td>
-        <td class="tg-0pky">1,580,200</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C++</td>
-        <td class="tg-0pky">97,073</td>
-        <td class="tg-0pky">1,333,147</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C</td>
-        <td class="tg-0pky">98,849</td>
-        <td class="tg-0pky">585,300</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Go</td>
-        <td class="tg-0pky">282,199</td>
-        <td class="tg-0pky">905,439</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Rust</td>
-        <td class="tg-0pky">52,684</td>
-        <td class="tg-0pky">354,845</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Ruby</td>
-        <td class="tg-0pky">27,202</td>
-        <td class="tg-0pky">185,908</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Total</td>
-        <td class="tg-0pky">2,067,140</td>
-        <td class="tg-0pky">12,237,591</td>
-      </tr>
-      <tr>
-        <td class="tg-4erg">Medium(25%)</td>
-        <td class="tg-0pky">Python</td>
-        <td class="tg-0pky">2,503,922</td>
-        <td class="tg-0pky">7,281,463</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">PHP</td>
-        <td class="tg-0pky">1,378,203</td>
-        <td class="tg-0pky">6,182,692</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">JavaScript</td>
-        <td class="tg-0pky">652,724</td>
-        <td class="tg-0pky">7,581,191</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Java</td>
-        <td class="tg-0pky">1,997,632</td>
-        <td class="tg-0pky">15,418,413</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C#</td>
-        <td class="tg-0pky">1,013,184</td>
-        <td class="tg-0pky">7,901,002</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C++</td>
-        <td class="tg-0pky">485,365</td>
-        <td class="tg-0pky">6,665,735</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C</td>
-        <td class="tg-0pky">494,245</td>
-        <td class="tg-0pky">2,926,502</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Go</td>
-        <td class="tg-0pky">1,410,994</td>
-        <td class="tg-0pky">4,527,197</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Rust</td>
-        <td class="tg-0pky">263,420</td>
-        <td class="tg-0pky">1,774,224</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Ruby</td>
-        <td class="tg-0pky">136,010</td>
-        <td class="tg-0pky">929,538</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Total</td>
-        <td class="tg-0pky">10,335,698</td>
-        <td class="tg-0pky">61,187,957</td>
-      </tr>
-      <tr>
-        <td class="tg-4erg">Large(70%)</td>
-        <td class="tg-0pky">Python</td>
-        <td class="tg-0pky">7,010,982</td>
-        <td class="tg-0pky">20,388,095</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">PHP</td>
-        <td class="tg-0pky">3,858,968</td>
-        <td class="tg-0pky">17,311,537</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">JavaScript</td>
-        <td class="tg-0pky">1,827,627</td>
-        <td class="tg-0pky">21,227,333</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Java</td>
-        <td class="tg-0pky">5,593,370</td>
-        <td class="tg-0pky">43,171,557</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C#</td>
-        <td class="tg-0pky">2,836,916</td>
-        <td class="tg-0pky">22,122,806</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C++</td>
-        <td class="tg-0pky">1,359,021</td>
-        <td class="tg-0pky">18,664,059</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">C</td>
-        <td class="tg-0pky">1,383,885</td>
-        <td class="tg-0pky">8,194,206</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Go</td>
-        <td class="tg-0pky">3,950,783</td>
-        <td class="tg-0pky">12,676,152</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Rust</td>
-        <td class="tg-0pky">737,575</td>
-        <td class="tg-0pky">4,967,827</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Ruby</td>
-        <td class="tg-0pky">380,827</td>
-        <td class="tg-0pky">2,602,707</td>
-      </tr>
-      <tr>
-        <td class="tg-0pky"></td>
-        <td class="tg-0pky">Total</td>
-        <td class="tg-0pky">28,939,953</td>
-        <td class="tg-0pky">171,326,280</td>
-      </tr>
-    </tbody>
-    </table>
-</details>
-
-<details>
-  <summary>Class set:</summary>
-  Updating
-</details>
-
-<details>
-  <summary>Inline set</summary>
-  Updating
-</details>
+|            | **Training set** | **Medium set** | **Small set** | **Eval set** | **Test set** |
+|------------|:----------------:|:--------------:|:-------------:|:------------:|:------------:|
+| JavaScript |     2,499,494    |     620,680    |    139,449    |    33,477    |    29,187    |
+| Java       |     7,844,415    |    1,896,536   |    382,543    |    22,466    |    19,418    |
+| C          |     1,925,238    |     448,704    |    126,414    |    21,861    |    31,452    |
+| C++        |     1,893,104    |     467,834    |     96,474    |    20,155    |    21,699    |
+| Go         |     5,600,826    |    1,451,015   |    291,871    |    27,455    |    20,877    |
+| Ruby       |      501,586     |     132,735    |     28,821    |    23,222    |    20,059    |
+| Rust       |     1,029,481    |     281,017    |     42,424    |    27,346    |    19,761    |
+| C#         |     3,959,754    |     905,487    |    171,907    |    23,321    |    28,392    |
+| PHP        |     5,411,232    |    1,343,400   |    268,805    |    21,204    |    23,553    |
+| Python     |     9,800,153    |    2,469,819   |    450,297    |    25,609    |    68,096    |
+| _Total_    |   _40,465,283_   |  _10,017,227_  |  _1,999,005_  |   _246,116_  |   _282,494_  |
 
 ## Download dataset
-### Download Data from Azure blob storage
+### Load dataset
 
-Download the Data directly from Azure blob storage via download link. Here are the link pattern for specific download option:
-> https://ai4code.blob.core.windows.net/thevault/v1/{function, class, inline}/{python,java,javascript,go,cpp,c_sharp,c, rust, ruby, php}.zip
-
-For example, download *class* of *Python*:
-> https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip
-
-Or download using the script [`download_dataset.py`](./resources/download_dataset.py):
-```bash
-python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
-```
-### Load dataset from huggingface hub 
-
-We also publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on huggingface dataset hub.
+We publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on Huggingface dataset hub.
 
 ```python
 from datasets import load_dataset
@@ -450,8 +108,18 @@ data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"])
 for sample in iter(data['train']): 
     print(sample)
 ```
+### Download via link
 
-Note: We exlude some fields that are in the original The Stack dataset in the hub version and only keep the hexsha so you can trace back to the original file in The Stack (see [Data fields](./data/README.md)). To download the full data, see [Download Data from Azure blob storage](#downloading-data-from-azure-blob-storage).
+Or download the Vault directly from Azure blob storage via download link. Here are the link pattern for specific download option:
+> https://ai4code.blob.core.windows.net/thevault/v1/{function,class,inline}/{python,java,javascript,go,cpp,c_sharp,c,rust,ruby,php}.zip
+
+For example, download *class* of *Python*:
+> https://ai4code.blob.core.windows.net/thevault/v1/class/python.zip
+
+Or download using the script [`download_dataset.py`](./resources/download_dataset.py):
+```bash
+python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
+```
 
 # The Vault Toolkit
 ## Getting Started
