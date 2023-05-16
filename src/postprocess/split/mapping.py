@@ -5,25 +5,7 @@ import glob
 from tqdm import tqdm
 import multiprocessing as mp
 import pandas as pd
-
-
-def index_mapping(iterator):
-    sets, sample = iterator
-    sample = json.loads(sample)
-    for set_name, ids in sets.items():
-        if sample["id"] in ids:
-            return set_name, sample
-    return 'train', sample
-
-
-def index_mapping_iter(sample_iterator):
-    with mp.Pool() as pool:
-        for res in pool.imap_unordered(
-            index_mapping,
-            sample_iterator
-        ):
-            if res is not None:
-                yield res
+from argparse import ArgumentParser
 
 
 def processing(data_path, _idx):
@@ -41,14 +23,7 @@ def processing(data_path, _idx):
         ids = id_map['ID']
         sets['id'].extend(ids)
         sets['set_name'].extend([set_name]*len(ids))
-        # with open(path, 'r') as f:
-        #     reader = csv.reader(f)
-        #     ids = [row['ID'] for row in reader]
-        #     print(ids)
-        #     # sets.append([ids, set_name])
-        #     sets['id'].extend(ids)
-        #     sets['set_name'].extend([set_name]*len(ids))
-            # sets[set_name] = ids
+    
     writer_list['train'] = open(os.path.join(data_path, f"full_train.jsonl"), 'w')
     set_name_df = pd.DataFrame(sets, columns=['id', 'set_name'])
     
@@ -60,37 +35,45 @@ def processing(data_path, _idx):
             data_loaded = json.loads(data_point)
             dataframe.append([data_loaded['id'], data_point])
     content_df = pd.DataFrame(dataframe, columns=['id', 'str_sample'])
-    print("Shape of set_name dataframe: ", len(set_name_df))
-    print("Shape of content dataframe: ", len(content_df))
+    content_df = content_df.drop_duplicates(subset='id', keep="first")
 
-    print("Concating ...")
     result = pd.merge(set_name_df, content_df, on='id', how='outer')
     result['set_name'].fillna('train', inplace=True)
-    # result.to_csv(os.path.join(data_path, 'split_meta.csv'))
-    print("Done")
+    result.to_csv(os.path.join(data_path, 'split_meta.csv'))
 
-    for index, row in tqdm(result.iterrows(), total=len(result)): 
+
+    for index, row in tqdm(result.iterrows(), total=len(result), position=_idx, desc=language, leave=False):
         data_point = row['str_sample']
         set_name = row['set_name']
         writer_list[set_name].write(data_point)
-        # json.dump(data_point, writer_list[set_name])
-        # writer_list[set_name].write('\n')
+
         if set_name not in ['eval', 'test', 'train']:
-            # json.dump(data_point, writer_list['train'])
             writer_list['train'].write(data_point)
-        
+
+
+def parse_args():
+    parser = ArgumentParser(description='mapping dataset')
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        help="path to raw dataset",
+    )
     
-        # args = [(sets, item) for item in dataset]
-        # for set_name, data_point in tqdm(index_mapping_iter(args), desc=data_path, total=len(dataset), position=_idx, leave=False):
+    return parser.parse_args()
 
 
 def main():
-    data_path = "/datadrive/dungnm31/data/ext5"
-    languages = glob.glob(os.path.join(data_path, '*'))
+    opt = parse_args()
+    languages = glob.glob(os.path.join(opt.data_path, '*'))
     print(languages)
 
+    args = []
     for idx, _lang in enumerate(languages):
-        processing(_lang, idx)
+        args.append((_lang, idx))
+    
+    with mp.Pool(processes=10) as p:
+        result = p.starmap(processing, args)
+        
 
 
 if __name__ == "__main__":

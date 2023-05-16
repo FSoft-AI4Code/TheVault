@@ -76,7 +76,7 @@ def merge_files(args):
     metadata = []
     
     with open(output_filename, 'w') as outfile:
-        for filename in tqdm(file_list, position=idx, desc=f'Merging files in {data_path}'):
+        for filename in tqdm(file_list, position=idx, desc=f'Merging files in {data_path}', leave=False):
             with open(filename, 'r') as infile:
                 dataset = list(infile)
                 for line in dataset:
