@@ -69,7 +69,7 @@ Given the substantial size of our dataset, we found it beneficial to further div
 - A medium training set, comprising 20% of the full dataset.
 - (And) the full training set.
 
-|            | Small       | Medium       | Train      | validation | test   | total         |
+|            | Small set   | Medium set   | Train set  | Validation | Test   | Total         |
 |:-----------|------------:|-------------:|-----------:|-----------:|-------:|--------------:|
 |Python      |   370,657   |  1,952,110   | 7,772,647  | 30,992     | 21,652 | 7,825,291     |
 |Java        |   351,213   |  1,612,366   | 6,629,193  | 22,677     | 15,552 | 6,667,422     |
