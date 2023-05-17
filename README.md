@@ -19,8 +19,8 @@
     - [Splitting Train/Eval/Test](#splitting-trainevaltest)
     - [Splitting Train set](#splitting-trainset-into-multiple-subsets)
   - [Download Dataset](#download-dataset)
-    - [Download Data from Azure blob storage](#download-data-from-azure-blob-storage)
-    - [Load dataset from huggingface hub](#load-dataset-from-huggingface-hub)
+    - [Load dataset on Huggingface](#load-dataset-on-huggingface)
+    - [Download via link](#download-via-link)
 - [The Vault toolkit](#the-vault-toolkit)
   - [Getting Started](#getting-started)
   - [Processing Pipeline](#processing-pipeline)
@@ -84,7 +84,7 @@ Given the substantial size of our dataset, we found it beneficial to further div
 |TOTAL       | 1,702,750   |  8,356,097   |33,673,594  |222,567     |202,614 |**34,098,775** |
 
 ## Download dataset
-### Load dataset
+### Load dataset on Huggingface
 
 We publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on Huggingface dataset hub.
 
