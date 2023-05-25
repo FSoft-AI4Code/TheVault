@@ -1,39 +1,59 @@
 from datasets import load_dataset
-from codetext.parser import GoParser, JavascriptParser, JavaParser, PythonParser, CppParser
+from codetext.parser import *
 from codetext.parser.language_parser import tokenize_code
 from codetext.utils import parse_code
 import json
 from tqdm import tqdm
 
 
-# HumanEvallanguage = "java"
-humaneval = load_dataset("THUDM/humaneval-x", "js")
-for set_name in ['test']: #, 'train']:
-    writer = open(f'./javascript.jsonl', 'w')
-    dataset = humaneval[set_name]
-    _fail = 0
+# HumanEval
+language = 'javascript'
+fail = 0
+humaneval = load_dataset("THUDM/humaneval-x", 'js')
+humaneval_test = humaneval['test']
 
-    for data in tqdm(dataset, total=len(dataset)):
-        # try:
-        # code = json.loads(data['solutions'])[0]
-        code = data['declaration'] + data['canonical_solution']
-        node = parse_code(code, 'java').root_node
+dataset = []
 
-        fn = JavascriptParser.get_function_list(node)
-        print(fn)
-        if len(fn) > 0:
-            docstring = JavascriptParser.get_comment_node(fn[0])
-            data['code_tokens'] = tokenize_code(fn[0], code, docstring)
-        else:
-            docstring = JavascriptParser.get_comment_node(node)
-            data['code_tokens'] = tokenize_code(node, code, docstring)
+if language == 'python':
+    parser = PythonParser
+elif language == 'go':
+    parser = GoParser
+elif language == 'js' or language == 'javascript':
+    parser = JavascriptParser
+elif language == 'java':
+    parser = JavaParser
+elif language == 'cpp':
+    parser = CppParser
 
-        json.dump(data, writer)
-        writer.write('\n')
-            
-        # except Enue
+for data in tqdm(humaneval_test, total=len(humaneval_test)):
+    idx = data['task_id']
+    code = data['declaration'] + data['canonical_solution'] # only for java
+    # docstring = data['prompt']
     
-    print('Fail', _fail)
+    node = parse_code(code, language).root_node
+    fn = parser.get_function_list(node)
+    
+    if len(fn) > 0:
+        node = fn[0]
+    docstring_node = parser.get_docstring_node(node)
+    # docstring = '\n'.join([get_node_text(_node) for _node in docstring_node])
+    if docstring_node:
+        docstring = get_node_text(docstring_node[0])
+    else:
+        docstring = data['prompt']
+    code_token = tokenize_code(node, code, docstring_node)
+    
+    dataset.append({
+        'id': idx, 
+        'docstring': docstring, 
+        'code': get_node_text(node),
+        'code_tokens': code_token
+    })
+    
+with open(f'./eval/{language}.jsonl', 'w') as writer:
+    for item in dataset:
+        json.dump(item, writer)
+        writer.write('\n')
     
 # data_path = ""
 # for set_name in ['test', 'train']:

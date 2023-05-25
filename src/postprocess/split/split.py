@@ -20,7 +20,8 @@ def train_test_stratified_sampling(dataframe_path, split_train=False):
     dataframe = dataframe.drop_duplicates(subset='ID', keep="first")
     af = len(dataframe)
     data = dataframe.copy(deep=True)
-    print(f"{dataframe_path}: Before {bf} | After {af}")
+    if not split_train:
+        print(f"{dataframe_path}: Before {bf} | After {af}")
     
     data = data.groupby(['Repo Name'])[['Code Length', 'Docs Length']].mean().reset_index()
     data['CL_bin'] = pd.qcut(data['Code Length'], 10, labels=False)
@@ -65,9 +66,8 @@ def train_test_stratified_sampling(dataframe_path, split_train=False):
     grouped['train'].to_csv(f'{save_name}{set_name[0]}.csv', index=False)
     grouped['eval'].to_csv(f'{save_name}{set_name[1]}.csv', index=False)
     grouped['test'].to_csv(f'{save_name}{set_name[2]}.csv', index=False)
-    print(f"Split train: {split_train} | {set_name[0]}: {len(grouped['train'])} | {set_name[1]}: {len(grouped['eval'])} | {set_name[2]}: {len(grouped['test'])}")
-    
-    print(f"""Done splitting {os.path.basename(os.path.normpath(dataframe_path))}""")
+    print(f"Split {os.path.basename(os.path.normpath(dataframe_path))} train: {split_train} | {set_name[0]}: {len(grouped['train'])} | {set_name[1]}: {len(grouped['eval'])} | {set_name[2]}: {len(grouped['test'])}")
+
 
 
 def train_test_split_wrapper(args):

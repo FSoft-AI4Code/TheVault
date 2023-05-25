@@ -1,7 +1,8 @@
 # Data format
 
 ## Function-level and Class-level
-- **hexsha** unique git hash of file
+- **id** unique SHA256 hash of the sample
+- **hexsha** unique git hash of (source) file
 - **repo** the owner/repo
 - **path** the full path to the original file
 - **license** repo license

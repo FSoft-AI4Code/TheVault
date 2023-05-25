@@ -12,6 +12,7 @@ src/codetext.egg-info/*
 *.so
 *.whl
 *.jsonl
+*.sh
 
 /models
 /.neptune/
