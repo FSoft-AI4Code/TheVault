@@ -53,17 +53,28 @@ def calculate_minhash(idx, tokens, num_perm=128):
 def calculate_minhash_iter(dataset, ngram):
     args = []
     for item in dataset:
-        item = json.loads(item)
-        idx = item['id']
+        try:
+            item = json.loads(item)
+        except Exception:
+            continue
+        
+        if 'id' in item:
+            idx_name = "id"
+        elif 'task_id' in item:
+            idx_name = "task_id"
+        elif 'problem_id' in item:
+            idx_name = "problem_id"
+            
+        idx = item[idx_name]
         content = item['code_tokens']
         args.append((idx, [" ".join(t) for t in ngrams(content, ngram)]))
 
     hash_result = []
     with mp.Pool() as p:
-        with tqdm(total=len(args)) as pbar:
-            for res in p.starmap(calculate_minhash, args):
-                hash_result.append(res)
-                pbar.update()
+        # with tqdm(total=len(args)) as pbar:
+        hash_result = p.starmap(calculate_minhash, tqdm(args, total=len(args)))
+                # hash_result.append(res)
+                # pbar.update()
             # hash_result = p.starmap(calculate_minhash, args)
     
     return hash_result
@@ -78,7 +89,13 @@ def insert_minhash_lsh(hash_dict: Dict, threshold: float = 0.7, num_perm: int = 
     return lsh
 
 
-def deduplicate(set1: List, set2: List, threshold: float, num_perm: int = 128, ngram: int = 3):
+def deduplicate(
+    set1: List, 
+    set2: List, 
+    threshold: float, 
+    num_perm: int = 128, 
+    ngram: int = 3,
+    save_name: str = "deduplicate_info.jsonl"):
     """
     Compare duplicate sample in set1 and set2.
     We consider set1 as source set and compare each sample in set1 (which should
@@ -110,16 +127,14 @@ def deduplicate(set1: List, set2: List, threshold: float, num_perm: int = 128, n
     for idx, val in set2_hash:
         res = lsh.query(val)
         if res:
-            print(res)
             duplicate_info.append({'tgt': idx, 'src': res})
             # duplicate_info[idx] = res
     
-    print(duplicate_info)
     if len(res) < 1:
         print("Not find any duplicated sample")
     else:
         # TODO: save duplicate_info as 
-        with open("./deduplicate_info.jsonl", 'w') as writer:
+        with open(f"./{save_name}", 'w') as writer:
             for item in duplicate_info:
                 json.dump(item, writer)
                 writer.write('\n')
@@ -132,6 +147,7 @@ def args_parse():
     parser.add_argument('--num_perm', type=int, default=128, help='Number of permutation')
     parser.add_argument('--threshold', type=float, default=0.8, help='Threshold')
     parser.add_argument('--n_gram', type=int, default=3, help='Number of Ngrams')
+    parser.add_argument('--save_name', type=str, default="deduplicate_info.jsonl")
     opt = parser.parse_args()
     return opt
 
@@ -140,10 +156,10 @@ if __name__ == '__main__':
     opt = args_parse()
     mp.set_start_method("fork")
     
-    # TODO: Load 2 sets, take code_tokens or docstring_tokens
+    print("Deduplication for", opt.set1)
     with open(opt.set1, 'r') as file1:
         src = list(file1)
     with open(opt.set2, 'r') as file2:
         tgt = list(file2)
         
-    deduplicate(src, tgt, opt.threshold, opt.num_perm, opt.n_gram)
+    deduplicate(src, tgt, opt.threshold, opt.num_perm, opt.n_gram, opt.save_name)

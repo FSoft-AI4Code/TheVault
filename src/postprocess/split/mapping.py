@@ -24,7 +24,7 @@ def processing(data_path, _idx):
         sets['id'].extend(ids)
         sets['set_name'].extend([set_name]*len(ids))
     
-    writer_list['train'] = open(os.path.join(data_path, f"full_train.jsonl"), 'w')
+    writer_list['train'] = open(os.path.join(data_path, f"full_train.jsonl"), 'w')  # Must be write
     set_name_df = pd.DataFrame(sets, columns=['id', 'set_name'])
     
     # dataframe = {"id": [], "str_sample": []}
@@ -39,7 +39,7 @@ def processing(data_path, _idx):
 
     result = pd.merge(set_name_df, content_df, on='id', how='outer')
     result['set_name'].fillna('train', inplace=True)
-    result.to_csv(os.path.join(data_path, 'split_meta.csv'))
+    # result.to_csv(os.path.join(data_path, 'split_meta.csv'))
 
 
     for index, row in tqdm(result.iterrows(), total=len(result), position=_idx, desc=language, leave=False):
@@ -69,10 +69,11 @@ def main():
 
     args = []
     for idx, _lang in enumerate(languages):
-        args.append((_lang, idx))
+        # args.append((_lang, idx))
+        processing(_lang, idx)
     
-    with mp.Pool(processes=10) as p:
-        result = p.starmap(processing, args)
+    # with mp.Pool(processes=10) as p:
+    #     result = p.starmap(processing, args)
         
 
 
