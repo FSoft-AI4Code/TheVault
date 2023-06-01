@@ -105,7 +105,7 @@ dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train/small"]
 dataset = load_dataset("Fsoft-AIC/the-vault-function", split_set=["train"], languages=['Python'])
 
 # dataset streaming
-data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"])
+data = load_dataset("Fsoft-AIC/the-vault-function", split_set= ["train"], streaming= True)
 for sample in iter(data['train']): 
     print(sample)
 ```
