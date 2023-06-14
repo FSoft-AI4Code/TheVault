@@ -75,7 +75,7 @@ def main(opt):
     
     res = []
     if opt.debug: # for debuging
-        processing(dataset, jobs_list[0], opt)
+        res.append(processing(dataset, jobs_list[0], opt))
     else:
         executor = multiprocessing.Pool(n_worker)
         # executor.starmap(processing, args)
@@ -84,8 +84,8 @@ def main(opt):
     
     res = [sum(x) for x in zip(*res)]
     finish = time.perf_counter()
-    logger.info("\n\n============ Processing done, finished in %.3f seconds ============" % (finish - start))
-    logger.info("Level {}: Total Raw {} | Filterable {} | Extractable {} \n".format(opt.level, *res))
+    logger.info("============ Processing done, finished in %.3f seconds ============" % (finish - start))
+    logger.info("Level {}: Total Raw {} | Filterable {} | Extractable {}".format(opt.level, *res))
 
 
 def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, is_file=None):
@@ -143,7 +143,7 @@ def processing(dataset, job_index, opt, idx=1): #language, save_path, idx=None, 
         os.makedirs(path, exist_ok = True)
 
     list_res = extracting(dataset, job_index, ast_parser, language_parser, idx, opt)
-    
+
     t_finish = time.perf_counter()
     
     logger.info("Saved batch %i | Processing took %.3f s\n" % (idx, t_finish - t_start))
@@ -206,7 +206,7 @@ def extracting(dataset, indexs, ast, lang_parser, thread_idx, opt):
         elif opt.level == 'class':
             if not str(language).lower() in ['go', 'c']:
                 raw_class = list(process_raw_node(tree, raw_code, lang_parser, metadata_data, is_class=True))
-                filtered_class_list = list(get_node_definitions(raw_class, raw_code))
+                filtered_class_list = list(get_node_definitions(raw_class))
                 extracted_class_list = list(extract_node(filtered_class_list, language))
             
                 raw_set.extend(raw_class)    

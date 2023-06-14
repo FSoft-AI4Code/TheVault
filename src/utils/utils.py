@@ -12,7 +12,7 @@ from tree_sitter import Language, Parser
 from codetext.utils import module_available
 from codetext.clean import remove_comment_delimiters
 from codetext.parser.language_parser import match_from_span, match_from_spans, tokenize_code, tokenize_docstring
-from utils.noise_removal.noise_removal import check_function, clean_docstring
+from src.utils.noise_removal import check_function, clean_docstring
 
 
 _DOCSTRING_PARSER_AVAILABLE = module_available("docstring_parser")
@@ -198,19 +198,14 @@ def process_raw_node(tree, blob: str, language_parser, metadata, is_class=False)
             comment_list = [match_from_span(cmt, blob) for cmt in comment_nodes]
             
             # Check length after remove all comment node inside
-            code_remove_comment = ''
-            for line in str(code).splitlines():
-                include = False
-                for cline in comment_list:
-                    if cline in line:
-                        include = True
-                if not include:
-                    code_remove_comment += f'\n{line}'
-
-            code_remove_comment_line = sum([1 if line != '' else 0 \
-                for line in str(code_remove_comment).splitlines()])
-            if code_remove_comment_line < 3:
+            for cmt in comment_list:
+                code = code.replace(cmt, '')
+                
+            lines = [line for line in code.splitlines() if line.strip()]
+            if len(lines) < 3:
                 continue
+            code = '\n'.join(lines)
+            
 
         except Exception as e:
             print(e)
@@ -295,7 +290,10 @@ def get_line_definitions(tree, blob: str, language_parser, source_metadata):
                 - 'comment'
                 - 'comment_tokens'
         """
-        function_list = language_parser.get_function_list(tree.root_node)
+        try:
+            function_list = language_parser.get_function_list(tree.root_node)
+        except RecursionError:
+            return []
         
         for function_node in function_list:
             comment_nodes = language_parser.get_comment_node(function_node)
