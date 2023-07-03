@@ -92,7 +92,7 @@ We publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-funct
 ```python
 from datasets import load_dataset
 
-# Load full function level dataset (40M samples)
+# Load full function level dataset (34M samples)
 dataset = load_dataset("Fsoft-AIC/the-vault-function")
 
 # Load function level train/validation/test set
