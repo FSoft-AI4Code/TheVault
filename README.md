@@ -294,4 +294,4 @@ If you have any questions, comments or suggestions, please do not hesitate to co
 - Email: support.ailab@fpt.com
 
 # License
-[MIT License](LICENSE.txt)
+[MIT License](LICENSE)
