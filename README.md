@@ -87,7 +87,7 @@ Given the substantial size of our dataset, we found it beneficial to further div
 ## Download dataset
 ### Load dataset on Huggingface
 
-We publish [The Vault](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) on Huggingface dataset hub.
+We publish The Vault ([function](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function)/[inline](https://huggingface.co/datasets/Fsoft-AIC/the-vault-inline)/class) on Huggingface dataset hub.
 
 ```python
 from datasets import load_dataset
@@ -121,6 +121,8 @@ Or download using the script [`download_dataset.py`](./resources/download_datase
 ```bash
 python download_dataset.py "<path/to/destination>" --set "function" # or class/inline
 ```
+
+_Note: blob link currently only contains function-level version_
 
 # The Vault Toolkit
 ## Getting Started
