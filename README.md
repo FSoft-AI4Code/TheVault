@@ -87,7 +87,7 @@ Given the substantial size of our dataset, we found it beneficial to further div
 ## Download dataset
 ### Load dataset on Huggingface
 
-We publish The Vault ([function](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function)/[inline](https://huggingface.co/datasets/Fsoft-AIC/the-vault-inline)/class) on Huggingface dataset hub.
+We publish The Vault ([function](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function)/[inline](https://huggingface.co/datasets/Fsoft-AIC/the-vault-inline)/[class](https://huggingface.co/datasets/Fsoft-AIC/the-vault-class)) on Huggingface dataset hub.
 
 ```python
 from datasets import load_dataset
