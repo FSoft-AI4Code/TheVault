@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <img src="./assets/TheVault-Poster.png" width="300px" alt="logo">
+  <img src="./assets/the-vault-4-logo-png.png" width="300px" alt="logo">
 </p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Python 3.8](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![arXiv](https://img.shields.io/badge/arXiv-2305.06156-b31b1b.svg)](https://arxiv.org/abs/2305.06156) [![The Vault on HuggingFace datasets](https://img.shields.io/badge/%F0%9F%A4%97%20Datasets-The%20Vault-yellow?style=flat)](https://huggingface.co/datasets/Fsoft-AIC/the-vault-function) 
@@ -40,7 +40,7 @@ The Vault dataset is a comprehensive, large-scale, multilingual parallel dataset
 
 We provide The Vault which contains code snippets from 10 popular programming languages such as Java, JavaScript, Python, Ruby, Rust, Golang, C#, C++, C, and PHP. This dataset provides multiple code-snippet levels, metadata, and 11 docstring styles for enhanced usability and versatility.
 
-![Something something](./assets/poster.jpg)
+![Something something](./assets/TheVault-Poster.png)
 ## Data Structure
 ### Data Instances
 Every sample of The Vault are stored in form of a json object and compressed into a large json line file. Each sample corresponds to one raw code file. The content of the file are used to extracting function, class and inline set, other information (repository name, licenses, etc) are collected from source dataset (The Stack).
