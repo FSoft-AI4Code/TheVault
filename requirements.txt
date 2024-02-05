@@ -7,7 +7,7 @@ tree-sitter
 Levenshtein
 langdetect
 bs4
-
+codetext==0.0.8
 # for post-processing
 # cloc
 yaml
